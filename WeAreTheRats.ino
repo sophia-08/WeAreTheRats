@@ -1,6 +1,7 @@
 #include <LSM6DS3.h>
 #include <Wire.h>
 #include <bluefruit.h>
+#include <MadgwickAHRS.h>  // Madgwick 1.2.0 by Arduino
 
 #include <TensorFlowLite.h>
 #include <tensorflow/lite/micro/all_ops_resolver.h>
@@ -11,7 +12,7 @@
 
 #include "model.h"
 
-const float accelerationThreshold = 2.5; // threshold of significant in G's
+const float accelerationThreshold = 2.5;  // threshold of significant in G's
 const int numSamples = 119;
 
 int samplesRead = numSamples;
@@ -19,7 +20,11 @@ int samplesRead = numSamples;
 BLEDis bledis;
 BLEHidAdafruit blehid;
 
-LSM6DS3 myIMU(I2C_MODE, 0x6A);  
+LSM6DS3 myIMU(I2C_MODE, 0x6A);
+Madgwick filter;  // Madgwick filter
+float roll, pitch, yaw;             // attitude
+float aX, aY, aZ, gX, gY, gZ;
+uint8_t readData;                   // for reading IMU register
 
 // global variables used for TensorFlow Lite (Micro)
 tflite::MicroErrorReporter tflErrorReporter;
@@ -49,21 +54,35 @@ const char* GESTURES[] = {
 
 void setup() {
   Serial.begin(9600);
-  while (!Serial);
+  while (!Serial)
+    ;
 
+  // initialize and set IMU
+  // refer to   LSM6D3.cpp:351
+  myIMU.settings.gyroRange = 2000;  // calcGyro()
+  myIMU.settings.accelRange = 4;    // calcAccel()
   if (myIMU.begin() != 0) {
-    Serial.println("Device error");
-  } else {
-    Serial.println("Device OK!");
+    Serial.println("IMU Device error");
+    while (1)
+      ;
   }
+  Wire1.setClock(400000UL);  //SCL 400kHz
 
-  Serial.println();
+  // change defalt settings, refer to data sheet 9.13, 9.14, 9.19, 9.20
+  // myIMU.writeRegister(LSM6DS3_ACC_GYRO_CTRL2_G, 0x1C);   // 12.5Hz 2000dps
+  // myIMU.writeRegister(LSM6DS3_ACC_GYRO_CTRL1_XL, 0x1A);  // 12.5Hz 4G
+  // myIMU.writeRegister(LSM6DS3_ACC_GYRO_CTRL7_G, 0x00);   // HPF 16mHz
+  // myIMU.writeRegister(LSM6DS3_ACC_GYRO_CTRL8_XL, 0x09);  // ODR/4
+
+  // Maadgwick filter sampling rate
+  filter.begin(12.5);
 
   // get the TFL representation of the model byte array
   tflModel = tflite::GetModel(model);
   if (tflModel->version() != TFLITE_SCHEMA_VERSION) {
     Serial.println("Model schema mismatch!");
-    while (1);
+    while (1)
+      ;
   }
 
   // Create an interpreter to run the model
@@ -76,13 +95,14 @@ void setup() {
   tflInputTensor = tflInterpreter->input(0);
   tflOutputTensor = tflInterpreter->output(0);
 
-    Bluefruit.begin();
+  Bluefruit.begin();
   // HID Device can have a min connection interval of 9*1.25 = 11.25 ms
   Bluefruit.Periph.setConnInterval(9, 16);  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
   Bluefruit.setTxPower(4);                  // Check bluefruit.h for supported values
+  Bluefruit.setName("WeAreTheRats");
 
-  // Configure and Start Device Information Service
-  bledis.setManufacturer("Adafruit Industries");
+    // Configure and Start Device Information Service
+    bledis.setManufacturer("Adafruit Industries");
   bledis.setModel("Bluefruit Feather 52");
   bledis.begin();
 
@@ -121,70 +141,86 @@ void startAdv(void) {
   Bluefruit.Advertising.start(0);              // 0 = Don't stop advertising after n seconds
 }
 
+void readIMU() {
+  // wait for IMU data to become valid
+  // sample rate is 12.5Hz, so can read every 80mS
+  do {
+    myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
+  } while ((readData & 0x07) != 0x07);
+
+  // digitalWrite(LED_RED, LOW);   // data read and send task indicator ON
+
+  aX = myIMU.readFloatAccelX();  // Accel data
+  aY = myIMU.readFloatAccelY();
+  aZ = myIMU.readFloatAccelZ();
+  gX = myIMU.readFloatGyroX();  // Gyro data
+  gY = myIMU.readFloatGyroY();
+  gZ = myIMU.readFloatGyroZ();
+}
+
+void storeData() {
+  // normalize the IMU data between 0 to 1 and store in the model's
+  // input tensor
+  tflInputTensor->data.f[samplesRead * 6 + 0] = (aX + 4.0) / 8.0;
+  tflInputTensor->data.f[samplesRead * 6 + 1] = (aY + 4.0) / 8.0;
+  tflInputTensor->data.f[samplesRead * 6 + 2] = (aZ + 4.0) / 8.0;
+  tflInputTensor->data.f[samplesRead * 6 + 3] = (gX + 2000.0) / 4000.0;
+  tflInputTensor->data.f[samplesRead * 6 + 4] = (gY + 2000.0) / 4000.0;
+  tflInputTensor->data.f[samplesRead * 6 + 5] = (gZ + 2000.0) / 4000.0;
+}
 
 void loop() {
-  float aX, aY, aZ, gX, gY, gZ;
-  Serial.println("loop");
-blehid.mouseMove(20, 50);
 
+  // Serial.println("loop");
+  blehid.mouseMove(20, 50);
+  readIMU();
   // wait for significant motion
-  while (samplesRead == numSamples) {
-      // read the acceleration data
-      aX = myIMU.readFloatAccelX();
-      aY = myIMU.readFloatAccelY();
-      aZ = myIMU.readFloatAccelZ();
+  if (samplesRead == numSamples) {
 
-      // sum up the absolutes
-      float aSum = fabs(aX) + fabs(aY) + fabs(aZ);
 
-      // check if it's above the threshold
-      if (aSum >= accelerationThreshold) {
-        // reset the sample read count
-        samplesRead = 0;
-        break;
-      }
+    // sum up the absolutes
+    float aSum = fabs(aX) + fabs(aY) + fabs(aZ);
+
+    // check if it's above the threshold
+    if (aSum >= accelerationThreshold) {
+      // reset the sample read count
+      samplesRead = 0;
+
+    } else {
+      return;
+    }
   }
+  storeData();
+        // calculate the attitude with Madgwick filter
+      filter.updateIMU(gX, gY, gZ, aX, aY, aZ);
+
+      roll = filter.getRoll();    // -180 ~ 180deg
+      pitch = filter.getPitch();  // -180 ~ 180deg
+      yaw = filter.getYaw();      // 0 -3 60deg
 
   // check if the all the required samples have been read since
   // the last time the significant motion was detected
   while (samplesRead < numSamples) {
-    // check if new acceleration AND gyroscope data is available
-      // read the acceleration and gyroscope data
-      aX = myIMU.readFloatAccelX();
-      aY = myIMU.readFloatAccelY();
-      aZ = myIMU.readFloatAccelZ();
-
-      gX = myIMU.readFloatGyroX();
-      gY = myIMU.readFloatGyroY();
-      gZ = myIMU.readFloatGyroZ();
-
-      // normalize the IMU data between 0 to 1 and store in the model's
-      // input tensor
-      tflInputTensor->data.f[samplesRead * 6 + 0] = (aX + 4.0) / 8.0;
-      tflInputTensor->data.f[samplesRead * 6 + 1] = (aY + 4.0) / 8.0;
-      tflInputTensor->data.f[samplesRead * 6 + 2] = (aZ + 4.0) / 8.0;
-      tflInputTensor->data.f[samplesRead * 6 + 3] = (gX + 2000.0) / 4000.0;
-      tflInputTensor->data.f[samplesRead * 6 + 4] = (gY + 2000.0) / 4000.0;
-      tflInputTensor->data.f[samplesRead * 6 + 5] = (gZ + 2000.0) / 4000.0;
-
-      samplesRead++;
-
-      if (samplesRead == numSamples) {
-        // Run inferencing
-        TfLiteStatus invokeStatus = tflInterpreter->Invoke();
-        if (invokeStatus != kTfLiteOk) {
-          Serial.println("Invoke failed!");
-          while (1);
-          return;
-        }
-
-        // Loop through the output tensor values from the model
-        for (int i = 0; i < NUM_GESTURES; i++) {
-          Serial.print(GESTURES[i]);
-          Serial.print(": ");
-          Serial.println(tflOutputTensor->data.f[i], 6);
-        }
-        Serial.println();
-      }
+    samplesRead++;
+    readIMU();
+    storeData();
   }
+
+  // Run inferencing
+  TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+  if (invokeStatus != kTfLiteOk) {
+    Serial.println("Invoke failed!");
+    while (1)
+      ;
+    return;
+  }
+
+  // Loop through the output tensor values from the model
+  for (int i = 0; i < NUM_GESTURES; i++) {
+    Serial.print(GESTURES[i]);
+    Serial.print(": ");
+    Serial.println(tflOutputTensor->data.f[i], 6);
+  }
+  Serial.println();
+
 }
