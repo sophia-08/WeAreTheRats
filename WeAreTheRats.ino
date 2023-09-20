@@ -68,10 +68,6 @@ void setup() {
   while (!Serial)
     ;
 
-  // initialize and set IMU
-  // refer to   LSM6D3.cpp:351
-  // myIMU.settings.gyroRange = 2000;  // calcGyro()
-  // myIMU.settings.accelRange = 4;    // calcAccel()
   if (myIMU.begin() != 0) {
     Serial.println("IMU Device error");
     while (1)
