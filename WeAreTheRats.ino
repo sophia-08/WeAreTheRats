@@ -230,13 +230,19 @@ bool readIMU() {
 
   uint8_t data[12];
   myIMU.readRegisterRegion(data, 0x22, 12);
-  int16_t* p=( int16_t*)data;
-  gyroX = *p * 2000.0  / 32768.0; p++;
-  gyroY = *p * 2000.0  / 32768.0; p++;
-  gyroZ = *p * 2000.0  / 32768.0; p++;
-  accelX = *p * 4.0 / 32768.0; p++;
-  accelY = *p * 4.0 / 32768.0; p++;
-  accelZ = *p * 4.0 / 32768.0; p++;
+  int16_t* p = (int16_t*)data;
+  gyroX = *p * 2000.0 / 32768.0;
+  p++;
+  gyroY = *p * 2000.0 / 32768.0;
+  p++;
+  gyroZ = *p * 2000.0 / 32768.0;
+  p++;
+  accelX = *p * 4.0 / 32768.0;
+  p++;
+  accelY = *p * 4.0 / 32768.0;
+  p++;
+  accelZ = *p * 4.0 / 32768.0;
+  p++;
   // Serial.print(data[0],HEX);Serial.print(",");Serial.print(data[1],HEX);Serial.print(",");Serial.println(gyroX);
   // Serial.print(data[6],HEX);Serial.print(",");Serial.print(data[7],HEX);Serial.print(",");Serial.println(accelX);
   //   accelX = myIMU.readFloatAccelX();  // Accel data
@@ -265,12 +271,12 @@ void loop() {
   // blehid.mouseMove(20, 50);
   readIMU();
 
-      long currentTime = micros();
-    lastInterval = currentTime - lastTime; // expecting this to be ~104Hz +- 4%
-    lastTime = currentTime;
+  long currentTime = micros();
+  lastInterval = currentTime - lastTime;  // expecting this to be ~104Hz +- 4%
+  lastTime = currentTime;
 
-    doCalculations();
-    printCalculations();
+  doCalculations();
+  printCalculations();
   // wait for significant motion
   // if (samplesRead == numSamples) {
 
@@ -291,9 +297,9 @@ void loop() {
   // calculate the attitude with Madgwick filter
   filter.updateIMU(gyroX, gyroY, gyroZ, accelX, accelY, accelZ);
 
-        roll = filter.getRoll();    // -180 ~ 180deg
-        pitch = filter.getPitch();  // -180 ~ 180deg
-        yaw = filter.getYaw() - 180;      // 0 - 360deg
+  roll = filter.getRoll();      // -180 ~ 180deg
+  pitch = filter.getPitch();    // -180 ~ 180deg
+  yaw = filter.getYaw() - 180;  // 0 - 360deg
 
   // Serial.print(roll);Serial.print(",");
   // Serial.print(pitch);Serial.print(",");
@@ -332,7 +338,7 @@ void doCalculations() {
   accRoll = atan2(accelY, accelZ) * 180 / M_PI;
   accPitch = atan2(-accelX, sqrt(accelY * accelY + accelZ * accelZ)) * 180 / M_PI;
 
-  float lastFrequency = (float) 1000000.0 / lastInterval;
+  float lastFrequency = (float)1000000.0 / lastInterval;
   gyroRoll = gyroRoll + (gyroX / lastFrequency);
   gyroPitch = gyroPitch + (gyroY / lastFrequency);
   gyroYaw = gyroYaw + (gyroZ / lastFrequency);
