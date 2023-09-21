@@ -11,14 +11,15 @@
 //#include <tensorflow/lite/version.h>
 
 #include "model.h"
-
+#define MOUSE_REPORT_ID 1
 const float accelerationThreshold = 2.5;  // threshold of significant in G's
 const int numSamples = 119;
 
 int samplesRead = numSamples;
 
 BLEDis bledis;
-BLEHidAdafruit blehid;
+BLEHidGeneric blehid = BLEHidGeneric(1);
+;
 
 LSM6DS3 myIMU(I2C_MODE, 0x6A);
 Madgwick filter;                                            // Madgwick filter
@@ -34,8 +35,41 @@ long lastTime;
 long lastInterval;
 uint8_t readData;
 
+float roll0, pitch0, yaw0;
 float roll, pitch, yaw;
-
+// we use our own descriptor because we want absolute mouse positioning
+uint8_t const hid_report_descriptor[] = {
+  HID_USAGE_PAGE(HID_USAGE_PAGE_DESKTOP),
+  HID_USAGE(HID_USAGE_DESKTOP_MOUSE),
+  HID_COLLECTION(HID_COLLECTION_APPLICATION),
+  HID_REPORT_ID(1)
+    HID_USAGE(HID_USAGE_DESKTOP_POINTER),
+  HID_COLLECTION(HID_COLLECTION_PHYSICAL),
+  HID_USAGE_PAGE(HID_USAGE_PAGE_BUTTON),
+  HID_USAGE_MIN(1),
+  HID_USAGE_MAX(3),
+  HID_LOGICAL_MIN(0),
+  HID_LOGICAL_MAX(1),
+  /* buttons */
+  HID_REPORT_COUNT(3),
+  HID_REPORT_SIZE(1),
+  HID_INPUT(HID_DATA | HID_VARIABLE | HID_ABSOLUTE),
+  /* padding */
+  HID_REPORT_COUNT(1),
+  HID_REPORT_SIZE(5),
+  HID_INPUT(HID_CONSTANT),
+  HID_USAGE_PAGE(HID_USAGE_PAGE_DESKTOP),
+  /* X, Y position [0, 32767] */
+  HID_USAGE(HID_USAGE_DESKTOP_X),
+  HID_USAGE(HID_USAGE_DESKTOP_Y),
+  HID_LOGICAL_MIN_N(0x0000, 2),
+  HID_LOGICAL_MAX_N(0x7fff, 2),
+  HID_REPORT_COUNT(2),
+  HID_REPORT_SIZE(16),
+  HID_INPUT(HID_DATA | HID_VARIABLE | HID_ABSOLUTE),
+  HID_COLLECTION_END,
+  HID_COLLECTION_END
+};
 
 // global variables used for TensorFlow Lite (Micro)
 tflite::MicroErrorReporter tflErrorReporter;
@@ -113,6 +147,9 @@ void setup() {
   bledis.setModel("Bluefruit Feather 52");
   bledis.begin();
 
+  blehid.setReportMap(hid_report_descriptor, sizeof(hid_report_descriptor));
+  uint16_t input_len[] = { 5 };
+  blehid.setReportLen(input_len, NULL, NULL);
   // BLE HID
   blehid.begin();
 
@@ -129,6 +166,10 @@ void setup() {
   we can correct the drift when doing real measurements later
 */
 void calibrateIMU(int delayMillis, int calibrationMillis) {
+  gyroDriftX = 0.67;
+  gyroDriftY = -1.38;
+  gyroDriftZ = -0.51;
+  return;
 
   int calibrationCount = 0;
 
@@ -217,7 +258,7 @@ void startAdv(void) {
 
 bool readIMU() {
   // wait for IMU data to become valid
-  // sample rate is 12.5Hz, so can read every 80mS
+  // sample rate is 416Hz
   do {
     myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
   } while ((readData & 0x07) != 0x07);
@@ -261,10 +302,31 @@ void storeData() {
   tflInputTensor->data.f[samplesRead * 6 + 5] = (gyroZ + 2000.0) / 4000.0;
 }
 
+int count = 0;
+void mousePosition(int16_t x, int16_t y) {
+  uint8_t report[] = { 0x00, 0x00, 0x00, 0x00, 0x00 };
+  report[0] = 0;
+  report[1] = x & 0xff;
+  report[2] = (x >> 8) & 0xff;
+  report[3] = y & 0xff;
+  report[4] = (y >> 8) & 0xff;
+  blehid.inputReport(MOUSE_REPORT_ID, report, sizeof(report));
+}
+
+int tmp = 0;
+#define report_freq 20
 void loop() {
+// every 2.4ms
 
   // Serial.println("loop");
   // blehid.mouseMove(20, 50);
+
+  if (count == report_freq - 1) {
+    roll0 = roll;
+    pitch0 = pitch;
+    yaw0 = yaw;
+  }
+  count++;
   readIMU();
 
   long currentTime = micros();
@@ -272,7 +334,7 @@ void loop() {
   lastTime = currentTime;
 
   doCalculations();
-  printCalculations();
+
   // wait for significant motion
   // if (samplesRead == numSamples) {
 
@@ -291,11 +353,51 @@ void loop() {
   // }
   // storeData();
   // calculate the attitude with Madgwick filter
-  filter.updateIMU(gyroX, gyroY, gyroZ, accelX, accelY, accelZ);
+  // filter.updateIMU(gyroX, gyroY, gyroZ, accelX, accelY, accelZ);
 
-  roll = filter.getRoll();      // -180 ~ 180deg
-  pitch = filter.getPitch();    // -180 ~ 180deg
-  yaw = filter.getYaw() - 180;  // 0 - 360deg
+  // roll = filter.getRoll();    // -180 ~ 180deg
+  // pitch = filter.getPitch();  // -180 ~ 180deg
+  // yaw = filter.getYaw();      // 0 - 360deg
+  roll = complementaryRoll;    // -180 ~ 180deg
+  pitch = complementaryPitch;  // -180 ~ 180deg
+  yaw = complementaryYaw;      // 0 - 360deg
+
+  printCalculations();
+  return;
+  int32_t x;
+  int32_t y;
+#define SMOOTHING_RATIO 0.8
+#define SENSITIVITY 400
+#define VERTICAL_SENSITIVITY_MULTIPLIER 2
+  if (count % report_freq == 0) {
+    // x = SMOOTHING_RATIO * x + (1 - SMOOTHING_RATIO) * (16384 + -(yaw - yaw0) * SENSITIVITY);
+    // x = x - (yaw - yaw0) * SENSITIVITY;
+    x = (16384 + -(yaw - yaw0) * SENSITIVITY);
+    x = max(0, min(32767, x));
+    // y = y + (pitch - pitch0) * SENSITIVITY;
+    // y = SMOOTHING_RATIO * y + (1 - SMOOTHING_RATIO) * (16384 + -(pitch - pitch0) * SENSITIVITY * VERTICAL_SENSITIVITY_MULTIPLIER);
+    y = (16384 + -(pitch - pitch0) * SENSITIVITY * VERTICAL_SENSITIVITY_MULTIPLIER);
+    y = max(0, min(32767, y));
+    // x = tmp;
+    // y = tmp;
+    // tmp += 20;
+    // tmp = tmp % 32768;
+    mousePosition(x, y);
+    // yaw0 = yaw;
+    // pitch0 = pitch;
+
+    Serial.print(yaw);
+    Serial.print(",");
+    Serial.print(yaw0);
+    Serial.print(".  \t");
+    Serial.print(pitch);
+    Serial.print(",");
+    Serial.print(pitch0);
+    Serial.print(".  \t");
+    Serial.print(x);
+    Serial.print(",");
+    Serial.println(y);
+  }
 
   // Serial.print(roll);Serial.print(",");
   // Serial.print(pitch);Serial.print(",");
