@@ -9,7 +9,7 @@ float accelX, accelY, accelZ,  // units m/s/s i.e. accelZ if often 9.8 (gravity)
 const float accelerationThreshold = 1.8; // threshold of significant in G's
 const int numSamples = 119;
 int samplesRead = numSamples;
-
+int startTime, currentTime;
 void setup()
 {
   // put your setup code here, to run once:
@@ -24,6 +24,7 @@ void setup()
       ;
   }
   Wire1.setClock(400000UL); // SCL 400kHz
+  startTime = micros();
 }
 bool readIMU()
 {
@@ -54,9 +55,32 @@ bool readIMU()
 
   return true;
 }
+
+int count = 0;
+float sumX, sumY, sumZ;
 void loop()
 {
+
   readIMU();
+  count++;
+  sumX += gyroX;
+  sumY += gyroY;
+  sumZ += gyroZ;
+  if (count % 100 == 0)
+  {
+    currentTime = micros();
+    Serial.println(currentTime - startTime);
+    startTime = currentTime;
+    Serial.print(sumX / 100);
+    Serial.print(",");
+    Serial.print(sumY / 100);
+    Serial.print(",");
+    Serial.println(sumZ / 100);
+    sumX = 0;
+    sumY = 0;
+    sumZ = 0;
+  }
+  return;
   // wait for significant motion
   if (samplesRead == numSamples)
   {
