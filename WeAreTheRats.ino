@@ -97,11 +97,18 @@ const char* GESTURES[] = {
 
 #define NUM_GESTURES (sizeof(GESTURES) / sizeof(GESTURES[0]))
 
+int ledgreen = 1;
+int ledred = 0;
+
 void setup() {
   Serial.begin(9600);
   while (!Serial)
     ;
 
+  pinMode(LED_RED, OUTPUT);  
+  pinMode(LED_GREEN, OUTPUT);
+  digitalWrite(LED_RED, ledred);
+   digitalWrite(LED_RED, ledgreen); 
   if (myIMU.begin() != 0) {
     Serial.println("IMU Device error");
     while (1)
@@ -259,9 +266,9 @@ void startAdv(void) {
 bool readIMU() {
   // wait for IMU data to become valid
   // sample rate is 416Hz
-  do {
-    myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
-  } while ((readData & 0x07) != 0x07);
+  // do {
+  //   myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
+  // } while ((readData & 0x07) != 0x07);
 
   // digitalWrite(LED_RED, LOW);   // data read and send task indicator ON
 
@@ -314,13 +321,18 @@ void mousePosition(int16_t x, int16_t y) {
 }
 
 int tmp = 0;
-#define report_freq 20
+#define report_freq 8
 void loop() {
-// every 2.4ms
-
+  ledred = !ledred;
+   digitalWrite(LED_RED, ledred); 
+  if (!Bluefruit.connected()) return;
+  myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
+  if ((readData & 0x07) != 0x07) return;
+  ledgreen = !ledgreen;
+   digitalWrite(LED_GREEN, ledgreen); 
   // Serial.println("loop");
   // blehid.mouseMove(20, 50);
-
+  // every 2.4ms
   if (count == report_freq - 1) {
     roll0 = roll;
     pitch0 = pitch;
@@ -329,9 +341,10 @@ void loop() {
   count++;
   readIMU();
 
-  long currentTime = micros();
-  lastInterval = currentTime - lastTime;  // expecting this to be ~104Hz +- 4%
-  lastTime = currentTime;
+  // long currentTime = micros();
+  // lastInterval = currentTime - lastTime;  // expecting this to be ~104Hz +- 4%
+  // lastTime = currentTime;
+
 
   doCalculations();
 
@@ -362,13 +375,13 @@ void loop() {
   pitch = complementaryPitch;  // -180 ~ 180deg
   yaw = complementaryYaw;      // 0 - 360deg
 
-  printCalculations();
-  return;
+  // printCalculations();
+  // return;
   int32_t x;
   int32_t y;
 #define SMOOTHING_RATIO 0.8
-#define SENSITIVITY 400
-#define VERTICAL_SENSITIVITY_MULTIPLIER 2
+#define SENSITIVITY 700
+#define VERTICAL_SENSITIVITY_MULTIPLIER 1.5
   if (count % report_freq == 0) {
     // x = SMOOTHING_RATIO * x + (1 - SMOOTHING_RATIO) * (16384 + -(yaw - yaw0) * SENSITIVITY);
     // x = x - (yaw - yaw0) * SENSITIVITY;
@@ -376,7 +389,7 @@ void loop() {
     x = max(0, min(32767, x));
     // y = y + (pitch - pitch0) * SENSITIVITY;
     // y = SMOOTHING_RATIO * y + (1 - SMOOTHING_RATIO) * (16384 + -(pitch - pitch0) * SENSITIVITY * VERTICAL_SENSITIVITY_MULTIPLIER);
-    y = (16384 + -(pitch - pitch0) * SENSITIVITY * VERTICAL_SENSITIVITY_MULTIPLIER);
+    y = (16384 + (pitch - pitch0) * SENSITIVITY * VERTICAL_SENSITIVITY_MULTIPLIER);
     y = max(0, min(32767, y));
     // x = tmp;
     // y = tmp;
@@ -389,11 +402,11 @@ void loop() {
     Serial.print(yaw);
     Serial.print(",");
     Serial.print(yaw0);
-    Serial.print(".  \t");
+    Serial.print(",  \t");
     Serial.print(pitch);
     Serial.print(",");
     Serial.print(pitch0);
-    Serial.print(".  \t");
+    Serial.print(",  \t");
     Serial.print(x);
     Serial.print(",");
     Serial.println(y);
@@ -436,7 +449,7 @@ void doCalculations() {
   accRoll = atan2(accelY, accelZ) * 180 / M_PI;
   accPitch = atan2(-accelX, sqrt(accelY * accelY + accelZ * accelZ)) * 180 / M_PI;
 
-  float lastFrequency = (float)1000000.0 / lastInterval;
+  float lastFrequency = 416;  //(float)1000000.0 / lastInterval;
   gyroRoll = gyroRoll + (gyroX / lastFrequency);
   gyroPitch = gyroPitch + (gyroY / lastFrequency);
   gyroYaw = gyroYaw + (gyroZ / lastFrequency);
@@ -457,11 +470,11 @@ void doCalculations() {
    This comma separated format is best 'viewed' using 'serial plotter' or processing.org client (see ./processing/RollPitchYaw3d.pde example)
 */
 void printCalculations() {
-  Serial.print(roll);
+  Serial.print(gyroRoll);
   Serial.print(',');
-  Serial.print(pitch);
+  Serial.print(gyroPitch);
   Serial.print(',');
-  Serial.print(yaw);
+  Serial.print(gyroYaw);
   Serial.print(',');
   Serial.print(gyroCorrectedRoll);
   Serial.print(',');
