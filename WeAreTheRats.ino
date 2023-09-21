@@ -16,6 +16,9 @@ const float accelerationThreshold = 2.5;  // threshold of significant in G's
 const int numSamples = 119;
 
 int samplesRead = numSamples;
+#define MOUSE_LEFT D9
+#define MOUSE_RIGHT D8
+#define MOUSE_ACTIVATE D7
 
 BLEDis bledis;
 BLEHidGeneric blehid = BLEHidGeneric(1);
@@ -98,18 +101,36 @@ const char* GESTURES[] = {
 #define NUM_GESTURES (sizeof(GESTURES) / sizeof(GESTURES[0]))
 
 //0 ledoff, 1 ledon
-int ledgreen = 1;
+int ledgreen = 0;
 int ledred = 0;
-
+#define LED_CHARGER 23
 void setup() {
   Serial.begin(9600);
-  while (!Serial)
-    ;
+  // while (!Serial)
+  //   ;
 
-  pinMode(LED_RED, OUTPUT);  
+  pinMode(LED_BLUE, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
-  digitalWrite(LED_RED, ledred);
-   digitalWrite(LED_RED, ledgreen); 
+  pinMode(LED_CHARGER, OUTPUT);
+
+
+  pinMode(D7, INPUT_PULLUP);
+  pinMode(D8, INPUT_PULLUP);
+  pinMode(D9, INPUT_PULLUP);
+  pinMode(D10, INPUT_PULLUP);
+
+  digitalWrite(D7, HIGH);
+  digitalWrite(D8, HIGH);
+  digitalWrite(D9, HIGH);
+  digitalWrite(D10, HIGH);
+
+  digitalWrite(LED_RED, LOW);
+  digitalWrite(LED_BLUE, LOW);
+  digitalWrite(LED_GREEN, HIGH);
+  digitalWrite(LED_CHARGER, LOW);
+
+#if 1
   if (myIMU.begin() != 0) {
     Serial.println("IMU Device error");
     while (1)
@@ -166,6 +187,7 @@ void setup() {
 
   calibrateIMU(250, 250);
   lastTime = micros();
+ #endif 
 }
 
 
@@ -326,14 +348,19 @@ int tmp = 0;
 int lastx, lasty;
 void loop() {
   // ledred = !ledred;
-  //  digitalWrite(LED_RED, ledred); 
+  //  digitalWrite(LED_RED, ledred);
+  digitalWrite(LED_BLUE, digitalRead(D7));
+  digitalWrite(LED_RED, digitalRead(D8));
+  digitalWrite(LED_GREEN, digitalRead(D9));
+  digitalWrite(LED_CHARGER, digitalRead(D10));
+
   if (!Bluefruit.connected()) return;
   myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
   if ((readData & 0x07) != 0x07) return;
-  // every 2.4ms  
+  // every 2.4ms
   // ledgreen = !ledgreen;
   ledgreen = (ledgreen + 1) % 400;
-   digitalWrite(LED_GREEN, ledgreen); 
+  digitalWrite(LED_GREEN, ledgreen);
   // Serial.println("loop");
   // blehid.mouseMove(20, 50);
 
@@ -370,7 +397,7 @@ void loop() {
   // }
   // storeData();
   // calculate the attitude with Madgwick filter
-  filter.updateIMU(gyroX-gyroDriftX, gyroY-gyroDriftY, gyroZ-gyroDriftZ, accelX, accelY, accelZ);
+  filter.updateIMU(gyroX - gyroDriftX, gyroY - gyroDriftY, gyroZ - gyroDriftZ, accelX, accelY, accelZ);
 
   // roll = filter.getRoll();    // -180 ~ 180deg
   // pitch = filter.getPitch();  // -180 ~ 180deg
@@ -399,10 +426,10 @@ void loop() {
     // y = tmp;
     // tmp += 20;
     // tmp = tmp % 32768;
-    if (abs(lastx - x) > 8 || abs(lasty-y) > 8) {
-    mousePosition(x, y);
-    lastx = x;
-    lasty = y;      
+    if (abs(lastx - x) > 8 || abs(lasty - y) > 8) {
+      // mousePosition(x, y);
+      lastx = x;
+      lasty = y;
     }
 
 
