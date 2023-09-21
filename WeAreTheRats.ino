@@ -21,8 +21,8 @@ int samplesRead = numSamples;
 #define MOUSE_ACTIVATE D7
 
 BLEDis bledis;
-BLEHidGeneric blehid = BLEHidGeneric(1);
-;
+// BLEHidGeneric blehid = BLEHidGeneric(1);
+BLEHidAdafruit blehid;
 
 LSM6DS3 myIMU(I2C_MODE, 0x6A);
 Madgwick filter;                                            // Madgwick filter
@@ -176,9 +176,9 @@ void setup() {
   bledis.setModel("Bluefruit Feather 52");
   bledis.begin();
 
-  blehid.setReportMap(hid_report_descriptor, sizeof(hid_report_descriptor));
-  uint16_t input_len[] = { 5 };
-  blehid.setReportLen(input_len, NULL, NULL);
+  // blehid.setReportMap(hid_report_descriptor, sizeof(hid_report_descriptor));
+  // uint16_t input_len[] = { 5 };
+  // blehid.setReportLen(input_len, NULL, NULL);
   // BLE HID
   blehid.begin();
 
@@ -333,15 +333,15 @@ void storeData() {
 }
 
 int count = 0;
-void mousePosition(int16_t x, int16_t y) {
-  uint8_t report[] = { 0x00, 0x00, 0x00, 0x00, 0x00 };
-  report[0] = 0;
-  report[1] = x & 0xff;
-  report[2] = (x >> 8) & 0xff;
-  report[3] = y & 0xff;
-  report[4] = (y >> 8) & 0xff;
-  blehid.inputReport(MOUSE_REPORT_ID, report, sizeof(report));
-}
+// void mousePosition(int16_t x, int16_t y) {
+//   uint8_t report[] = { 0x00, 0x00, 0x00, 0x00, 0x00 };
+//   report[0] = 0;
+//   report[1] = x & 0xff;
+//   report[2] = (x >> 8) & 0xff;
+//   report[3] = y & 0xff;
+//   report[4] = (y >> 8) & 0xff;
+//   blehid.inputReport(MOUSE_REPORT_ID, report, sizeof(report));
+// }
 
 int tmp = 0;
 #define report_freq 8
@@ -406,30 +406,32 @@ void loop() {
   pitch = complementaryPitch;  // -180 ~ 180deg
   yaw = complementaryYaw;      // 0 - 360deg
 
-  printCalculations();
+  // printCalculations();
   // return;
   int32_t x;
   int32_t y;
 #define SMOOTHING_RATIO 0.8
-#define SENSITIVITY 700
+#define SENSITIVITY 50
 #define VERTICAL_SENSITIVITY_MULTIPLIER 1.5
   if (count % report_freq == 0) {
     // x = SMOOTHING_RATIO * x + (1 - SMOOTHING_RATIO) * (16384 + -(yaw - yaw0) * SENSITIVITY);
     // x = x - (yaw - yaw0) * SENSITIVITY;
-    x = (16384 + -(yaw - yaw0) * SENSITIVITY);
-    x = max(0, min(32767, x));
+    x = (yaw - yaw0) * SENSITIVITY;
+    // x = max(0, min(32767, x));
     // y = y + (pitch - pitch0) * SENSITIVITY;
     // y = SMOOTHING_RATIO * y + (1 - SMOOTHING_RATIO) * (16384 + -(pitch - pitch0) * SENSITIVITY * VERTICAL_SENSITIVITY_MULTIPLIER);
-    y = (16384 + (pitch - pitch0) * SENSITIVITY * VERTICAL_SENSITIVITY_MULTIPLIER);
-    y = max(0, min(32767, y));
+    y = (pitch - pitch0) * SENSITIVITY * VERTICAL_SENSITIVITY_MULTIPLIER;
+    // y = max(0, min(32767, y));
     // x = tmp;
     // y = tmp;
     // tmp += 20;
     // tmp = tmp % 32768;
-    if (abs(lastx - x) > 8 || abs(lasty - y) > 8) {
+    if (abs(x) > 8 || abs(y) > 8) {
       // mousePosition(x, y);
-      lastx = x;
-      lasty = y;
+      Serial.print(-x);Serial.print(",");Serial.println(y);
+      blehid.mouseMove(-x, y);
+      yaw0 = yaw;
+      pitch0 = pitch;
     }
 
 
