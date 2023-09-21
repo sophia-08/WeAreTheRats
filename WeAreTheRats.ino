@@ -20,6 +20,17 @@ int samplesRead = numSamples;
 #define MOUSE_RIGHT D8
 #define MOUSE_ACTIVATE D7
 
+enum ButtonState {
+  BUTTON_UP,
+  BUTTON_DOWN
+};
+
+
+#define MOUSE_BUTTON_LEFT 1
+#define MOUSE_BUTTON_RIGHT 2
+#define MOUSE_BUTTON_MIDDLE 4
+
+
 BLEDis bledis;
 // BLEHidGeneric blehid = BLEHidGeneric(1);
 BLEHidAdafruit blehid;
@@ -187,7 +198,7 @@ void setup() {
 
   calibrateIMU(250, 250);
   lastTime = micros();
- #endif 
+#endif
 }
 
 
@@ -344,8 +355,10 @@ int count = 0;
 // }
 
 int tmp = 0;
-#define report_freq 8
+#define report_freq 5
 int lastx, lasty;
+int left, right;
+int last_left, last_right;
 void loop() {
   // ledred = !ledred;
   //  digitalWrite(LED_RED, ledred);
@@ -354,10 +367,27 @@ void loop() {
   digitalWrite(LED_GREEN, digitalRead(D9));
   digitalWrite(LED_CHARGER, digitalRead(D10));
 
+
+
+
   if (!Bluefruit.connected()) return;
   myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
   if ((readData & 0x07) != 0x07) return;
   // every 2.4ms
+
+  left = digitalRead(MOUSE_LEFT);
+  right = digitalRead(MOUSE_RIGHT);
+  if (left != last_left) {
+    if (left == LOW) {
+      blehid.mouseButtonPress(MOUSE_BUTTON_LEFT);
+      Serial.println("left down");
+    } else {
+      blehid.mouseButtonRelease();
+      Serial.println("left up");
+    }
+    last_left = left;
+  }
+
   // ledgreen = !ledgreen;
   ledgreen = (ledgreen + 1) % 400;
   digitalWrite(LED_GREEN, ledgreen);
@@ -399,12 +429,12 @@ void loop() {
   // calculate the attitude with Madgwick filter
   filter.updateIMU(gyroX - gyroDriftX, gyroY - gyroDriftY, gyroZ - gyroDriftZ, accelX, accelY, accelZ);
 
-  // roll = filter.getRoll();    // -180 ~ 180deg
-  // pitch = filter.getPitch();  // -180 ~ 180deg
-  // yaw = filter.getYaw();      // 0 - 360deg
-  roll = complementaryRoll;    // -180 ~ 180deg
-  pitch = complementaryPitch;  // -180 ~ 180deg
-  yaw = complementaryYaw;      // 0 - 360deg
+  roll = filter.getRoll();    // -180 ~ 180deg
+  pitch = filter.getPitch();  // -180 ~ 180deg
+  yaw = filter.getYaw();      // 0 - 360deg
+  // roll = complementaryRoll;    // -180 ~ 180deg
+  // pitch = complementaryPitch;  // -180 ~ 180deg
+  // yaw = complementaryYaw;      // 0 - 360deg
 
   // printCalculations();
   // return;
@@ -412,7 +442,7 @@ void loop() {
   int32_t y;
 #define SMOOTHING_RATIO 0.8
 #define SENSITIVITY 50
-#define VERTICAL_SENSITIVITY_MULTIPLIER 1.5
+#define VERTICAL_SENSITIVITY_MULTIPLIER 1.4
   if (count % report_freq == 0) {
     // x = SMOOTHING_RATIO * x + (1 - SMOOTHING_RATIO) * (16384 + -(yaw - yaw0) * SENSITIVITY);
     // x = x - (yaw - yaw0) * SENSITIVITY;
@@ -428,8 +458,12 @@ void loop() {
     // tmp = tmp % 32768;
     if (abs(x) > 8 || abs(y) > 8) {
       // mousePosition(x, y);
-      Serial.print(-x);Serial.print(",");Serial.println(y);
-      blehid.mouseMove(-x, y);
+      Serial.print(-x);
+      Serial.print(",");
+      Serial.println(y);
+      if (digitalRead(MOUSE_ACTIVATE) == LOW) {
+        blehid.mouseMove(-x, y);
+      }
       yaw0 = yaw;
       pitch0 = pitch;
     }
