@@ -97,6 +97,7 @@ const char* GESTURES[] = {
 
 #define NUM_GESTURES (sizeof(GESTURES) / sizeof(GESTURES[0]))
 
+//0 ledoff, 1 ledon
 int ledgreen = 1;
 int ledred = 0;
 
@@ -322,17 +323,20 @@ void mousePosition(int16_t x, int16_t y) {
 
 int tmp = 0;
 #define report_freq 8
+int lastx, lasty;
 void loop() {
-  ledred = !ledred;
-   digitalWrite(LED_RED, ledred); 
+  // ledred = !ledred;
+  //  digitalWrite(LED_RED, ledred); 
   if (!Bluefruit.connected()) return;
   myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
   if ((readData & 0x07) != 0x07) return;
-  ledgreen = !ledgreen;
+  // every 2.4ms  
+  // ledgreen = !ledgreen;
+  ledgreen = (ledgreen + 1) % 400;
    digitalWrite(LED_GREEN, ledgreen); 
   // Serial.println("loop");
   // blehid.mouseMove(20, 50);
-  // every 2.4ms
+
   if (count == report_freq - 1) {
     roll0 = roll;
     pitch0 = pitch;
@@ -366,7 +370,7 @@ void loop() {
   // }
   // storeData();
   // calculate the attitude with Madgwick filter
-  // filter.updateIMU(gyroX, gyroY, gyroZ, accelX, accelY, accelZ);
+  filter.updateIMU(gyroX-gyroDriftX, gyroY-gyroDriftY, gyroZ-gyroDriftZ, accelX, accelY, accelZ);
 
   // roll = filter.getRoll();    // -180 ~ 180deg
   // pitch = filter.getPitch();  // -180 ~ 180deg
@@ -375,7 +379,7 @@ void loop() {
   pitch = complementaryPitch;  // -180 ~ 180deg
   yaw = complementaryYaw;      // 0 - 360deg
 
-  // printCalculations();
+  printCalculations();
   // return;
   int32_t x;
   int32_t y;
@@ -395,21 +399,27 @@ void loop() {
     // y = tmp;
     // tmp += 20;
     // tmp = tmp % 32768;
+    if (abs(lastx - x) > 8 || abs(lasty-y) > 8) {
     mousePosition(x, y);
+    lastx = x;
+    lasty = y;      
+    }
+
+
     // yaw0 = yaw;
     // pitch0 = pitch;
 
-    Serial.print(yaw);
-    Serial.print(",");
-    Serial.print(yaw0);
-    Serial.print(",  \t");
-    Serial.print(pitch);
-    Serial.print(",");
-    Serial.print(pitch0);
-    Serial.print(",  \t");
-    Serial.print(x);
-    Serial.print(",");
-    Serial.println(y);
+    // Serial.print(yaw);
+    // Serial.print(",");
+    // Serial.print(yaw0);
+    // Serial.print(",  \t");
+    // Serial.print(pitch);
+    // Serial.print(",");
+    // Serial.print(pitch0);
+    // Serial.print(",  \t");
+    // Serial.print(x);
+    // Serial.print(",");
+    // Serial.println(y);
   }
 
   // Serial.print(roll);Serial.print(",");
@@ -470,11 +480,11 @@ void doCalculations() {
    This comma separated format is best 'viewed' using 'serial plotter' or processing.org client (see ./processing/RollPitchYaw3d.pde example)
 */
 void printCalculations() {
-  Serial.print(gyroRoll);
+  Serial.print(roll);
   Serial.print(',');
-  Serial.print(gyroPitch);
+  Serial.print(pitch);
   Serial.print(',');
-  Serial.print(gyroYaw);
+  Serial.print(yaw);
   Serial.print(',');
   Serial.print(gyroCorrectedRoll);
   Serial.print(',');
