@@ -91,9 +91,9 @@ void drawBox(String name, String description, int xShift, float pitch, float rol
   popMatrix();
   text( name 
         + description 
-        + "\npitch: " + int(pitch)
-        + "\nroll: " + int(roll)
-        + "\nyaw: " + int(yaw)
+        + "\npitch: " + (pitch)
+        + "\nroll: " + (roll)
+        + "\nyaw: " + (yaw)
         , xShift -20, 200);
   
 }
