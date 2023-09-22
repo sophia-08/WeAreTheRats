@@ -18,17 +18,20 @@ const int numSamples = 119;
 int samplesRead = numSamples;
 #define MOUSE_LEFT D9
 #define MOUSE_RIGHT D8
-#define MOUSE_ACTIVATE D7
-
-enum ButtonState {
-  BUTTON_UP,
-  BUTTON_DOWN
-};
+#define MOUSE_ACTIVATE D6
 
 
-#define MOUSE_BUTTON_LEFT 1
-#define MOUSE_BUTTON_RIGHT 2
-#define MOUSE_BUTTON_MIDDLE 4
+//  Touch sensor 1 active, 0 inactive
+// Push button 0 active, 0 inactive
+// enum ButtonState {
+//   BUTTON_UP,
+//   BUTTON_DOWN
+// };
+
+
+// #define MOUSE_BUTTON_LEFT 1
+// #define MOUSE_BUTTON_RIGHT 2
+// #define MOUSE_BUTTON_MIDDLE 4
 
 
 BLEDis bledis;
@@ -387,7 +390,16 @@ void loop() {
     }
     last_left = left;
   }
-
+  if (right != last_right) {
+    if (right == LOW) {
+      blehid.mouseButtonPress(MOUSE_BUTTON_RIGHT);
+      Serial.println("right down");
+    } else {
+      blehid.mouseButtonRelease();
+      Serial.println("right up");
+    }
+    last_right = right;
+  }
   // ledgreen = !ledgreen;
   ledgreen = (ledgreen + 1) % 400;
   digitalWrite(LED_GREEN, ledgreen);
@@ -441,8 +453,8 @@ void loop() {
   int32_t x;
   int32_t y;
 #define SMOOTHING_RATIO 0.8
-#define SENSITIVITY 50
-#define VERTICAL_SENSITIVITY_MULTIPLIER 1.4
+#define SENSITIVITY 60
+#define VERTICAL_SENSITIVITY_MULTIPLIER 1.2
   if (count % report_freq == 0) {
     // x = SMOOTHING_RATIO * x + (1 - SMOOTHING_RATIO) * (16384 + -(yaw - yaw0) * SENSITIVITY);
     // x = x - (yaw - yaw0) * SENSITIVITY;
@@ -456,17 +468,30 @@ void loop() {
     // y = tmp;
     // tmp += 20;
     // tmp = tmp % 32768;
-    if (abs(x) > 8 || abs(y) > 8) {
+    if (abs(x) > 10 || abs(y) > 10) {    
+    // if (abs(accelX) + abs(accelY) + abs(accelZ) > 1.5) {
       // mousePosition(x, y);
       Serial.print(-x);
       Serial.print(",");
       Serial.println(y);
-      if (digitalRead(MOUSE_ACTIVATE) == LOW) {
+      if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
         blehid.mouseMove(-x, y);
       }
       yaw0 = yaw;
       pitch0 = pitch;
     }
+    // {
+    //   Serial.print(accelX);
+    //   Serial.print(",");
+    //   Serial.print(accelY);
+    //   Serial.print(",");
+    //   Serial.print(accelZ);
+    //   Serial.print(",");
+
+    //   Serial.print(-x);
+    //   Serial.print(",");
+    //   Serial.println(y);
+    // }
 
 
     // yaw0 = yaw;
