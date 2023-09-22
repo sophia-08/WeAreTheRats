@@ -128,12 +128,13 @@ void setup() {
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_CHARGER, OUTPUT);
 
-
+pinMode(D6, INPUT_PULLUP);
   pinMode(D7, INPUT_PULLUP);
   pinMode(D8, INPUT_PULLUP);
   pinMode(D9, INPUT_PULLUP);
   pinMode(D10, INPUT_PULLUP);
 
+  digitalWrite(D6, HIGH);  
   digitalWrite(D7, HIGH);
   digitalWrite(D8, HIGH);
   digitalWrite(D9, HIGH);
