@@ -9,7 +9,7 @@ float accelX, accelY, accelZ,          // units m/s/s i.e. accelZ if often 9.8 (
 #define MOUSE_LEFT D9
 #define MOUSE_RIGHT D8
 #define MOUSE_ACTIVATE D6
-const float accelerationThreshold = 1.8;  // threshold of significant in G's
+const float accelerationThreshold = 1.6;  // threshold of significant in G's
 const int numSamples = 416;
 int samplesRead = 0;
 int startTime, currentTime;
@@ -48,7 +48,7 @@ void setup() {
   }
   Wire1.setClock(400000UL);  // SCL 400kHz
   startTime = micros();
-  calibrateIMU(0,0);
+  calibrateIMU(0, 0);
 }
 
 void calibrateIMU(int delayMillis, int calibrationMillis) {
@@ -80,63 +80,72 @@ bool readIMU() {
 
 int count = 0;
 float sumX, sumY, sumZ;
+int t1 = 0;
+
 void loop() {
+  int currentTime = millis();
+  if (currentTime < t1 + 2000) {
+    return;
+  }
+
   if (digitalRead(MOUSE_ACTIVATE) == LOW) {
     return;
   }
+  t1 = currentTime;
   digitalWrite(LED_BLUE, HIGH);
   samplesRead = 0;
-while (samplesRead < numSamples) {
+  while (samplesRead < numSamples) {
 wait:
-  myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
-  if ((readData & 0x07) != 0x07) goto wait;
-  readIMU();
-  // count++;
-  // sumX += gyroX;
-  // sumY += gyroY;
-  // sumZ += gyroZ;
-  // if (count % 100 == 0) {
-  //   currentTime = micros();
-  //   Serial.println(currentTime - startTime);
-  //   startTime = currentTime;
-  //   Serial.print(sumX / 100);
-  //   Serial.print(",");
-  //   Serial.print(sumY / 100);
-  //   Serial.print(",");
-  //   Serial.println(sumZ / 100);
-  //   sumX = 0;
-  //   sumY = 0;
-  //   sumZ = 0;
-  // }
-  // return;
-  // wait for significant motion
-  // if (samplesRead == numSamples) {
-  //   // sum up the absolutes
-  //   float aSum = fabs(accelX) + fabs(accelY) + fabs(accelZ);
+    myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
+    if ((readData & 0x07) != 0x07) goto wait;
+    readIMU();
+    // count++;
+    // sumX += gyroX;
+    // sumY += gyroY;
+    // sumZ += gyroZ;
+    // if (count % 100 == 0) {
+    //   currentTime = micros();
+    //   Serial.println(currentTime - startTime);
+    //   startTime = currentTime;
+    //   Serial.print(sumX / 100);
+    //   Serial.print(",");
+    //   Serial.print(sumY / 100);
+    //   Serial.print(",");
+    //   Serial.println(sumZ / 100);
+    //   sumX = 0;
+    //   sumY = 0;
+    //   sumZ = 0;
+    // }
+    // return;
+    // wait for significant motion
+    // if (samplesRead == 0) {
+    //   // sum up the absolutes
+    //   float aSum = fabs(accelX) + fabs(accelY) + fabs(accelZ);
 
-  //   // check if it's above the threshold
-  //   if (aSum < accelerationThreshold) {
-  //     return;
-  //   }
-  // }
+    //   // check if it's above the threshold
+    //   if (aSum < accelerationThreshold) {
+    //     return;
+    //   }
+    // }
 
-  
-  // check if the all the required samples have been read since
-  // the last time the significant motion was detected
-  
+
+    // check if the all the required samples have been read since
+    // the last time the significant motion was detected
+
+#define PRECISION 5
     // read the acceleration and gyroscope data
     // print the data in CSV format
-    Serial.print(accelX, 3);
+    Serial.print(accelX, PRECISION);
     Serial.print(',');
-    Serial.print(accelY, 3);
+    Serial.print(accelY, PRECISION);
     Serial.print(',');
-    Serial.print(accelZ, 3);
+    Serial.print(accelZ, PRECISION);
     Serial.print(',');
-    Serial.print(gyroX-gyroDriftX, 3);
+    Serial.print(gyroX - gyroDriftX, PRECISION);
     Serial.print(',');
-    Serial.print(gyroY-gyroDriftY, 3);
+    Serial.print(gyroY - gyroDriftY, PRECISION);
     Serial.print(',');
-    Serial.print(gyroZ-gyroDriftZ, 3);
+    Serial.print(gyroZ - gyroDriftZ, PRECISION);
     Serial.println("");
 
     samplesRead++;
@@ -144,7 +153,7 @@ wait:
       // add an empty line if it's the last sample
       Serial.println();
       break;
-    } 
+    }
   }
   digitalWrite(LED_BLUE, LOW);
 }
