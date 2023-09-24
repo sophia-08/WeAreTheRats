@@ -14,7 +14,7 @@ except serial.SerialException as e:
 
 # Initialize a list to store the lines
 lines = []
-
+samples=0
 # Write the header to the file
 with open(file_path, "w") as file:
     file.write("aX,aY,aZ,gX,gY,gZ\n")
@@ -27,7 +27,7 @@ try:
 
         # Only append non-empty lines
         if line:
-            print(line)
+            print(".", end='')
             lines.append(line)
 
             if start_time is None:
@@ -40,7 +40,8 @@ try:
                 with open(file_path, "a") as file:
                     file.write("\n".join(lines) + "\n")
                     file.write("\n")
-                print("Data saved to capture.txt")
+                samples += 1
+                print(samples, " samples")
             else:
                 print("Error: Incorrect number of lines read", len(lines))
 
