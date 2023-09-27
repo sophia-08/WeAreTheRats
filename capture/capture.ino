@@ -6,6 +6,11 @@ LSM6DS3 myIMU(I2C_MODE, 0x6A);         // I2C device address 0x6A
 float accelX, accelY, accelZ,          // units m/s/s i.e. accelZ if often 9.8 (gravity)
   gyroX, gyroY, gyroZ,                 // units dps (degrees per second)
   gyroDriftX, gyroDriftY, gyroDriftZ;  // units dps
+float   gyroRoll, gyroPitch, gyroYaw,                             // units degrees (expect major drift)
+  gyroCorrectedRoll, gyroCorrectedPitch, gyroCorrectedYaw,  // units degrees (expect minor drift)
+  accRoll, accPitch, accYaw,                                // units degrees (roll and pitch noisy, yaw not possible)
+  complementaryRoll, complementaryPitch, complementaryYaw;  // units degrees (excellent roll, pitch, yaw minor drift)
+
 #define MOUSE_LEFT D9
 #define MOUSE_RIGHT D8
 #define MOUSE_ACTIVATE D6
@@ -99,6 +104,7 @@ wait:
     myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
     if ((readData & 0x07) != 0x07) goto wait;
     readIMU();
+    doCalculations();
     // count++;
     // sumX += gyroX;
     // sumY += gyroY;
@@ -146,8 +152,12 @@ wait:
     Serial.print(gyroY - gyroDriftY, PRECISION);
     Serial.print(',');
     Serial.print(gyroZ - gyroDriftZ, PRECISION);
-    Serial.println("");
-
+    Serial.print(',');
+  Serial.print(gyroCorrectedRoll);
+  Serial.print(',');
+  Serial.print(gyroCorrectedPitch);
+  Serial.print(',');
+  Serial.println(gyroCorrectedYaw);
     samplesRead++;
     if (samplesRead == numSamples) {
       // add an empty line if it's the last sample
@@ -156,4 +166,25 @@ wait:
     }
   }
   digitalWrite(LED_BLUE, LOW);
+}
+
+void doCalculations() {
+  accRoll = atan2(accelY, accelZ) * 180 / M_PI;
+  accPitch = atan2(-accelX, sqrt(accelY * accelY + accelZ * accelZ)) * 180 / M_PI;
+
+  float lastFrequency = 416;  //(float)1000000.0 / lastInterval;
+  gyroRoll = gyroRoll + (gyroX / lastFrequency);
+  gyroPitch = gyroPitch + (gyroY / lastFrequency);
+  gyroYaw = gyroYaw + (gyroZ / lastFrequency);
+
+  gyroCorrectedRoll = gyroCorrectedRoll + ((gyroX - gyroDriftX) / lastFrequency);
+  gyroCorrectedPitch = gyroCorrectedPitch + ((gyroY - gyroDriftY) / lastFrequency);
+  gyroCorrectedYaw = gyroCorrectedYaw + ((gyroZ - gyroDriftZ) / lastFrequency);
+
+  complementaryRoll = complementaryRoll + ((gyroX - gyroDriftX) / lastFrequency);
+  complementaryPitch = complementaryPitch + ((gyroY - gyroDriftY) / lastFrequency);
+  complementaryYaw = complementaryYaw + ((gyroZ - gyroDriftZ) / lastFrequency);
+
+  complementaryRoll = 0.98 * complementaryRoll + 0.02 * accRoll;
+  complementaryPitch = 0.98 * complementaryPitch + 0.02 * accPitch;
 }
