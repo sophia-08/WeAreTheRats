@@ -11,9 +11,10 @@
 //#include <tensorflow/lite/version.h>
 
 #include "model.h"
+#include "test1.h"
 #define MOUSE_REPORT_ID 1
 const float accelerationThreshold = 2.5;  // threshold of significant in G's
-const int numSamples = 119;
+const int numSamples = 208; //119;
 
 int samplesRead = numSamples;
 #define MOUSE_LEFT D9
@@ -108,8 +109,8 @@ byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 
 // array to map gesture index to a name
 const char* GESTURES[] = {
-  "punch",
-  "flex"
+  "a",
+  "b"
 };
 
 #define NUM_GESTURES (sizeof(GESTURES) / sizeof(GESTURES[0]))
@@ -128,13 +129,13 @@ void setup() {
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_CHARGER, OUTPUT);
 
-pinMode(D6, INPUT_PULLUP);
+  pinMode(D6, INPUT_PULLUP);
   pinMode(D7, INPUT_PULLUP);
   pinMode(D8, INPUT_PULLUP);
   pinMode(D9, INPUT_PULLUP);
   pinMode(D10, INPUT_PULLUP);
 
-  digitalWrite(D6, HIGH);  
+  digitalWrite(D6, HIGH);
   digitalWrite(D7, HIGH);
   digitalWrite(D8, HIGH);
   digitalWrite(D9, HIGH);
@@ -347,6 +348,13 @@ void storeData() {
   tflInputTensor->data.f[samplesRead * 6 + 5] = (gyroZ + 2000.0) / 4000.0;
 }
 
+void loadTest() {
+  
+  for (int i=0; i< numSamples*6; i++) {
+    tflInputTensor->data.f[i] = tt[i];
+  }
+}
+
 int count = 0;
 // void mousePosition(int16_t x, int16_t y) {
 //   uint8_t report[] = { 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -363,6 +371,9 @@ int tmp = 0;
 int lastx, lasty;
 int left, right;
 int last_left, last_right;
+
+bool inference_started = false;
+
 void loop() {
   // ledred = !ledred;
   //  digitalWrite(LED_RED, ledred);
@@ -371,14 +382,18 @@ void loop() {
   digitalWrite(LED_GREEN, digitalRead(D9));
   digitalWrite(LED_CHARGER, digitalRead(D10));
 
+  if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
+    //start gesture recognization
+    inference_started = true;
+    samplesRead = 0;
+  }
 
-
-
-  if (!Bluefruit.connected()) return;
+  // if (!Bluefruit.connected()) return;
   myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
   if ((readData & 0x07) != 0x07) return;
   // every 2.4ms
 
+#if 0
   left = digitalRead(MOUSE_LEFT);
   right = digitalRead(MOUSE_RIGHT);
   if (left != last_left) {
@@ -401,6 +416,9 @@ void loop() {
     }
     last_right = right;
   }
+
+  #endif
+
   // ledgreen = !ledgreen;
   ledgreen = (ledgreen + 1) % 400;
   digitalWrite(LED_GREEN, ledgreen);
@@ -415,6 +433,30 @@ void loop() {
   count++;
   readIMU();
 
+  if (inference_started && samplesRead < numSamples) {
+    storeData();
+    samplesRead++;
+  }
+
+  // // Run inferencing
+  if (inference_started && samplesRead == numSamples) {
+    samplesRead = 0;
+    inference_started = false;
+// loadTest();
+    TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+    if (invokeStatus != kTfLiteOk) {
+      Serial.println("Invoke failed!");
+    }
+
+    // Loop through the output tensor values from the model
+    for (int i = 0; i < NUM_GESTURES; i++) {
+      Serial.print(GESTURES[i]);
+      Serial.print(": ");
+      Serial.println(tflOutputTensor->data.f[i], 6);
+    }
+    Serial.println();
+  }
+  return;
   // long currentTime = micros();
   // lastInterval = currentTime - lastTime;  // expecting this to be ~104Hz +- 4%
   // lastTime = currentTime;
@@ -469,8 +511,10 @@ void loop() {
     // y = tmp;
     // tmp += 20;
     // tmp = tmp % 32768;
-    if (abs(x) > 10 || abs(y) > 10) {    
-    // if (abs(accelX) + abs(accelY) + abs(accelZ) > 1.5) {
+
+#if 0
+    if (abs(x) > 10 || abs(y) > 10) {
+      // if (abs(accelX) + abs(accelY) + abs(accelZ) > 1.5) {
       // mousePosition(x, y);
       Serial.print(-x);
       Serial.print(",");
@@ -481,6 +525,7 @@ void loop() {
       yaw0 = yaw;
       pitch0 = pitch;
     }
+#endif
     // {
     //   Serial.print(accelX);
     //   Serial.print(",");
@@ -516,28 +561,29 @@ void loop() {
   // Serial.println(yaw);
   // check if the all the required samples have been read since
   // the last time the significant motion was detected
-  // while (samplesRead < numSamples) {
-  //   samplesRead++;
-  //   readIMU();
-  //   storeData();
-  // }
+  if (inference_started && samplesRead < numSamples) {
+    storeData();
+    samplesRead++;
+  }
 
   // // Run inferencing
-  // TfLiteStatus invokeStatus = tflInterpreter->Invoke();
-  // if (invokeStatus != kTfLiteOk) {
-  //   Serial.println("Invoke failed!");
-  //   while (1)
-  //     ;
-  //   return;
-  // }
+  if (inference_started && samplesRead == numSamples) {
+    samplesRead = 0;
+    inference_started = false;
 
-  // // Loop through the output tensor values from the model
-  // for (int i = 0; i < NUM_GESTURES; i++) {
-  //   Serial.print(GESTURES[i]);
-  //   Serial.print(": ");
-  //   Serial.println(tflOutputTensor->data.f[i], 6);
-  // }
-  // Serial.println();
+    TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+    if (invokeStatus != kTfLiteOk) {
+      Serial.println("Invoke failed!");
+    }
+
+    // Loop through the output tensor values from the model
+    for (int i = 0; i < NUM_GESTURES; i++) {
+      Serial.print(GESTURES[i]);
+      Serial.print(": ");
+      Serial.println(tflOutputTensor->data.f[i], 6);
+    }
+    Serial.println();
+  }
 }
 
 /**
