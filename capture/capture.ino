@@ -17,8 +17,8 @@ float gyroRoll, gyroPitch, gyroYaw,                         // units degrees (ex
 #define MOUSE_RIGHT D8
 #define MOUSE_ACTIVATE D6
 const float accelerationThreshold = 1.6;  // threshold of significant in G's
-const int numSamples = 150;
-double samples[numSamples][9];
+const int numSamples = 500;
+double samples[numSamples][6];
 int samplesRead = 0;
 int startTime, currentTime;
 uint8_t readData;
@@ -108,31 +108,65 @@ bool readIMU() {
 
 int count = 0;
 float sumX, sumY, sumZ;
-int t1 = 0;
+
 #define PRECISION 4
+float lastAx, lastAy, lastAz;
+bool startedChar = false;
+int t1 = 0;
+
 void loop() {
-  int currentTime = millis();
-  if (currentTime < t1 + 2000) {
-    return;
+
+
+  // Capture has not started, ignore until user activate keypad
+  if (!startedChar) {
+    if (digitalRead(MOUSE_ACTIVATE) == LOW) {
+      return;
+    } else {
+      // User activate keypad, check whether 2s passed since last capture
+      int currentTime = millis();
+      if (currentTime < t1 + 2000) {
+        return;
+      }
+      startedChar = true;
+      t1 = currentTime;
+      samplesRead = 0;
+    }
   }
 
-  if (digitalRead(MOUSE_ACTIVATE) == LOW) {
-    return;
-  }
-  t1 = currentTime;
+
   digitalWrite(LED_BLUE, HIGH);
-  samplesRead = 0;
-  while (samplesRead < numSamples) {
-wait:
 
-    // myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
-    // if ((readData & 0x07) != 0x07) goto wait;
+  while (true) {
+wait:
+    // User deactivated keypad
+    if (digitalRead(MOUSE_ACTIVATE) == LOW) {
+      startedChar =false;
+      break;
+    }
     readIMU();
+    if (linearAccelData.acceleration.x == lastAx && linearAccelData.acceleration.y == lastAy && linearAccelData.acceleration.z == lastAz) {
+      delay(0.5);
+      goto wait;
+    } else {
+      lastAx = linearAccelData.acceleration.x;
+      lastAy = linearAccelData.acceleration.y;
+      lastAz = linearAccelData.acceleration.z;
+      samples[samplesRead][0] = linearAccelData.acceleration.x;
+      samples[samplesRead][1] = linearAccelData.acceleration.y;
+      samples[samplesRead][2] = linearAccelData.acceleration.z;
+      samples[samplesRead][3] = angVelData.gyro.x;
+      samples[samplesRead][4] = angVelData.gyro.y;
+      samples[samplesRead][5] = angVelData.gyro.z;
+      samplesRead++;
+    }
+    if (samplesRead >= numSamples) {
+      samplesRead = 0;
+    }
     // if (abs(linearAccelData.acceleration.x) + abs(linearAccelData.acceleration.y) + abs(linearAccelData.acceleration.z) < 0.2) {
     //   delay(0.1);
     //   goto wait;
     // }
-    delay(10);
+    // delay(10);
     // doCalculations();
     // count++;
     // sumX += gyroX;
@@ -180,17 +214,12 @@ wait:
     // Serial.print(gyroCorrectedPitch);
     // Serial.print(',');
     // Serial.println(gyroCorrectedYaw);
-    samples[samplesRead][0] = linearAccelData.acceleration.x;
-    samples[samplesRead][1] = linearAccelData.acceleration.y;
-    samples[samplesRead][2] = linearAccelData.acceleration.z;
-    samples[samplesRead][3] = angVelData.gyro.x;
-    samples[samplesRead][4] = angVelData.gyro.y;
-    samples[samplesRead][5] = angVelData.gyro.z;
+
     // samples[samplesRead][6] = orientationData.orientation.heading;
     // samples[samplesRead][7] = orientationData.orientation.roll;
     // samples[samplesRead][8] = orientationData.orientation.pitch;
 
-    samplesRead++;
+
     // if (samplesRead == numSamples) {
     //   // add an empty line if it's the last sample
     //   Serial.println();
@@ -198,19 +227,18 @@ wait:
     // }
   }
 
-  samplesRead = 0;
-  while (samplesRead < numSamples) {
+  
+  for  (int ss=0; ss< samplesRead ; ss++) {
 
     // read the acceleration and gyroscope data
     // print the data in CSV format
-    // Serial.print(samplesRead);
-    // Serial.print(',');
+    Serial.print(ss);
+    Serial.print(',');
     for (int i = 0; i < 5; i++) {
-      Serial.print(samples[samplesRead][i], PRECISION);
+      Serial.print(samples[ss][i], PRECISION);
       Serial.print(',');
     }
-    Serial.println(samples[samplesRead][5], PRECISION);
-    samplesRead++;
+    Serial.println(samples[ss][5], PRECISION);
   }
   Serial.println();
 
