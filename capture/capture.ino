@@ -140,7 +140,7 @@ void loop() {
 wait:
     // User deactivated keypad
     if (digitalRead(MOUSE_ACTIVATE) == LOW) {
-      startedChar =false;
+      startedChar = false;
       break;
     }
     readIMU();
@@ -157,6 +157,13 @@ wait:
       samples[samplesRead][3] = angVelData.gyro.x;
       samples[samplesRead][4] = angVelData.gyro.y;
       samples[samplesRead][5] = angVelData.gyro.z;
+      Serial.print(samplesRead);
+      Serial.print(',');
+      for (int i = 0; i < 5; i++) {
+        Serial.print(samples[samplesRead][i], PRECISION);
+        Serial.print(',');
+      }
+      Serial.println(samples[samplesRead][5], PRECISION);
       samplesRead++;
     }
     if (samplesRead >= numSamples) {
@@ -227,20 +234,20 @@ wait:
     // }
   }
 
-  
-  for  (int ss=0; ss< samplesRead ; ss++) {
 
-    // read the acceleration and gyroscope data
-    // print the data in CSV format
-    Serial.print(ss);
-    Serial.print(',');
-    for (int i = 0; i < 5; i++) {
-      Serial.print(samples[ss][i], PRECISION);
-      Serial.print(',');
-    }
-    Serial.println(samples[ss][5], PRECISION);
-  }
-  Serial.println();
+  // for  (int ss=0; ss< samplesRead ; ss++) {
+
+  //   // read the acceleration and gyroscope data
+  //   // print the data in CSV format
+  //   Serial.print(ss);
+  //   Serial.print(',');
+  //   for (int i = 0; i < 5; i++) {
+  //     Serial.print(samples[ss][i], PRECISION);
+  //     Serial.print(',');
+  //   }
+  //   Serial.println(samples[ss][5], PRECISION);
+  // }
+  // Serial.println();
 
   digitalWrite(LED_BLUE, LOW);
 }
