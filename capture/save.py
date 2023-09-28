@@ -4,6 +4,7 @@ import time
 # Define the UART device and file path
 uart_device = "/dev/cu.usbmodem14601"
 file_path = "capture.csv"
+num_samples=150
 
 # Open the UART device for reading by line
 try:
@@ -35,7 +36,7 @@ try:
 
         # Check if 2 seconds have passed since the first non-empty line was read
         if start_time is not None and time.time() - start_time >= 2:
-            if len(lines) == 416:
+            if len(lines) == num_samples:
                 # Save the data to the file
                 with open(file_path, "a") as file:
                     file.write("\n".join(lines) + "\n")
