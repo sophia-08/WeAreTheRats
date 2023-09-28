@@ -30,5 +30,8 @@
 *.exe
 *.out
 *.app
+data/
+processed_data/
+content/
 
 .DS_Store
