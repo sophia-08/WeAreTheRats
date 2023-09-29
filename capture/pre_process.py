@@ -11,14 +11,30 @@ file_index = 0
 
 out_samples = 150
 
+
+
+def min_max_scaling(column, min_val, max_val):
+    scaled_column = (column - min_val) / (max_val - min_val)
+    return scaled_column
+
 def save_out(out, filename):
-    # print("removed=", removed, "size of out= ", out.shape)
+
+    min_a = min( out['aX'].min(), out['aY'].min(), out['aZ'].min())
+    max_a = max( out['aX'].max(), out['aY'].max(), out['aZ'].max())
+    min_g = min( out['gX'].min(), out['gY'].min(), out['gZ'].min())
+    max_g = max( out['gX'].max(), out['gY'].max(), out['gZ'].max())
+
+    print("Range of accel: ", min_a, "-", max_a, ", Range of gyro: ", min_g, "-", max_g)
     if out.shape[0] != out_samples:
         print("fix me, expect ", out_samples, "samples, but got ", out.shape[0])
         exit(1)
     # out = out[['aX','aY','aZ','gX', 'gY', 'gZ']]
     out = out.drop('lineno', axis=1)
-    out.to_csv(filename, index=False)
+    for col in ["aX", "aY", "aZ"]:
+        out[col] = min_max_scaling(out[col], min_a, max_a )
+    for col in ["gX", "gY", "gZ"]:
+        out[col] = min_max_scaling(out[col], min_a, max_a )
+    out.to_csv(filename, index=False, float_format='%.3f')
 
 
 
