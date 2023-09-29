@@ -30,7 +30,6 @@
 *.exe
 *.out
 *.app
-data/
 processed_data/
 content/
 
