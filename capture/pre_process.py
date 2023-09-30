@@ -9,7 +9,7 @@ file_path = "data/*.dat"
 file_index = 0
 
 
-out_samples = 150
+out_samples = 120
 
 
 
@@ -102,7 +102,12 @@ for datafile in datafiles:
                 i += 2  
                 removed += 1 
                 accumulated -= 1.0
-        
+
+                # there were cases to remove more than half points
+                if accumulated >= 1:
+                    i+=1
+                    removed += 1 
+                    accumulated -= 1.0
             else:
                 out.append(df.loc[i])
                 i += 1
@@ -116,17 +121,17 @@ for datafile in datafiles:
         save_out(out, "processed_"+datafile)  
 
         # generate 20 more samples
-        for i in range(20):
-            aSet = set()
-            while len(aSet) < point_to_remove :
-                aSet.add(random.randint(start, end))
-            print(aSet)
-            out = []
-            for j in range(start, end+1):
-                if not j in aSet:
-                    out.append(df.loc[j])
-            out = pd.DataFrame (out)
-            save_out(out, "processed_"+datafile+"_gen_"+str(i))
+        # for i in range(20):
+        #     aSet = set()
+        #     while len(aSet) < point_to_remove :
+        #         aSet.add(random.randint(start, end))
+        #     print(aSet)
+        #     out = []
+        #     for j in range(start, end+1):
+        #         if not j in aSet:
+        #             out.append(df.loc[j])
+        #     out = pd.DataFrame (out)
+        #     save_out(out, "processed_"+datafile+"_gen_"+str(i))
              
 
     else:
@@ -142,27 +147,27 @@ for datafile in datafiles:
         save_out(out, "processed_"+datafile)  
 
         # generate 20 more samples
-        for loop in range(20):
-            point_to_add =   out_samples-(end-start+1)
+        # for loop in range(20):
+        #     point_to_add =   out_samples-(end-start+1)
 
-            new_row = pd.Series({'lineno': 0, 'aX': 0, 'aY': 0, 'aZ': 0, 'gX': 0, 'gY': 0, 'gZ': 0, })
-            insert_at_middle = random.randint(0, point_to_add//2)
-            insert_at_back = point_to_add - insert_at_middle
-            aSet = set()
-            while len(aSet) < insert_at_middle :
-                aSet.add(random.randint(start, end))
-            print(aSet)            
+        #     new_row = pd.Series({'lineno': 0, 'aX': 0, 'aY': 0, 'aZ': 0, 'gX': 0, 'gY': 0, 'gZ': 0, })
+        #     insert_at_middle = random.randint(0, point_to_add//2)
+        #     insert_at_back = point_to_add - insert_at_middle
+        #     aSet = set()
+        #     while len(aSet) < insert_at_middle :
+        #         aSet.add(random.randint(start, end))
+        #     print(aSet)            
 
-            out = []
+        #     out = []
 
-            for i in range(start, end+1):
-                out.append(df.loc[i])
-                if i in aSet:
-                    out.append(new_row)
-            for i in range (insert_at_back): 
-                out.append(new_row) 
-            out = pd.DataFrame (out)
-            save_out(out, "processed_"+datafile+"_gen_"+str(loop))
+        #     for i in range(start, end+1):
+        #         out.append(df.loc[i])
+        #         if i in aSet:
+        #             out.append(new_row)
+        #     for i in range (insert_at_back): 
+        #         out.append(new_row) 
+        #     out = pd.DataFrame (out)
+        #     save_out(out, "processed_"+datafile+"_gen_"+str(loop))
 
     
 
