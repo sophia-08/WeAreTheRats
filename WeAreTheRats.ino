@@ -1,7 +1,10 @@
-#include "LSM6DS3.h"
+// #include "LSM6DS3.h"
 #include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include "Adafruit_BNO055.h"
+
 #include <bluefruit.h>
-#include <MadgwickAHRS.h>  // Madgwick 1.2.0 by Arduino
+// #include <MadgwickAHRS.h>  // Madgwick 1.2.0 by Arduino
 
 #include <TensorFlowLite.h>
 #include <tensorflow/lite/micro/all_ops_resolver.h>
@@ -11,36 +14,24 @@
 //#include <tensorflow/lite/version.h>
 
 #include "model.h"
-#include "test1.h"
-#define MOUSE_REPORT_ID 1
-const float accelerationThreshold = 2.5;  // threshold of significant in G's
-const int numSamples = 208; //119;
+// #include "test1.h"
 
-int samplesRead = numSamples;
+// #define MOUSE_REPORT_ID 1
+// const float accelerationThreshold = 2.5;  // threshold of significant in G's
+
+const int numSamples = 500;  //119;
+double samples[numSamples][6];
+
+int samplesRead = 0;
 #define MOUSE_LEFT D9
 #define MOUSE_RIGHT D8
 #define MOUSE_ACTIVATE D6
 
-
-//  Touch sensor 1 active, 0 inactive
-// Push button 0 active, 0 inactive
-// enum ButtonState {
-//   BUTTON_UP,
-//   BUTTON_DOWN
-// };
-
-
-// #define MOUSE_BUTTON_LEFT 1
-// #define MOUSE_BUTTON_RIGHT 2
-// #define MOUSE_BUTTON_MIDDLE 4
-
+#define out_samples 120
 
 BLEDis bledis;
-// BLEHidGeneric blehid = BLEHidGeneric(1);
 BLEHidAdafruit blehid;
 
-LSM6DS3 myIMU(I2C_MODE, 0x6A);
-Madgwick filter;                                            // Madgwick filter
 float accelX, accelY, accelZ,                               // units m/s/s i.e. accelZ if often 9.8 (gravity)
   gyroX, gyroY, gyroZ,                                      // units dps (degrees per second)
   gyroDriftX, gyroDriftY, gyroDriftZ,                       // units dps
@@ -55,39 +46,8 @@ uint8_t readData;
 
 float roll0, pitch0, yaw0;
 float roll, pitch, yaw;
-// we use our own descriptor because we want absolute mouse positioning
-uint8_t const hid_report_descriptor[] = {
-  HID_USAGE_PAGE(HID_USAGE_PAGE_DESKTOP),
-  HID_USAGE(HID_USAGE_DESKTOP_MOUSE),
-  HID_COLLECTION(HID_COLLECTION_APPLICATION),
-  HID_REPORT_ID(1)
-    HID_USAGE(HID_USAGE_DESKTOP_POINTER),
-  HID_COLLECTION(HID_COLLECTION_PHYSICAL),
-  HID_USAGE_PAGE(HID_USAGE_PAGE_BUTTON),
-  HID_USAGE_MIN(1),
-  HID_USAGE_MAX(3),
-  HID_LOGICAL_MIN(0),
-  HID_LOGICAL_MAX(1),
-  /* buttons */
-  HID_REPORT_COUNT(3),
-  HID_REPORT_SIZE(1),
-  HID_INPUT(HID_DATA | HID_VARIABLE | HID_ABSOLUTE),
-  /* padding */
-  HID_REPORT_COUNT(1),
-  HID_REPORT_SIZE(5),
-  HID_INPUT(HID_CONSTANT),
-  HID_USAGE_PAGE(HID_USAGE_PAGE_DESKTOP),
-  /* X, Y position [0, 32767] */
-  HID_USAGE(HID_USAGE_DESKTOP_X),
-  HID_USAGE(HID_USAGE_DESKTOP_Y),
-  HID_LOGICAL_MIN_N(0x0000, 2),
-  HID_LOGICAL_MAX_N(0x7fff, 2),
-  HID_REPORT_COUNT(2),
-  HID_REPORT_SIZE(16),
-  HID_INPUT(HID_DATA | HID_VARIABLE | HID_ABSOLUTE),
-  HID_COLLECTION_END,
-  HID_COLLECTION_END
-};
+
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
 
 // global variables used for TensorFlow Lite (Micro)
 tflite::MicroErrorReporter tflErrorReporter;
@@ -104,13 +64,18 @@ TfLiteTensor* tflOutputTensor = nullptr;
 
 // Create a static memory buffer for TFLM, the size may need to
 // be adjusted based on the model you are using
-constexpr int tensorArenaSize = 8 * 1024;
+constexpr int tensorArenaSize = 16 * 1024;
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 
 // array to map gesture index to a name
 const char* GESTURES[] = {
   "a",
-  "b"
+  "b",
+  "c",
+  "d",
+  "e",
+  "f",
+  "g"
 };
 
 #define NUM_GESTURES (sizeof(GESTURES) / sizeof(GESTURES[0]))
@@ -119,8 +84,10 @@ const char* GESTURES[] = {
 int ledgreen = 0;
 int ledred = 0;
 #define LED_CHARGER 23
+#define LIGHT_ON LOW
+#define LIGHT_OFF HIGH
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   // while (!Serial)
   //   ;
 
@@ -129,30 +96,30 @@ void setup() {
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_CHARGER, OUTPUT);
 
-  pinMode(D6, INPUT_PULLUP);
+  pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
   pinMode(D7, INPUT_PULLUP);
-  pinMode(D8, INPUT_PULLUP);
-  pinMode(D9, INPUT_PULLUP);
+  pinMode(MOUSE_RIGHT, INPUT_PULLUP);
+  pinMode(MOUSE_LEFT, INPUT_PULLUP);
   pinMode(D10, INPUT_PULLUP);
 
-  digitalWrite(D6, HIGH);
+  digitalWrite(MOUSE_ACTIVATE, HIGH);
   digitalWrite(D7, HIGH);
-  digitalWrite(D8, HIGH);
-  digitalWrite(D9, HIGH);
+  digitalWrite(MOUSE_RIGHT, HIGH);
+  digitalWrite(MOUSE_LEFT, HIGH);
   digitalWrite(D10, HIGH);
 
-  digitalWrite(LED_RED, LOW);
-  digitalWrite(LED_BLUE, LOW);
-  digitalWrite(LED_GREEN, HIGH);
-  digitalWrite(LED_CHARGER, LOW);
+  digitalWrite(LED_RED, LIGHT_OFF);
+  digitalWrite(LED_BLUE, LIGHT_OFF);
+  digitalWrite(LED_GREEN, LIGHT_OFF);
+  digitalWrite(LED_CHARGER, LIGHT_OFF);  // HIGH -- LED off.
 
 #if 1
-  if (myIMU.begin() != 0) {
-    Serial.println("IMU Device error");
-    while (1)
-      ;
-  }
-  Wire1.setClock(400000UL);  //SCL 400kHz
+  // if (myIMU.begin() != 0) {
+  //   Serial.println("IMU Device error");
+  //   while (1)
+  //     ;
+  // }
+  // Wire1.setClock(400000UL);  //SCL 400kHz
 
   // change defalt settings, refer to data sheet 9.13, 9.14, 9.19, 9.20
   // myIMU.writeRegister(LSM6DS3_ACC_GYRO_CTRL2_G, 0x1C);   // 12.5Hz 2000dps
@@ -161,7 +128,7 @@ void setup() {
   // myIMU.writeRegister(LSM6DS3_ACC_GYRO_CTRL8_XL, 0x09);  // ODR/4
 
   // Maadgwick filter sampling rate
-  filter.begin(416);
+  // filter.begin(416);
 
   // get the TFL representation of the model byte array
   tflModel = tflite::GetModel(model);
@@ -181,6 +148,7 @@ void setup() {
   tflInputTensor = tflInterpreter->input(0);
   tflOutputTensor = tflInterpreter->output(0);
 
+#if 0
   Bluefruit.begin();
   // HID Device can have a min connection interval of 9*1.25 = 11.25 ms
   Bluefruit.Periph.setConnInterval(9, 16);  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
@@ -191,89 +159,23 @@ void setup() {
   bledis.setManufacturer("Adafruit Industries");
   bledis.setModel("Bluefruit Feather 52");
   bledis.begin();
-
-  // blehid.setReportMap(hid_report_descriptor, sizeof(hid_report_descriptor));
-  // uint16_t input_len[] = { 5 };
-  // blehid.setReportLen(input_len, NULL, NULL);
-  // BLE HID
   blehid.begin();
 
   // Set up and start advertising
   startAdv();
+#endif
+  if (!bno.begin()) {
+    Serial.print("No BNO055 detected");
+    while (1)
+      ;
+  }
 
-  calibrateIMU(250, 250);
+  // calibrateIMU(250, 250);
   lastTime = micros();
+
+
 #endif
 }
-
-
-/*
-  the gyro's x,y,z values drift by a steady amount. if we measure this when arduino is still
-  we can correct the drift when doing real measurements later
-*/
-void calibrateIMU(int delayMillis, int calibrationMillis) {
-  gyroDriftX = 0.67;
-  gyroDriftY = -1.38;
-  gyroDriftZ = -0.51;
-  return;
-
-  int calibrationCount = 0;
-
-  delay(delayMillis);  // to avoid shakes after pressing reset button
-
-  float sumX, sumY, sumZ;
-  int startTime = millis();
-  while (millis() < startTime + calibrationMillis) {
-    if (readIMU()) {
-      // in an ideal world gyroX/Y/Z == 0, anything higher or lower represents drift
-      sumX += gyroX;
-      sumY += gyroY;
-      sumZ += gyroZ;
-      calibrationCount++;
-    }
-  }
-
-  if (calibrationCount == 0) {
-    Serial.println("Failed to calibrate");
-  }
-
-  gyroDriftX = sumX / calibrationCount;
-  gyroDriftY = sumY / calibrationCount;
-  gyroDriftZ = sumZ / calibrationCount;
-
-  // {
-  //   Serial.print(calibrationCount);
-  //   Serial.print(",");
-  //   Serial.print(gyroDriftX);
-  //   Serial.print(",");
-  //   Serial.print(gyroDriftY);
-  //   Serial.print(",");
-  //   Serial.print(gyroDriftZ);
-  //   Serial.println("");
-  // }
-
-  // uint8_t* data = myIMU.dumpRegisters();
-  // for (int i = 0; i < 15; i++) {
-  //   Serial.print(i);
-  //   Serial.print(",");
-  //   Serial.println(data[i], HEX);
-  // }
-  // while (1)
-  //   ;
-}
-
-/**
-   Read accel and gyro data.
-   returns true if value is 'new' and false if IMU is returning old cached data
-*/
-// bool readIMU() {
-//   if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable() ) {
-//     IMU.readAcceleration(accelX, accelY, accelZ);
-//     IMU.readGyroscope(gyroX, gyroY, gyroZ);
-//     return true;
-//   }
-//   return false;
-// }
 
 void startAdv(void) {
   // Advertising packet
@@ -302,70 +204,124 @@ void startAdv(void) {
   Bluefruit.Advertising.start(0);              // 0 = Don't stop advertising after n seconds
 }
 
+
+sensors_event_t orientationData, linearAccelData, angVelData;
 bool readIMU() {
-  // wait for IMU data to become valid
-  // sample rate is 416Hz
-  // do {
-  //   myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
-  // } while ((readData & 0x07) != 0x07);
 
-  // digitalWrite(LED_RED, LOW);   // data read and send task indicator ON
-
-  uint8_t data[12];
-  myIMU.readRegisterRegion(data, 0x22, 12);
-  int16_t* p = (int16_t*)data;
-  gyroX = *p * 2000.0 / 32768.0;
-  p++;
-  gyroY = *p * 2000.0 / 32768.0;
-  p++;
-  gyroZ = *p * 2000.0 / 32768.0;
-  p++;
-  accelX = *p * 4.0 / 32768.0;
-  p++;
-  accelY = *p * 4.0 / 32768.0;
-  p++;
-  accelZ = *p * 4.0 / 32768.0;
-  p++;
-  // Serial.print(data[0],HEX);Serial.print(",");Serial.print(data[1],HEX);Serial.print(",");Serial.println(gyroX);
-  // Serial.print(data[6],HEX);Serial.print(",");Serial.print(data[7],HEX);Serial.print(",");Serial.println(accelX);
-  //   accelX = myIMU.readFloatAccelX();  // Accel data
-  //   accelY = myIMU.readFloatAccelY();
-  //   accelZ = myIMU.readFloatAccelZ();
-  //   gyroX = myIMU.readFloatGyroX();  // Gyro data
-  //   gyroY = myIMU.readFloatGyroY();
-  //  gyroZ = myIMU.readFloatGyroZ();
+  // bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
+  bno.getEvent(&angVelData, Adafruit_BNO055::VECTOR_GYROSCOPE);
+  bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
   return true;
 }
 
-void storeData() {
-  // normalize the IMU data between 0 to 1 and store in the model's
-  // input tensor
-  tflInputTensor->data.f[samplesRead * 6 + 0] = (accelX + 4.0) / 8.0;
-  tflInputTensor->data.f[samplesRead * 6 + 1] = (accelY + 4.0) / 8.0;
-  tflInputTensor->data.f[samplesRead * 6 + 2] = (accelZ + 4.0) / 8.0;
-  tflInputTensor->data.f[samplesRead * 6 + 3] = (gyroX + 2000.0) / 4000.0;
-  tflInputTensor->data.f[samplesRead * 6 + 4] = (gyroY + 2000.0) / 4000.0;
-  tflInputTensor->data.f[samplesRead * 6 + 5] = (gyroZ + 2000.0) / 4000.0;
+float minAccl = 10;
+float minGyro = 10;
+float maxAccl = -10;
+float maxGyro = -10;
+float rangeOfAccl, rangeOfGyro;
+int tensorIndex = 0;
+
+void preprocessData() {
+  int pointToRemove;
+  float decimate;
+  float accumulated = 0.0;
+  int removed = 0;
+  int start = 0;
+  int end = samplesRead - 1;
+  // Trim at front
+  while (true) {
+    int count = 0;
+    for (int i = 0; i < 3; i++) {
+      if (abs(samples[i + start][0]) + abs(samples[i + start][1]) + abs(samples[i + start][2]) > 3) {
+        count += 1;
+      }
+    }
+    if (count >= 2) {
+      break;
+    } else {
+      start += 1;
+    }
+  }
+
+  // Trim at end
+  while (true) {
+    int count = 0;
+    for (int i = 0; i < 3; i++) {
+      if (abs(samples[end - i][0]) + abs(samples[end - i][1]) + abs(samples[end - i][2]) > 3) {
+        count += 1;
+      }
+    }
+    if (count >= 2) {
+      break;
+    } else {
+      end -= 1;
+    }
+  }
+
+  Serial.print(start);
+  Serial.print(" e ");
+  Serial.println(end);
+
+  if (end - start + 1 > out_samples) {
+    pointToRemove = end - start + 1 - out_samples;
+    decimate = float(pointToRemove) / float(out_samples);
+    int i = start;
+    removed = 0;
+    accumulated = 0.0;
+    while (true) {
+      tflInputTensor->data.f[tensorIndex++] = (samples[i][0] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] = (samples[i][1] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] = (samples[i][2] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] = (samples[i][3] - minGyro) / rangeOfGyro;
+      tflInputTensor->data.f[tensorIndex++] = (samples[i][4] - minGyro) / rangeOfGyro;
+      tflInputTensor->data.f[tensorIndex++] = (samples[i][5] - minGyro) / rangeOfGyro;
+      accumulated += decimate;
+      while (accumulated >= 1) {
+        i += 1;
+        removed++;
+        accumulated -= 1;
+      }
+      i += 1;
+      if (i >= end) {
+        break;
+      }
+    }
+    if (removed < pointToRemove) {
+      tflInputTensor->data.f[tensorIndex++] = (samples[i][0] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] = (samples[i][1] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] = (samples[i][2] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] = (samples[i][3] - minGyro) / rangeOfGyro;
+      tflInputTensor->data.f[tensorIndex++] = (samples[i][4] - minGyro) / rangeOfGyro;
+      tflInputTensor->data.f[tensorIndex++] = (samples[i][5] - minGyro) / rangeOfGyro;
+    }
+  }
+
+  Serial.print("Samples:");
+  Serial.print(samplesRead);
+  Serial.print(", tensor ");
+  Serial.println(tensorIndex);
+
+  // dumpTensors();
 }
 
-void loadTest() {
-  
-  for (int i=0; i< numSamples*6; i++) {
-    tflInputTensor->data.f[i] = tt[i];
+void dumpTensors() {
+  for (int i=0; i<tensorIndex; ) {
+    Serial.print(tflInputTensor->data.f[i++]);Serial.print(", ");
+    Serial.print(tflInputTensor->data.f[i++]);Serial.print(", ");
+    Serial.print(tflInputTensor->data.f[i++]);Serial.print(", ");
+    Serial.print(tflInputTensor->data.f[i++]);Serial.print(", ");
+    Serial.print(tflInputTensor->data.f[i++]);Serial.print(", ");
+    Serial.println(tflInputTensor->data.f[i++]);
   }
 }
+// void loadTest() {
 
-int count = 0;
-// void mousePosition(int16_t x, int16_t y) {
-//   uint8_t report[] = { 0x00, 0x00, 0x00, 0x00, 0x00 };
-//   report[0] = 0;
-//   report[1] = x & 0xff;
-//   report[2] = (x >> 8) & 0xff;
-//   report[3] = y & 0xff;
-//   report[4] = (y >> 8) & 0xff;
-//   blehid.inputReport(MOUSE_REPORT_ID, report, sizeof(report));
+//   for (int i = 0; i < numSamples * 6; i++) {
+//     tflInputTensor->data.f[i] = tt[i];
+//   }
 // }
 
+int count = 0;
 int tmp = 0;
 #define report_freq 5
 int lastx, lasty;
@@ -374,24 +330,142 @@ int last_left, last_right;
 
 bool inference_started = false;
 
+#define PRECISION 4
+float lastAx, lastAy, lastAz;
+bool startedChar = false;
+int t1 = 0;
+int ledCount;
+
 void loop() {
   // ledred = !ledred;
   //  digitalWrite(LED_RED, ledred);
-  digitalWrite(LED_BLUE, digitalRead(D7));
-  digitalWrite(LED_RED, digitalRead(D8));
-  digitalWrite(LED_GREEN, digitalRead(D9));
-  digitalWrite(LED_CHARGER, digitalRead(D10));
-
-  if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
-    //start gesture recognization
-    inference_started = true;
-    samplesRead = 0;
+  // digitalWrite(LED_BLUE, digitalRead(D7));
+  // digitalWrite(LED_RED, digitalRead(MOUSE_RIGHT));
+  // digitalWrite(LED_GREEN, digitalRead(D9));
+  // digitalWrite(LED_CHARGER, digitalRead(D10));
+  ledCount++;
+  // HIGH  -- LIGHT_OFF
+  if (ledCount % 10 == 0) {
+    digitalWrite(LED_GREEN, LIGHT_ON);
+  } else {
+    digitalWrite(LED_GREEN, LIGHT_OFF);
   }
 
-  // if (!Bluefruit.connected()) return;
-  myIMU.readRegister(&readData, LSM6DS3_ACC_GYRO_STATUS_REG);  //0,0,0,0,0,TDA,GDA,XLDA
-  if ((readData & 0x07) != 0x07) return;
-  // every 2.4ms
+  // Capture has not started, ignore until user activate keypad
+  if (!startedChar) {
+    if (digitalRead(MOUSE_ACTIVATE) == LOW) {
+      return;
+    } else {
+      // User activate keypad, check whether 2s passed since last capture
+      int currentTime = millis();
+      if (currentTime < t1 + 2000) {
+        return;
+      }
+      startedChar = true;
+      t1 = currentTime;
+      samplesRead = 0;
+      minAccl = 10;
+      minGyro = 10;
+      maxAccl = -10;
+      maxGyro = -10;
+    }
+  }
+
+  digitalWrite(LED_BLUE, LIGHT_ON);
+  while (true) {
+wait:
+    // User deactivated keypad
+    if (digitalRead(MOUSE_ACTIVATE) == LOW) {
+      startedChar = false;
+      inference_started = true;
+      break;
+    }
+    readIMU();
+    if (linearAccelData.acceleration.x == lastAx && linearAccelData.acceleration.y == lastAy && linearAccelData.acceleration.z == lastAz) {
+      delay(0.5);
+      goto wait;
+    } else {
+      lastAx = linearAccelData.acceleration.x;
+      lastAy = linearAccelData.acceleration.y;
+      lastAz = linearAccelData.acceleration.z;
+      samples[samplesRead][0] = linearAccelData.acceleration.x;
+      samples[samplesRead][1] = linearAccelData.acceleration.y;
+      samples[samplesRead][2] = linearAccelData.acceleration.z;
+      samples[samplesRead][3] = angVelData.gyro.x;
+      samples[samplesRead][4] = angVelData.gyro.y;
+      samples[samplesRead][5] = angVelData.gyro.z;
+
+      for (int i = 0; i < 3; i++) {
+        if (minAccl > samples[samplesRead][i]) {
+          minAccl = samples[samplesRead][i];
+        }
+        if (maxAccl < samples[samplesRead][i]) {
+          maxAccl = samples[samplesRead][i];
+        }
+      }
+      for (int i = 3; i < 6; i++) {
+        if (minGyro > samples[samplesRead][i]) {
+          minGyro = samples[samplesRead][i];
+        }
+        if (maxGyro < samples[samplesRead][i]) {
+          maxGyro = samples[samplesRead][i];
+        }
+      }
+      // Serial.print(samplesRead);
+      // Serial.print(',');
+      // for (int i = 0; i < 5; i++) {
+      //   Serial.print(samples[samplesRead][i], PRECISION);
+      //   Serial.print(',');
+      // }
+      // Serial.println(samples[samplesRead][5], PRECISION);
+      samplesRead++;
+    }
+    if (samplesRead >= numSamples) {
+      samplesRead = 0;
+    }
+  }
+
+  digitalWrite(LED_BLUE, LIGHT_OFF);
+  // Not enough samples, restart
+  if (samplesRead < out_samples) {
+    Serial.print("not enough samples, ");
+    Serial.println(samplesRead);
+    samplesRead = 0;
+    inference_started = false;
+    startedChar = false;
+    return;
+  }
+
+  Serial.print("ranges:");
+  Serial.print(minAccl);
+  Serial.print(",");
+  Serial.print(maxAccl);
+  Serial.print(",");
+  Serial.print(minGyro);
+  Serial.print(",");
+  Serial.println(maxGyro);
+
+  if (inference_started) {
+    inference_started = false;
+    tensorIndex = 0;
+    rangeOfAccl = maxAccl - minAccl;
+    rangeOfGyro = maxGyro - minGyro;
+    preprocessData();
+
+    TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+    if (invokeStatus != kTfLiteOk) {
+      Serial.println("Invoke failed!");
+    }
+
+    // Loop through the output tensor values from the model
+    for (int i = 0; i < NUM_GESTURES; i++) {
+      Serial.print(GESTURES[i]);
+      Serial.print(": ");
+      Serial.println(tflOutputTensor->data.f[i], 6);
+    }
+    Serial.println();
+  }
+  return;
 
 #if 0
   left = digitalRead(MOUSE_LEFT);
@@ -417,8 +491,8 @@ void loop() {
     last_right = right;
   }
 
-  #endif
-
+#endif
+#if 0
   // ledgreen = !ledgreen;
   ledgreen = (ledgreen + 1) % 400;
   digitalWrite(LED_GREEN, ledgreen);
@@ -432,57 +506,12 @@ void loop() {
   }
   count++;
   readIMU();
-
-  if (inference_started && samplesRead < numSamples) {
-    storeData();
-    samplesRead++;
-  }
-
-  // // Run inferencing
-  if (inference_started && samplesRead == numSamples) {
-    samplesRead = 0;
-    inference_started = false;
-// loadTest();
-    TfLiteStatus invokeStatus = tflInterpreter->Invoke();
-    if (invokeStatus != kTfLiteOk) {
-      Serial.println("Invoke failed!");
-    }
-
-    // Loop through the output tensor values from the model
-    for (int i = 0; i < NUM_GESTURES; i++) {
-      Serial.print(GESTURES[i]);
-      Serial.print(": ");
-      Serial.println(tflOutputTensor->data.f[i], 6);
-    }
-    Serial.println();
-  }
-  return;
   // long currentTime = micros();
   // lastInterval = currentTime - lastTime;  // expecting this to be ~104Hz +- 4%
   // lastTime = currentTime;
 
 
   doCalculations();
-
-  // wait for significant motion
-  // if (samplesRead == numSamples) {
-
-
-  //   // sum up the absolutes
-  //   float aSum = fabs(aX) + fabs(aY) + fabs(aZ);
-
-  //   // check if it's above the threshold
-  //   if (aSum >= accelerationThreshold) {
-  //     // reset the sample read count
-  //     samplesRead = 0;
-
-  //   } else {
-  //     return;
-  //   }
-  // }
-  // storeData();
-  // calculate the attitude with Madgwick filter
-  filter.updateIMU(gyroX - gyroDriftX, gyroY - gyroDriftY, gyroZ - gyroDriftZ, accelX, accelY, accelZ);
 
   roll = filter.getRoll();    // -180 ~ 180deg
   pitch = filter.getPitch();  // -180 ~ 180deg
@@ -584,6 +613,7 @@ void loop() {
     }
     Serial.println();
   }
+#endif
 }
 
 /**
