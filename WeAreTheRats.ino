@@ -464,6 +464,16 @@ wait:
       Serial.println(tflOutputTensor->data.f[i], 6);
     }
     Serial.println();
+
+    char ch = '.';
+    for (int i = 0; i < NUM_GESTURES; i++) {
+      if (tflOutputTensor->data.f[i] > 0.5) {
+        ch = GESTURES[i][0];
+        break;
+      };
+    }
+    Serial.println(ch);
+
   }
   return;
 
