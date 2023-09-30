@@ -32,5 +32,6 @@
 *.app
 processed_data/
 content/
-
+testdata/
+my_saved_model/
 .DS_Store
