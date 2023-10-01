@@ -68,17 +68,9 @@ constexpr int tensorArenaSize = 16 * 1024;
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 
 // array to map gesture index to a name
-const char* GESTURES[] = {
-  "a",
-  "b",
-  "c",
-  "d",
-  "e",
-  "f",
-  "g"
-};
+const char* GESTURES = "abcdefghijklmnopqrstuvwxyz";
 
-#define NUM_GESTURES (sizeof(GESTURES) / sizeof(GESTURES[0]))
+#define NUM_GESTURES 26
 
 //0 ledoff, 1 ledon
 int ledgreen = 0;
@@ -458,17 +450,17 @@ wait:
     }
 
     // Loop through the output tensor values from the model
-    for (int i = 0; i < NUM_GESTURES; i++) {
-      Serial.print(GESTURES[i]);
-      Serial.print(": ");
-      Serial.println(tflOutputTensor->data.f[i], 6);
-    }
-    Serial.println();
+    // for (int i = 0; i < NUM_GESTURES; i++) {
+    //   Serial.print(GESTURES[i]);
+    //   Serial.print(": ");
+    //   Serial.println(tflOutputTensor->data.f[i], 6);
+    // }
+    // Serial.println();
 
     char ch = '.';
     for (int i = 0; i < NUM_GESTURES; i++) {
       if (tflOutputTensor->data.f[i] > 0.5) {
-        ch = GESTURES[i][0];
+        ch = GESTURES[i];
         break;
       };
     }
