@@ -64,7 +64,7 @@ TfLiteTensor* tflOutputTensor = nullptr;
 
 // Create a static memory buffer for TFLM, the size may need to
 // be adjusted based on the model you are using
-constexpr int tensorArenaSize = 16 * 1024;
+constexpr int tensorArenaSize = 128 * 1024;
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 
 // array to map gesture index to a name
@@ -134,7 +134,11 @@ void setup() {
   tflInterpreter = new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize, &tflErrorReporter);
 
   // Allocate memory for the model's input and output tensors
-  tflInterpreter->AllocateTensors();
+  if (tflInterpreter->AllocateTensors() != kTfLiteOk) {
+    Serial.println("AllocateTensors failed!");
+    while (1)
+      ;
+  };
 
   // Get pointers for the model's input and output tensors
   tflInputTensor = tflInterpreter->input(0);
@@ -297,12 +301,17 @@ void preprocessData() {
 }
 
 void dumpTensors() {
-  for (int i=0; i<tensorIndex; ) {
-    Serial.print(tflInputTensor->data.f[i++]);Serial.print(", ");
-    Serial.print(tflInputTensor->data.f[i++]);Serial.print(", ");
-    Serial.print(tflInputTensor->data.f[i++]);Serial.print(", ");
-    Serial.print(tflInputTensor->data.f[i++]);Serial.print(", ");
-    Serial.print(tflInputTensor->data.f[i++]);Serial.print(", ");
+  for (int i = 0; i < tensorIndex;) {
+    Serial.print(tflInputTensor->data.f[i++]);
+    Serial.print(", ");
+    Serial.print(tflInputTensor->data.f[i++]);
+    Serial.print(", ");
+    Serial.print(tflInputTensor->data.f[i++]);
+    Serial.print(", ");
+    Serial.print(tflInputTensor->data.f[i++]);
+    Serial.print(", ");
+    Serial.print(tflInputTensor->data.f[i++]);
+    Serial.print(", ");
     Serial.println(tflInputTensor->data.f[i++]);
   }
 }
@@ -465,7 +474,6 @@ wait:
       };
     }
     Serial.println(ch);
-
   }
   return;
 
