@@ -98,7 +98,8 @@ for datafile in datafiles:
             accumulated += decimate
             if (accumulated >= 1) :
                 # print("remove ", i)               
-                out.append((df.loc[i]+df.loc[i+1]))
+                # out.append((df.loc[i]+df.loc[i+1]))
+                out.append(df.loc[i])
                 i += 2  
                 removed += 1 
                 accumulated -= 1.0
