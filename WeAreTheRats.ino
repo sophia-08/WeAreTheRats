@@ -144,7 +144,7 @@ void setup() {
   tflInputTensor = tflInterpreter->input(0);
   tflOutputTensor = tflInterpreter->output(0);
 
-#if 0
+#if 1
   Bluefruit.begin();
   // HID Device can have a min connection interval of 9*1.25 = 11.25 ms
   Bluefruit.Periph.setConnInterval(9, 16);  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
@@ -300,21 +300,21 @@ void preprocessData() {
   // dumpTensors();
 }
 
-void dumpTensors() {
-  for (int i = 0; i < tensorIndex;) {
-    Serial.print(tflInputTensor->data.f[i++]);
-    Serial.print(", ");
-    Serial.print(tflInputTensor->data.f[i++]);
-    Serial.print(", ");
-    Serial.print(tflInputTensor->data.f[i++]);
-    Serial.print(", ");
-    Serial.print(tflInputTensor->data.f[i++]);
-    Serial.print(", ");
-    Serial.print(tflInputTensor->data.f[i++]);
-    Serial.print(", ");
-    Serial.println(tflInputTensor->data.f[i++]);
-  }
-}
+// void dumpTensors() {
+//   for (int i = 0; i < tensorIndex;) {
+//     Serial.print(tflInputTensor->data.f[i++]);
+//     Serial.print(", ");
+//     Serial.print(tflInputTensor->data.f[i++]);
+//     Serial.print(", ");
+//     Serial.print(tflInputTensor->data.f[i++]);
+//     Serial.print(", ");
+//     Serial.print(tflInputTensor->data.f[i++]);
+//     Serial.print(", ");
+//     Serial.print(tflInputTensor->data.f[i++]);
+//     Serial.print(", ");
+//     Serial.println(tflInputTensor->data.f[i++]);
+//   }
+// }
 // void loadTest() {
 
 //   for (int i = 0; i < numSamples * 6; i++) {
@@ -600,29 +600,29 @@ wait:
   // Serial.println(yaw);
   // check if the all the required samples have been read since
   // the last time the significant motion was detected
-  if (inference_started && samplesRead < numSamples) {
-    storeData();
-    samplesRead++;
-  }
+  // if (inference_started && samplesRead < numSamples) {
+  //   storeData();
+  //   samplesRead++;
+  // }
 
-  // // Run inferencing
-  if (inference_started && samplesRead == numSamples) {
-    samplesRead = 0;
-    inference_started = false;
+  // // // Run inferencing
+  // if (inference_started && samplesRead == numSamples) {
+  //   samplesRead = 0;
+  //   inference_started = false;
 
-    TfLiteStatus invokeStatus = tflInterpreter->Invoke();
-    if (invokeStatus != kTfLiteOk) {
-      Serial.println("Invoke failed!");
-    }
+  //   TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+  //   if (invokeStatus != kTfLiteOk) {
+  //     Serial.println("Invoke failed!");
+  //   }
 
-    // Loop through the output tensor values from the model
-    for (int i = 0; i < NUM_GESTURES; i++) {
-      Serial.print(GESTURES[i]);
-      Serial.print(": ");
-      Serial.println(tflOutputTensor->data.f[i], 6);
-    }
-    Serial.println();
-  }
+  //   // Loop through the output tensor values from the model
+  //   for (int i = 0; i < NUM_GESTURES; i++) {
+  //     Serial.print(GESTURES[i]);
+  //     Serial.print(": ");
+  //     Serial.println(tflOutputTensor->data.f[i], 6);
+  //   }
+  //   Serial.println();
+  // }
 #endif
 }
 
@@ -630,53 +630,53 @@ wait:
    I'm expecting, over time, the Arduino_LSM6DS3.h will add functions to do most of this,
    but as of 1.0.0 this was missing.
 */
-void doCalculations() {
-  accRoll = atan2(accelY, accelZ) * 180 / M_PI;
-  accPitch = atan2(-accelX, sqrt(accelY * accelY + accelZ * accelZ)) * 180 / M_PI;
+// void doCalculations() {
+//   accRoll = atan2(accelY, accelZ) * 180 / M_PI;
+//   accPitch = atan2(-accelX, sqrt(accelY * accelY + accelZ * accelZ)) * 180 / M_PI;
 
-  float lastFrequency = 416;  //(float)1000000.0 / lastInterval;
-  gyroRoll = gyroRoll + (gyroX / lastFrequency);
-  gyroPitch = gyroPitch + (gyroY / lastFrequency);
-  gyroYaw = gyroYaw + (gyroZ / lastFrequency);
+//   float lastFrequency = 416;  //(float)1000000.0 / lastInterval;
+//   gyroRoll = gyroRoll + (gyroX / lastFrequency);
+//   gyroPitch = gyroPitch + (gyroY / lastFrequency);
+//   gyroYaw = gyroYaw + (gyroZ / lastFrequency);
 
-  gyroCorrectedRoll = gyroCorrectedRoll + ((gyroX - gyroDriftX) / lastFrequency);
-  gyroCorrectedPitch = gyroCorrectedPitch + ((gyroY - gyroDriftY) / lastFrequency);
-  gyroCorrectedYaw = gyroCorrectedYaw + ((gyroZ - gyroDriftZ) / lastFrequency);
+//   gyroCorrectedRoll = gyroCorrectedRoll + ((gyroX - gyroDriftX) / lastFrequency);
+//   gyroCorrectedPitch = gyroCorrectedPitch + ((gyroY - gyroDriftY) / lastFrequency);
+//   gyroCorrectedYaw = gyroCorrectedYaw + ((gyroZ - gyroDriftZ) / lastFrequency);
 
-  complementaryRoll = complementaryRoll + ((gyroX - gyroDriftX) / lastFrequency);
-  complementaryPitch = complementaryPitch + ((gyroY - gyroDriftY) / lastFrequency);
-  complementaryYaw = complementaryYaw + ((gyroZ - gyroDriftZ) / lastFrequency);
+//   complementaryRoll = complementaryRoll + ((gyroX - gyroDriftX) / lastFrequency);
+//   complementaryPitch = complementaryPitch + ((gyroY - gyroDriftY) / lastFrequency);
+//   complementaryYaw = complementaryYaw + ((gyroZ - gyroDriftZ) / lastFrequency);
 
-  complementaryRoll = 0.98 * complementaryRoll + 0.02 * accRoll;
-  complementaryPitch = 0.98 * complementaryPitch + 0.02 * accPitch;
-}
+//   complementaryRoll = 0.98 * complementaryRoll + 0.02 * accRoll;
+//   complementaryPitch = 0.98 * complementaryPitch + 0.02 * accPitch;
+// }
 
 /**
    This comma separated format is best 'viewed' using 'serial plotter' or processing.org client (see ./processing/RollPitchYaw3d.pde example)
 */
-void printCalculations() {
-  Serial.print(roll);
-  Serial.print(',');
-  Serial.print(pitch);
-  Serial.print(',');
-  Serial.print(yaw);
-  Serial.print(',');
-  Serial.print(gyroCorrectedRoll);
-  Serial.print(',');
-  Serial.print(gyroCorrectedPitch);
-  Serial.print(',');
-  Serial.print(gyroCorrectedYaw);
-  Serial.print(',');
-  Serial.print(accRoll);
-  Serial.print(',');
-  Serial.print(accPitch);
-  Serial.print(',');
-  Serial.print(accYaw);
-  Serial.print(',');
-  Serial.print(complementaryRoll);
-  Serial.print(',');
-  Serial.print(complementaryPitch);
-  Serial.print(',');
-  Serial.print(complementaryYaw);
-  Serial.println("");
-}
+// void printCalculations() {
+//   Serial.print(roll);
+//   Serial.print(',');
+//   Serial.print(pitch);
+//   Serial.print(',');
+//   Serial.print(yaw);
+//   Serial.print(',');
+//   Serial.print(gyroCorrectedRoll);
+//   Serial.print(',');
+//   Serial.print(gyroCorrectedPitch);
+//   Serial.print(',');
+//   Serial.print(gyroCorrectedYaw);
+//   Serial.print(',');
+//   Serial.print(accRoll);
+//   Serial.print(',');
+//   Serial.print(accPitch);
+//   Serial.print(',');
+//   Serial.print(accYaw);
+//   Serial.print(',');
+//   Serial.print(complementaryRoll);
+//   Serial.print(',');
+//   Serial.print(complementaryPitch);
+//   Serial.print(',');
+//   Serial.print(complementaryYaw);
+//   Serial.println("");
+// }
