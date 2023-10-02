@@ -34,4 +34,7 @@ processed_data/
 content/
 testdata/
 my_saved_model/
+.ipynb_checkpoints/
+build/
+gesture_model.tflite
 .DS_Store
