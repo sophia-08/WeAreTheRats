@@ -16,6 +16,10 @@ float gyroRoll, gyroPitch, gyroYaw,                         // units degrees (ex
 #define MOUSE_LEFT D9
 #define MOUSE_RIGHT D8
 #define MOUSE_ACTIVATE D6
+#define DEBUG_2 D2
+#define DEBUG_3 D3
+#define IMU_RESET D0
+
 const float accelerationThreshold = 1.6;  // threshold of significant in G's
 const int numSamples = 500;
 double samples[numSamples][6];
@@ -32,8 +36,15 @@ void setup() {
   Serial.begin(115200);
   // while (!Serial)
   //   ;
+  //Reset IMU
+  digitalWrite(IMU_RESET, HIGH);
+  digitalWrite(IMU_RESET, LOW);
+  digitalWrite(IMU_RESET, HIGH);
+
   pinMode(LED_BLUE, OUTPUT);
   pinMode(LED_RED, OUTPUT);
+  pinMode(DEBUG_2, OUTPUT);
+  pinMode(DEBUG_3, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
   // pinMode(LED_CHARGER, OUTPUT);
   pinMode(D6, INPUT_PULLUP);
@@ -100,9 +111,11 @@ void calibrateIMU(int delayMillis, int calibrationMillis) {
 sensors_event_t orientationData, linearAccelData, angVelData;
 bool readIMU() {
 
+  digitalWrite(DEBUG_3, HIGH);
   // bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
   bno.getEvent(&angVelData, Adafruit_BNO055::VECTOR_GYROSCOPE);
   bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
+  digitalWrite(DEBUG_3, LOW);
   return true;
 }
 
@@ -113,6 +126,7 @@ float sumX, sumY, sumZ;
 float lastAx, lastAy, lastAz;
 bool startedChar = false;
 int t1 = 0;
+bool d2;
 
 void loop() {
 
@@ -165,6 +179,8 @@ wait:
       }
       Serial.println(samples[samplesRead][5], PRECISION);
       samplesRead++;
+      d2 = !d2;
+      digitalWrite(DEBUG_2, d2);
     }
     if (samplesRead >= numSamples) {
       samplesRead = 0;
