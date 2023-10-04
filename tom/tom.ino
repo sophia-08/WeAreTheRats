@@ -32,8 +32,15 @@ uint8_t buf[64];
 void setup() {
   Serial.begin(115200);
   buf[0] = 'a';
-  // #if CFG_DEBUG
-  while (!Serial) delay(1);
+// Mystery of why !Serial not ready:
+// The "Serial" is always valid for an Arduino Uno, therefor that piece of code does not wait.
+// In the Leonardo, the "Serial" could be zero, if the serial monitor has not been opened yet.
+  // while (!Serial) {
+  //   digitalWrite(LED_RED, LIGHT_ON);
+  //   delay(10);
+  //   digitalWrite(LED_RED, LIGHT_OFF);
+  //   delay(100);
+  // }
 
   Serial.println("Tom cat\n");
   Serial.println("---------------------------\n");
