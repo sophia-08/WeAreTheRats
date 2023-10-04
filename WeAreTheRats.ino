@@ -42,6 +42,8 @@ int deviceMode;
 
 BLEDis bledis;
 BLEHidAdafruit blehid;
+// Central uart client
+BLEClientUart clientUart;
 
 float accelX, accelY, accelZ,                               // units m/s/s i.e. accelZ if often 9.8 (gravity)
   gyroX, gyroY, gyroZ,                                      // units dps (degrees per second)
@@ -89,10 +91,21 @@ int ledred = 0;
 #define LED_CHARGER 23
 #define LIGHT_ON LOW
 #define LIGHT_OFF HIGH
+
+// const uint8_t BLEUART_UUID_SERVICE[] =
+// {
+//     0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0,
+//     0x93, 0xF3, 0xA3, 0xB5, 0x01, 0x00, 0x40, 0x6E
+// };
+
 void setup() {
   Serial.begin(115200);
   // while (!Serial)
   //   ;
+  while (!Serial) delay(1);  // for nrf52840 with native usb
+
+  Serial.println("We are the rats\n");
+  Serial.println("-------------------------------------\n");
 
   pinMode(LED_BLUE, OUTPUT);
   pinMode(LED_RED, OUTPUT);
@@ -123,22 +136,6 @@ void setup() {
   digitalWrite(LED_GREEN, LIGHT_OFF);
   digitalWrite(LED_CHARGER, LIGHT_OFF);  // HIGH -- LED off.
 
-  // if (myIMU.begin() != 0) {
-  //   Serial.println("IMU Device error");
-  //   while (1)
-  //     ;
-  // }
-  // Wire1.setClock(400000UL);  //SCL 400kHz
-
-  // change defalt settings, refer to data sheet 9.13, 9.14, 9.19, 9.20
-  // myIMU.writeRegister(LSM6DS3_ACC_GYRO_CTRL2_G, 0x1C);   // 12.5Hz 2000dps
-  // myIMU.writeRegister(LSM6DS3_ACC_GYRO_CTRL1_XL, 0x1A);  // 12.5Hz 4G
-  // myIMU.writeRegister(LSM6DS3_ACC_GYRO_CTRL7_G, 0x00);   // HPF 16mHz
-  // myIMU.writeRegister(LSM6DS3_ACC_GYRO_CTRL8_XL, 0x09);  // ODR/4
-
-  // Maadgwick filter sampling rate
-  // filter.begin(416);
-
   // get the TFL representation of the model byte array
   tflModel = tflite::GetModel(model);
   if (tflModel->version() != TFLITE_SCHEMA_VERSION) {
@@ -159,9 +156,18 @@ void setup() {
   tflInputTensor = tflInterpreter->input(0);
   tflOutputTensor = tflInterpreter->output(0);
 
-  Bluefruit.begin();
+  // Initialize Bluefruit with max concurrent connections as Peripheral = 1, Central = 1
+  // SRAM usage required by SoftDevice will increase with number of connections
+  Bluefruit.begin(1, 1);
   // HID Device can have a min connection interval of 9*1.25 = 11.25 ms
   Bluefruit.Periph.setConnInterval(9, 16);  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
+Bluefruit.Central.setConnInterval(9, 16);  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
+
+
+  // Callbacks for Central
+  Bluefruit.Central.setConnectCallback(cent_connect_callback);
+  Bluefruit.Central.setDisconnectCallback(cent_disconnect_callback);
+
   Bluefruit.setTxPower(4);                  // Check bluefruit.h for supported values
   Bluefruit.setName("WeAreTheRats");
 
@@ -170,6 +176,24 @@ void setup() {
   bledis.setModel("Bluefruit Feather 52");
   bledis.begin();
   blehid.begin();
+
+  // Init BLE Central Uart Serivce
+  clientUart.begin();
+  clientUart.setRxCallback(cent_bleuart_rx_callback);
+
+  /* Start Central Scanning
+   * - Enable auto scan if disconnected
+   * - Interval = 100 ms, window = 80 ms
+   * - Filter only accept bleuart service
+   * - Don't use active scan
+   * - Start(timeout) with timeout = 0 will scan forever (until connected)
+   */
+  Bluefruit.Scanner.setRxCallback(scan_callback);
+  Bluefruit.Scanner.restartOnDisconnect(true);
+  Bluefruit.Scanner.setInterval(160, 80); // in unit of 0.625 ms
+  Bluefruit.Scanner.filterUuid(BLEUART_UUID_SERVICE);
+  Bluefruit.Scanner.useActiveScan(false);
+  Bluefruit.Scanner.start(0);                   // 0 = Don't stop scanning after n seconds
 
   // Set up and start advertising
   startAdv();
@@ -706,3 +730,74 @@ wait:
 // Serial.println(yaw);
 #endif
 }
+
+
+
+
+/*------------------------------------------------------------------*/
+/* Central
+ *------------------------------------------------------------------*/
+void scan_callback(ble_gap_evt_adv_report_t* report)
+{
+  // Since we configure the scanner with filterUuid()
+  // Scan callback only invoked for device with bleuart service advertised  
+  // Connect to the device with bleuart service in advertising packet  
+  Bluefruit.Central.connect(report);
+}
+
+void cent_connect_callback(uint16_t conn_handle)
+{
+  // Get the reference to current connection
+  BLEConnection* connection = Bluefruit.Connection(conn_handle);
+
+  char peer_name[32] = { 0 };
+  connection->getPeerName(peer_name, sizeof(peer_name));
+
+  Serial.print("[Cent] Connected to ");
+  Serial.println(peer_name);;
+
+  if ( clientUart.discover(conn_handle) )
+  {
+    // Enable TXD's notify
+    clientUart.enableTXD();
+  }else
+  {
+    // disconnect since we couldn't find bleuart service
+    Bluefruit.disconnect(conn_handle);
+  }  
+}
+
+void cent_disconnect_callback(uint16_t conn_handle, uint8_t reason)
+{
+  (void) conn_handle;
+  (void) reason;
+  
+  Serial.println("[Cent] Disconnected");
+}
+
+/**
+ * Callback invoked when uart received data
+ * @param cent_uart Reference object to the service where the data 
+ * arrived. In this example it is clientUart
+ */
+void cent_bleuart_rx_callback(BLEClientUart& cent_uart)
+{
+  char str[20+1] = { 0 };
+  cent_uart.read(str, 20);
+      
+  Serial.print("[Cent] RX: ");
+  Serial.println(str);
+
+  blehid.keyPress(str[0]);
+  needSendKeyRelease = true;
+  // if ( bleuart.notifyEnabled() )
+  // {
+  //   // Forward data from our peripheral to Mobile
+  //   bleuart.print( str );
+  // }else
+  // {
+  //   // response with no prph message
+  //   clientUart.println("[Cent] Peripheral role not connected");
+  // }  
+}
+
