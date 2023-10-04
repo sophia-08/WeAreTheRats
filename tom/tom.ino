@@ -140,7 +140,7 @@ void loop() {
 
   if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
 
-    buf[0]++;
+    // buf[0]++;
     if (buf[0] == 'z') {
       buf[0] = 'a';
     }
