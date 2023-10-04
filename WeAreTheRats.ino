@@ -28,11 +28,13 @@ int samplesRead = 0;
 #define MOUSE_ACTIVATE D6
 #define IMU_RESET D0
 #define SWITCH_DEVICE_MODE D10
+#define DEBUG_2 D2
+#define DEBUG_3 D3
 
 #define out_samples 120
 #define SMOOTHING_RATIO 0.8
 #define SENSITIVITY_X 30
-#define SENSITIVITY_Y 20
+#define SENSITIVITY_Y 35
 
 #define DEVICE_MOUSE_MODE 0
 #define DEVICE_KEYBOARD_MODE 1
@@ -97,7 +99,8 @@ void setup() {
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_CHARGER, OUTPUT);
   pinMode(IMU_RESET, OUTPUT);
-
+  pinMode(DEBUG_2, OUTPUT);
+  pinMode(DEBUG_3, OUTPUT);
   //Reset IMU
   digitalWrite(IMU_RESET, HIGH);
   digitalWrite(IMU_RESET, LOW);
@@ -179,6 +182,8 @@ void setup() {
   // calibrateIMU(250, 250);
   lastTime = micros();
   deviceMode = DEVICE_MOUSE_MODE;
+  Serial.print("bno mode ");
+  Serial.println(bno.getMode());
 }
 
 void startAdv(void) {
@@ -235,17 +240,21 @@ int ledCount;
 bool needSendKeyRelease = false;
 float xAngle, yAngle, lastXAngle, lastYAngle;
 
-
+bool d2;
 sensors_event_t orientationData, linearAccelData, angVelData;
 bool readIMU() {
+
   // bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
   bno.getEvent(&angVelData, Adafruit_BNO055::VECTOR_GYROSCOPE);
   bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
   return true;
 }
-bool readIMUOrientation() {
-  int loop = 0;
 
+
+bool readIMUOrientation1() {
+  int loop = 0;
+  d2 = !d2;
+  digitalWrite(DEBUG_2, d2);
   // Wait upto 25*0.5 ms. The IMU was configured to 100Hz, so shall has new data every 10ms
   while (loop <= 25) {
     loop++;
@@ -261,6 +270,29 @@ bool readIMUOrientation() {
   lastRoll = orientationData.orientation.roll;
   return true;
 }
+
+bool readIMUOrientation() {
+  int loop = 0;
+  d2 = !d2;
+  digitalWrite(DEBUG_2, d2);
+  // Wait upto 25*0.5 ms. The IMU was configured to 100Hz, so shall has new data every 10ms
+  while (loop <= 25) {
+    loop++;
+    bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
+    if (linearAccelData.acceleration.x == lastAx && linearAccelData.acceleration.y == lastAy && linearAccelData.acceleration.z == lastAz) {
+      delay(0.5);
+    } else {
+      lastAx = linearAccelData.acceleration.x;
+      lastAy = linearAccelData.acceleration.y;
+      lastAz = linearAccelData.acceleration.z;
+      break;
+    }
+  }
+  bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
+
+  return true;
+}
+
 void preprocessData() {
   int pointToRemove;
   float decimate;
@@ -429,6 +461,8 @@ void loop() {
       } else {
         blehid.mouseButtonRelease();
         Serial.println("right up");
+        Serial.print("bno mode ");
+        Serial.println(bno.getMode());
       }
       last_right = right;
     }
@@ -440,11 +474,11 @@ void loop() {
 
     // Serial.print(orientationData.orientation.pitch);
     // Serial.print(",");
-    Serial.print(",");
-    Serial.print(orientationData.orientation.roll);
-    Serial.print(",");
-    Serial.print(orientationData.orientation.heading);
-    Serial.print(",");
+    // Serial.print(",");
+    // Serial.print(orientationData.orientation.roll);
+    // Serial.print(",");
+    // Serial.print(orientationData.orientation.heading);
+    // Serial.print(",");
 
     xAngle = orientationData.orientation.roll;
     yAngle = orientationData.orientation.heading;
@@ -456,7 +490,7 @@ void loop() {
     count++;
     int32_t x;
     int32_t y;
-
+    digitalWrite(DEBUG_3, HIGH);
     if (count % report_freq == 0) {
       // x = SMOOTHING_RATIO * x + (1 - SMOOTHING_RATIO) * (16384 + -(yaw - yaw0) * SENSITIVITY);
       // x = x - (yaw - yaw0) * SENSITIVITY;
@@ -470,12 +504,22 @@ void loop() {
       // y = SMOOTHING_RATIO * y + (1 - SMOOTHING_RATIO) * (16384 + -(pitch - pitch0) * SENSITIVITY * VERTICAL_SENSITIVITY_MULTIPLIER);
       y = (yAngle - lastYAngle) * SENSITIVITY_Y;
 
-      if (abs(x) > 10 || abs(y) > 10) {
+      if (abs(x) > 15 || abs(y) > 15) {
         // if (abs(accelX) + abs(accelY) + abs(accelZ) > 1.5) {
         // mousePosition(x, y);
+        if (abs(x) < 10) x = 0;
+        if (abs(y) < 10) y = 0;
         Serial.print(x);
         Serial.print(",");
-        Serial.println(-y);
+        Serial.print(-y);
+        // Serial.print(orientationData.orientation.pitch);
+        // Serial.print(",");
+        Serial.print(",  ");
+        Serial.print(orientationData.orientation.roll);
+        Serial.print(",");
+        Serial.println(orientationData.orientation.heading);
+        // Serial.print(",");
+
         if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
           blehid.mouseMove(x, -y);
         }
@@ -483,6 +527,7 @@ void loop() {
         lastYAngle = yAngle;
       }
     }
+    digitalWrite(DEBUG_3, LOW);
 
     return;
   }
@@ -561,6 +606,8 @@ wait:
       // }
       // Serial.println(samples[samplesRead][5], PRECISION);
       samplesRead++;
+      d2 = !d2;
+      digitalWrite(DEBUG_2, d2);
     }
     if (samplesRead >= numSamples) {
       samplesRead = 0;
