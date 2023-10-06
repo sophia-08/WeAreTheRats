@@ -31,7 +31,8 @@ int samplesRead = 0;
 #define DEBUG_2 D2
 #define DEBUG_3 D3
 
-#define out_samples 120
+#define out_samples 100
+
 #define SMOOTHING_RATIO 0.8
 #define SENSITIVITY_X 30
 #define SENSITIVITY_Y 35

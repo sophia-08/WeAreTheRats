@@ -8,8 +8,7 @@ import random
 file_path = "data/*.dat"
 file_index = 0
 
-
-out_samples = 120
+out_samples = 100
 
 
 
@@ -34,7 +33,7 @@ def save_out(out, filename):
         out[col] = min_max_scaling(out[col], min_a, max_a )
     for col in ["gX", "gY", "gZ"]:
         out[col] = min_max_scaling(out[col], min_a, max_a )
-    out.to_csv(filename, index=False, float_format='%.3f')
+    out.to_csv(filename, index=False, float_format='%.4f')
 
 
 
