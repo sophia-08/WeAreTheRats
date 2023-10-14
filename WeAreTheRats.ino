@@ -15,6 +15,7 @@
 
 #include "model.h"
 // #include "test1.h"
+// #define TOM 
 
 // #define MOUSE_REPORT_ID 1
 // const float accelerationThreshold = 2.5;  // threshold of significant in G's
@@ -43,8 +44,11 @@ int deviceMode;
 
 BLEDis bledis;
 BLEHidAdafruit blehid;
+
+#ifdef TOM
 // Central uart client
 BLEClientUart clientUart;
+#endif
 
 float accelX, accelY, accelZ,                               // units m/s/s i.e. accelZ if often 9.8 (gravity)
   gyroX, gyroY, gyroZ,                                      // units dps (degrees per second)
@@ -126,7 +130,9 @@ void setup() {
 
   //Reset IMU
   digitalWrite(IMU_RESET, HIGH);
+  delay(0.1);
   digitalWrite(IMU_RESET, LOW);
+  delay(0.1);
   digitalWrite(IMU_RESET, HIGH);
 
   pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
@@ -168,16 +174,20 @@ void setup() {
 
   // Initialize Bluefruit with max concurrent connections as Peripheral = 1, Central = 1
   // SRAM usage required by SoftDevice will increase with number of connections
-  Bluefruit.begin(1, 1);
-  // HID Device can have a min connection interval of 9*1.25 = 11.25 ms
-  Bluefruit.Periph.setConnInterval(9, 16);   // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
-  Bluefruit.Central.setConnInterval(9, 16);  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
-
+  #ifdef TOM
+  Bluefruit.begin(1,1);
+   Bluefruit.Central.setConnInterval(9, 16);  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
 
   // Callbacks for Central
   Bluefruit.Central.setConnectCallback(cent_connect_callback);
   Bluefruit.Central.setDisconnectCallback(cent_disconnect_callback);
 
+  #else
+  Bluefruit.begin();
+  #endif
+  // HID Device can have a min connection interval of 9*1.25 = 11.25 ms
+  Bluefruit.Periph.setConnInterval(9, 16);   // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
+ 
   Bluefruit.setTxPower(4);  // Check bluefruit.h for supported values
   Bluefruit.setName("WeAreTheRats");
 
@@ -187,6 +197,7 @@ void setup() {
   bledis.begin();
   blehid.begin();
 
+#ifdef TOM
   // Init BLE Central Uart Serivce
   clientUart.begin();
   clientUart.setRxCallback(cent_bleuart_rx_callback);
@@ -204,7 +215,7 @@ void setup() {
   Bluefruit.Scanner.filterUuid(BLEUART_UUID_SERVICE);
   Bluefruit.Scanner.useActiveScan(false);
   Bluefruit.Scanner.start(0);  // 0 = Don't stop scanning after n seconds
-
+#endif
   // Set up and start advertising
   startAdv();
 
@@ -275,7 +286,7 @@ bool needSendKeyRelease = false;
 float xAngle, yAngle, lastXAngle, lastYAngle;
 
 bool d2;
-sensors_event_t orientationData, linearAccelData, angVelData;
+sensors_event_t orientationData, linearAccelData, angVelData, magneticData;
 bool readIMU() {
 
   // bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
@@ -310,19 +321,20 @@ bool readIMUOrientation() {
   d2 = !d2;
   digitalWrite(DEBUG_2, d2);
   // Wait upto 25*0.5 ms. The IMU was configured to 100Hz, so shall has new data every 10ms
-  while (loop <= 25) {
-    loop++;
-    bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
-    if (linearAccelData.acceleration.x == lastAx && linearAccelData.acceleration.y == lastAy && linearAccelData.acceleration.z == lastAz) {
-      delay(0.5);
-    } else {
-      lastAx = linearAccelData.acceleration.x;
-      lastAy = linearAccelData.acceleration.y;
-      lastAz = linearAccelData.acceleration.z;
-      break;
-    }
-  }
+  // while (loop <= 25) {
+  //   loop++;
+  //   bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
+  //   if (linearAccelData.acceleration.x == lastAx && linearAccelData.acceleration.y == lastAy && linearAccelData.acceleration.z == lastAz) {
+  //     delay(0.5);
+  //   } else {
+  //     lastAx = linearAccelData.acceleration.x;
+  //     lastAy = linearAccelData.acceleration.y;
+  //     lastAz = linearAccelData.acceleration.z;
+  //     break;
+  //   }
+  // }
   bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
+  // bno.getEvent(&magneticData, Adafruit_BNO055::VECTOR_MAGNETOMETER);
 
   return true;
 }
@@ -446,6 +458,9 @@ void systemHaltWithledPattern(int led, int pattern) {
   }
 }
 
+int lastSent;
+int currentSent;
+
 void loop() {
   // ledred = !ledred;
   //  digitalWrite(LED_RED, ledred);
@@ -503,19 +518,40 @@ void loop() {
 
     readIMUOrientation();
 
-    // heading map to y. from top to bottom, y decrease 90 - -90
+if (lastAx == orientationData.orientation.roll && lastAy == orientationData.orientation.pitch) {
+  return;
+} else {
+  lastAx = orientationData.orientation.roll ; lastAy = orientationData.orientation.pitch;
+}
+
+      //     lastAx = linearAccelData.acceleration.x;
+  //     lastAy = linearAccelData.acceleration.y;
+  //     lastAz = linearAccelData.acceleration.z;
+          currentSent = millis();
+          Serial.println (currentSent - lastSent);
+          lastSent = currentSent;
+    // pitch map to y. from top to bottom, y decrease 90 - -90
     // roll map to x. from left to right, x increase. 0 - 360
 
     // Serial.print(orientationData.orientation.pitch);
     // Serial.print(",");
-    // Serial.print(",");
+    // // Serial.print(",");
     // Serial.print(orientationData.orientation.roll);
     // Serial.print(",");
     // Serial.print(orientationData.orientation.heading);
     // Serial.print(",");
+    // Serial.print(magneticData.magnetic.x);
+    // Serial.print(",");
+    // // Serial.print(",");
+    // Serial.print(magneticData.magnetic.y);
+    // Serial.print(",");
+    // Serial.println(magneticData.magnetic.z);
+    // // Serial.print(",");
+
+    // return;
 
     xAngle = orientationData.orientation.roll;
-    yAngle = orientationData.orientation.heading;
+    yAngle = orientationData.orientation.pitch;
 
     if (count == report_freq - 1) {
       lastXAngle = xAngle;
@@ -525,36 +561,36 @@ void loop() {
     int32_t x;
     int32_t y;
     digitalWrite(DEBUG_3, HIGH);
-    if (count % report_freq == 0) {
+    if (1) { //count % report_freq == 0) {
       // x = SMOOTHING_RATIO * x + (1 - SMOOTHING_RATIO) * (16384 + -(yaw - yaw0) * SENSITIVITY);
       // x = x - (yaw - yaw0) * SENSITIVITY;
 
       x = (xAngle - lastXAngle) * SENSITIVITY_X;
       if (x < -180 * SENSITIVITY_X) {
         x += 360 * SENSITIVITY_X;
-
       }  // x = max(0, min(32767, x));
       // y = y + (pitch - pitch0) * SENSITIVITY;
       // y = SMOOTHING_RATIO * y + (1 - SMOOTHING_RATIO) * (16384 + -(pitch - pitch0) * SENSITIVITY * VERTICAL_SENSITIVITY_MULTIPLIER);
       y = (yAngle - lastYAngle) * SENSITIVITY_Y;
 
-      if (abs(x) > 15 || abs(y) > 15) {
+      if (abs(x) > 5 || abs(y) > 5) {
         // if (abs(accelX) + abs(accelY) + abs(accelZ) > 1.5) {
         // mousePosition(x, y);
-        if (abs(x) < 10) x = 0;
-        if (abs(y) < 10) y = 0;
-        Serial.print(x);
-        Serial.print(",");
-        Serial.print(-y);
-        // Serial.print(orientationData.orientation.pitch);
+        // if (abs(x) < 10) x = 0;
+        // if (abs(y) < 10) y = 0;
+        // Serial.print(x);
         // Serial.print(",");
-        Serial.print(",  ");
-        Serial.print(orientationData.orientation.roll);
-        Serial.print(",");
-        Serial.println(orientationData.orientation.heading);
+        // Serial.print(-y);
+        // Serial.print(orientationData.orientation.pitch);
+        // // Serial.print(",");
+        // Serial.print(",  ");
+        // Serial.print(orientationData.orientation.roll);
+        // Serial.print(",");
+        // Serial.println(orientationData.orientation.pitch);
         // Serial.print(",");
 
         if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
+
           blehid.mouseMove(x, -y);
         }
         lastXAngle = xAngle;
@@ -742,7 +778,7 @@ wait:
 }
 
 
-
+#ifdef TOM
 
 /*------------------------------------------------------------------*/
 /* Central
@@ -806,3 +842,5 @@ void cent_bleuart_rx_callback(BLEClientUart &cent_uart) {
     }
   }
 }
+
+#endif
