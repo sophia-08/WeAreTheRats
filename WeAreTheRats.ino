@@ -509,7 +509,7 @@ void loop() {
   // digitalWrite(LED_CHARGER, digitalRead(D10));
   ledCount++;
   // pluse the green led to indicate system alive.
-  if (ledCount % 50 == 0) {
+  if (ledCount % 100 < 2) {
     digitalWrite(LED_GREEN, LIGHT_ON);
   } else {
     digitalWrite(LED_GREEN, LIGHT_OFF);
@@ -675,12 +675,12 @@ void loop() {
       return;
     } else {
       // User activate keypad, check whether 2s passed since last capture
-      int currentTime = millis();
-      if (currentTime < t1 + 2000) {
-        return;
-      }
+      // int currentTime = millis();
+      // if (currentTime < t1 + 2000) {
+      //   return;
+      // }
+      // t1 = currentTime;      
       startedChar = true;
-      t1 = currentTime;
       samplesRead = 0;
       minAccl = 10;
       minGyro = 10;
@@ -690,6 +690,8 @@ void loop() {
   }
 
   digitalWrite(LED_BLUE, LIGHT_ON);
+
+  // Keep sampling until user release the ACTIVATE button
   while (true) {
   wait:
     // User deactivated keypad
@@ -742,6 +744,8 @@ void loop() {
       d2 = !d2;
       digitalWrite(DEBUG_2, d2);
     }
+
+    // In case user hold the ACTIVATE button too long
     if (samplesRead >= numSamples) {
       samplesRead = 0;
     }
@@ -774,6 +778,7 @@ void loop() {
     rangeOfGyro = maxGyro - minGyro;
     preprocessData();
 
+    // Invoke ML inference
     TfLiteStatus invokeStatus = tflInterpreter->Invoke();
     if (invokeStatus != kTfLiteOk) {
       Serial.println("Invoke failed!");
@@ -795,7 +800,11 @@ void loop() {
       };
     }
     Serial.println(ch);
+
+    // Send KEY_DOWN
     blehid.keyPress(ch);
+
+    // Send KEY_UP at next loop
     needSendKeyRelease = true;
 
 #if 1
