@@ -11,14 +11,10 @@
 #include <tensorflow/lite/micro/micro_error_reporter.h>
 #include <tensorflow/lite/micro/micro_interpreter.h>
 #include <tensorflow/lite/schema/schema_generated.h>
-// #include <tensorflow/lite/version.h>
 
 #include "model.h"
-// #include "test1.h"
 // #define TOM
-
-// #define MOUSE_REPORT_ID 1
-// const float accelerationThreshold = 2.5;  // threshold of significant in G's
+const float accelerationThreshold = 2.5; // threshold of significant in G's
 
 const int numSamples = 500; // 119;
 double samples[numSamples][6];
@@ -93,7 +89,6 @@ const char *GESTURES = "abcdefghijklmnopqrstuvwxyz";
 
 #define NUM_GESTURES 26
 
-// 0 ledoff, 1 ledon
 int ledgreen = 0;
 int ledred = 0;
 #define LED_CHARGER 23
@@ -154,7 +149,7 @@ void setup() {
   digitalWrite(LED_RED, LIGHT_OFF);
   digitalWrite(LED_BLUE, LIGHT_OFF);
   digitalWrite(LED_GREEN, LIGHT_OFF);
-  digitalWrite(LED_CHARGER, LIGHT_OFF); // HIGH -- LED off.
+  digitalWrite(LED_CHARGER, LIGHT_OFF);
 
   // get the TFL representation of the model byte array
   tflModel = tflite::GetModel(model);
@@ -276,7 +271,9 @@ int tensorIndex = 0;
 
 int count = 0;
 int tmp = 0;
+
 #define report_freq 2
+
 int lastx, lasty;
 int left, right;
 int last_left, last_right;
@@ -294,6 +291,7 @@ float xAngle, yAngle, lastXAngle, lastYAngle;
 
 bool d2;
 sensors_event_t orientationData, linearAccelData, angVelData, magneticData;
+
 bool readIMU() {
 
   // bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
@@ -351,6 +349,12 @@ bool readIMUOrientation() {
   return true;
 }
 
+/**
+ * @brief
+ *
+ * @note expect sample input data in sequences of accelX, accelY, accelZ, gyroX,
+ * gyroY, gyroZ
+ */
 void preprocessData() {
   int pointToRemove;
   float decimate;
@@ -358,13 +362,14 @@ void preprocessData() {
   int removed = 0;
   int start = 0;
   int end = samplesRead - 1;
-  // Trim at front
+  // Trim at front. if 2 out of 3 samples have total absolute accelerate read
+  // greater than threshold, make the start
   while (true) {
     int count = 0;
     for (int i = 0; i < 3; i++) {
       if (abs(samples[i + start][0]) + abs(samples[i + start][1]) +
               abs(samples[i + start][2]) >
-          3) {
+          accelerationThreshold) {
         count += 1;
       }
     }
@@ -375,7 +380,8 @@ void preprocessData() {
     }
   }
 
-  // Trim at end
+  // Trim at end,if 2 out of 3 samples have total absolute accelerate read
+  // greater than threshold, make the start
   while (true) {
     int count = 0;
     for (int i = 0; i < 3; i++) {
@@ -472,15 +478,22 @@ void preprocessData() {
 //   }
 // }
 
-void systemHaltWithledPattern(int led, int pattern) {
+/**
+ * @brief Use the given led indicate system halt. the led shall blink at
+ * frequence of give duration
+ *
+ * @param led
+ * @param seconds
+ */
+void systemHaltWithledPattern(int led, int seconds) {
 
   for (;;) {
 
     digitalWrite(led, LIGHT_ON);
-    delay(1000 * pattern);
+    delay(1000 * seconds);
 
     digitalWrite(led, LIGHT_OFF);
-    delay(1000 * pattern);
+    delay(1000 * seconds);
   }
 }
 
@@ -495,8 +508,8 @@ void loop() {
   // digitalWrite(LED_GREEN, digitalRead(D9));
   // digitalWrite(LED_CHARGER, digitalRead(D10));
   ledCount++;
-  // HIGH  -- LIGHT_OFF
-  if (ledCount % 10 == 0) {
+  // pluse the green led to indicate system alive.
+  if (ledCount % 50 == 0) {
     digitalWrite(LED_GREEN, LIGHT_ON);
   } else {
     digitalWrite(LED_GREEN, LIGHT_OFF);
@@ -519,8 +532,11 @@ void loop() {
 
   if (deviceMode == DEVICE_MOUSE_MODE) {
 
+    // Process the Left and Right click
     left = digitalRead(MOUSE_LEFT);
     right = digitalRead(MOUSE_RIGHT);
+
+    // detect edge
     if (left != last_left) {
       if (left == LOW) {
         blehid.mouseButtonPress(MOUSE_BUTTON_LEFT);
@@ -531,6 +547,7 @@ void loop() {
       }
       last_left = left;
     }
+
     if (right != last_right) {
       if (right == LOW) {
         blehid.mouseButtonPress(MOUSE_BUTTON_RIGHT);
@@ -538,14 +555,18 @@ void loop() {
       } else {
         blehid.mouseButtonRelease();
         Serial.println("right up");
-        Serial.print("bno mode ");
-        Serial.println(bno.getMode());
       }
       last_right = right;
     }
 
+    // In mouse mode, we only need orientation.
     readIMUOrientation();
 
+    // In sense fuse mdoe, The IMU runs at 100Hz, which means new data every
+    // 10ms. The loop() runs about every 4ms. It's not meanful to process the
+    // IMU data if it's stale data. So here we check and only continue after new
+    // IMU data is available. Here we also assume for each sample, the IMU read
+    // changes.
     if (lastAx == orientationData.orientation.roll &&
         lastAy == orientationData.orientation.pitch) {
       return;
@@ -554,14 +575,16 @@ void loop() {
       lastAy = orientationData.orientation.pitch;
     }
 
-    //     lastAx = linearAccelData.acceleration.x;
-    //     lastAy = linearAccelData.acceleration.y;
-    //     lastAz = linearAccelData.acceleration.z;
+    // The below code shall run at interval of 10ms
+
     currentSent = millis();
     Serial.println(currentSent - lastSent);
     lastSent = currentSent;
-    // pitch map to y. from top to bottom, y decrease 90 - -90
-    // roll map to x. from left to right, x increase. 0 - 360
+
+    // With current hardware setup:
+    // pitch map to vertical movement (y). from top to bottom, y decrease 90 -
+    // -90 roll map to horizontal movement (x). from left to right, x increase.
+    // 0 - 360
 
     // Serial.print(orientationData.orientation.pitch);
     // Serial.print(",");
@@ -591,19 +614,21 @@ void loop() {
     int32_t x;
     int32_t y;
     digitalWrite(DEBUG_3, HIGH);
-    if (1) { // count % report_freq == 0) {
-      // x = SMOOTHING_RATIO * x + (1 - SMOOTHING_RATIO) * (16384 + -(yaw -
-      // yaw0) * SENSITIVITY); x = x - (yaw - yaw0) * SENSITIVITY;
 
+    // We do not want to overload the BLE link.
+    // so here we send 1 report every (report_freq * 10ms)
+    if (count % report_freq == 0) {
       x = (xAngle - lastXAngle) * SENSITIVITY_X;
+
+      // xAngle go back to 0 after pass 360 degrees. so here we need add the
+      // offsets.
       if (x < -180 * SENSITIVITY_X) {
         x += 360 * SENSITIVITY_X;
-      } // x = max(0, min(32767, x));
-      // y = y + (pitch - pitch0) * SENSITIVITY;
-      // y = SMOOTHING_RATIO * y + (1 - SMOOTHING_RATIO) * (16384 + -(pitch -
-      // pitch0) * SENSITIVITY * VERTICAL_SENSITIVITY_MULTIPLIER);
+      }
+
       y = (yAngle - lastYAngle) * SENSITIVITY_Y;
 
+      // get rid of movement due to noise.
       if (abs(x) > 5 || abs(y) > 5) {
         // if (abs(accelX) + abs(accelY) + abs(accelZ) > 1.5) {
         // mousePosition(x, y);
@@ -621,7 +646,6 @@ void loop() {
         // Serial.print(",");
 
         if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
-
           blehid.mouseMove(x, -y);
         }
         lastXAngle = xAngle;
@@ -633,7 +657,13 @@ void loop() {
     return;
   }
 
+  /*****  Below is for Keyboard  ******/
+
   // Device in Keyboard mode
+
+  // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
+  // When a character is recoganized, a KEY_DOWN event is sent. Here I send the
+  // KEY_UP event
   if (needSendKeyRelease) {
     needSendKeyRelease = false;
     blehid.keyRelease();
