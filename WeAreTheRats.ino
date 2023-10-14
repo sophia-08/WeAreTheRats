@@ -1,7 +1,7 @@
 // #include "LSM6DS3.h"
-#include <Wire.h>
-#include <Adafruit_Sensor.h>
 #include "Adafruit_BNO055.h"
+#include <Adafruit_Sensor.h>
+#include <Wire.h>
 
 #include <bluefruit.h>
 // #include <MadgwickAHRS.h>  // Madgwick 1.2.0 by Arduino
@@ -15,12 +15,12 @@
 
 #include "model.h"
 // #include "test1.h"
-// #define TOM 
+// #define TOM
 
 // #define MOUSE_REPORT_ID 1
 // const float accelerationThreshold = 2.5;  // threshold of significant in G's
 
-const int numSamples = 500;  // 119;
+const int numSamples = 500; // 119;
 double samples[numSamples][6];
 
 int samplesRead = 0;
@@ -50,13 +50,16 @@ BLEHidAdafruit blehid;
 BLEClientUart clientUart;
 #endif
 
-float accelX, accelY, accelZ,                               // units m/s/s i.e. accelZ if often 9.8 (gravity)
-  gyroX, gyroY, gyroZ,                                      // units dps (degrees per second)
-  gyroDriftX, gyroDriftY, gyroDriftZ,                       // units dps
-  gyroRoll, gyroPitch, gyroYaw,                             // units degrees (expect major drift)
-  gyroCorrectedRoll, gyroCorrectedPitch, gyroCorrectedYaw,  // units degrees (expect minor drift)
-  accRoll, accPitch, accYaw,                                // units degrees (roll and pitch noisy, yaw not possible)
-  complementaryRoll, complementaryPitch, complementaryYaw;  // units degrees (excellent roll, pitch, yaw minor drift)
+float accelX, accelY, accelZ, // units m/s/s i.e. accelZ if often 9.8 (gravity)
+    gyroX, gyroY, gyroZ,      // units dps (degrees per second)
+    gyroDriftX, gyroDriftY, gyroDriftZ, // units dps
+    gyroRoll, gyroPitch, gyroYaw,       // units degrees (expect major drift)
+    gyroCorrectedRoll, gyroCorrectedPitch,
+    gyroCorrectedYaw, // units degrees (expect minor drift)
+    accRoll, accPitch,
+    accYaw, // units degrees (roll and pitch noisy, yaw not possible)
+    complementaryRoll, complementaryPitch,
+    complementaryYaw; // units degrees (excellent roll, pitch, yaw minor drift)
 
 long lastTime;
 long lastInterval;
@@ -114,10 +117,11 @@ void setup() {
   pinMode(DEBUG_2, OUTPUT);
   pinMode(DEBUG_3, OUTPUT);
 
+  // Mystery of why !Serial not ready:
+  // The "Serial" is always valid for an Arduino Uno, therefor that piece of
+  // code does not wait. In the Leonardo, the "Serial" could be zero, if the
+  // serial monitor has not been opened yet.
 
-// Mystery of why !Serial not ready:
-// The "Serial" is always valid for an Arduino Uno, therefor that piece of code does not wait.
-// In the Leonardo, the "Serial" could be zero, if the serial monitor has not been opened yet.
   // while (!Serial) {
   //   digitalWrite(LED_RED, LIGHT_ON);
   //   delay(10);
@@ -128,7 +132,7 @@ void setup() {
   Serial.println("We are the rats\n");
   Serial.println("-------------------------------------\n");
 
-  //Reset IMU
+  // Reset IMU
   digitalWrite(IMU_RESET, HIGH);
   delay(0.1);
   digitalWrite(IMU_RESET, LOW);
@@ -150,7 +154,7 @@ void setup() {
   digitalWrite(LED_RED, LIGHT_OFF);
   digitalWrite(LED_BLUE, LIGHT_OFF);
   digitalWrite(LED_GREEN, LIGHT_OFF);
-  digitalWrite(LED_CHARGER, LIGHT_OFF);  // HIGH -- LED off.
+  digitalWrite(LED_CHARGER, LIGHT_OFF); // HIGH -- LED off.
 
   // get the TFL representation of the model byte array
   tflModel = tflite::GetModel(model);
@@ -160,7 +164,9 @@ void setup() {
   }
 
   // Create an interpreter to run the model
-  tflInterpreter = new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize, &tflErrorReporter);
+  tflInterpreter =
+      new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena,
+                                   tensorArenaSize, &tflErrorReporter);
 
   // Allocate memory for the model's input and output tensors
   if (tflInterpreter->AllocateTensors() != kTfLiteOk) {
@@ -172,23 +178,26 @@ void setup() {
   tflInputTensor = tflInterpreter->input(0);
   tflOutputTensor = tflInterpreter->output(0);
 
-  // Initialize Bluefruit with max concurrent connections as Peripheral = 1, Central = 1
-  // SRAM usage required by SoftDevice will increase with number of connections
-  #ifdef TOM
-  Bluefruit.begin(1,1);
-   Bluefruit.Central.setConnInterval(9, 16);  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
+// Initialize Bluefruit with max concurrent connections as Peripheral = 1,
+// Central = 1. SRAM usage required by SoftDevice will increase with number of
+// connections
+#ifdef TOM
+  Bluefruit.begin(1, 1);
+  Bluefruit.Central.setConnInterval(9, 16);
+  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
 
   // Callbacks for Central
   Bluefruit.Central.setConnectCallback(cent_connect_callback);
   Bluefruit.Central.setDisconnectCallback(cent_disconnect_callback);
 
-  #else
+#else
   Bluefruit.begin();
-  #endif
+#endif
   // HID Device can have a min connection interval of 9*1.25 = 11.25 ms
-  Bluefruit.Periph.setConnInterval(9, 16);   // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
- 
-  Bluefruit.setTxPower(4);  // Check bluefruit.h for supported values
+  Bluefruit.Periph.setConnInterval(9, 16);
+  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
+
+  Bluefruit.setTxPower(4); // Check bluefruit.h for supported values
   Bluefruit.setName("WeAreTheRats");
 
   // Configure and Start Device Information Service
@@ -211,10 +220,10 @@ void setup() {
    */
   Bluefruit.Scanner.setRxCallback(scan_callback);
   Bluefruit.Scanner.restartOnDisconnect(true);
-  Bluefruit.Scanner.setInterval(160, 80);  // in unit of 0.625 ms
+  Bluefruit.Scanner.setInterval(160, 80); // in unit of 0.625 ms
   Bluefruit.Scanner.filterUuid(BLEUART_UUID_SERVICE);
   Bluefruit.Scanner.useActiveScan(false);
-  Bluefruit.Scanner.start(0);  // 0 = Don't stop scanning after n seconds
+  Bluefruit.Scanner.start(0); // 0 = Don't stop scanning after n seconds
 #endif
   // Set up and start advertising
   startAdv();
@@ -253,12 +262,10 @@ void startAdv(void) {
    * https://developer.apple.com/library/content/qa/qa1931/_index.html
    */
   Bluefruit.Advertising.restartOnDisconnect(true);
-  Bluefruit.Advertising.setInterval(32, 244);  // in unit of 0.625 ms
-  Bluefruit.Advertising.setFastTimeout(30);    // number of seconds in fast mode
-  Bluefruit.Advertising.start(0);              // 0 = Don't stop advertising after n seconds
+  Bluefruit.Advertising.setInterval(32, 244); // in unit of 0.625 ms
+  Bluefruit.Advertising.setFastTimeout(30);   // number of seconds in fast mode
+  Bluefruit.Advertising.start(0); // 0 = Don't stop advertising after n seconds
 }
-
-
 
 float minAccl = 10;
 float minGyro = 10;
@@ -295,16 +302,17 @@ bool readIMU() {
   return true;
 }
 
-
 bool readIMUOrientation1() {
   int loop = 0;
   d2 = !d2;
   digitalWrite(DEBUG_2, d2);
-  // Wait upto 25*0.5 ms. The IMU was configured to 100Hz, so shall has new data every 10ms
+  // Wait upto 25*0.5 ms. The IMU was configured to 100Hz, so shall has new data
+  // every 10ms
   while (loop <= 25) {
     loop++;
     bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
-    if (orientationData.orientation.heading == lastHeading && orientationData.orientation.roll == lastRoll) {
+    if (orientationData.orientation.heading == lastHeading &&
+        orientationData.orientation.roll == lastRoll) {
       delay(0.5);
     } else {
       break;
@@ -320,19 +328,23 @@ bool readIMUOrientation() {
   int loop = 0;
   d2 = !d2;
   digitalWrite(DEBUG_2, d2);
-  // Wait upto 25*0.5 ms. The IMU was configured to 100Hz, so shall has new data every 10ms
+  // Wait upto 25*0.5 ms. The IMU was configured to 100Hz, so shall has new data
+  // every 10ms
+
   // while (loop <= 25) {
-  //   loop++;
-  //   bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
-  //   if (linearAccelData.acceleration.x == lastAx && linearAccelData.acceleration.y == lastAy && linearAccelData.acceleration.z == lastAz) {
-  //     delay(0.5);
-  //   } else {
-  //     lastAx = linearAccelData.acceleration.x;
-  //     lastAy = linearAccelData.acceleration.y;
-  //     lastAz = linearAccelData.acceleration.z;
-  //     break;
-  //   }
-  // }
+  //    loop++;
+  //    bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
+  //    if (linearAccelData.acceleration.x == lastAx &&
+  //    linearAccelData.acceleration.y == lastAy &&
+  //    linearAccelData.acceleration.z == lastAz) {
+  //      delay(0.5);
+  //    } else {
+  //      lastAx = linearAccelData.acceleration.x;
+  //      lastAy = linearAccelData.acceleration.y;
+  //      lastAz = linearAccelData.acceleration.z;
+  //      break;
+  //    }
+  //  }
   bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
   // bno.getEvent(&magneticData, Adafruit_BNO055::VECTOR_MAGNETOMETER);
 
@@ -350,7 +362,9 @@ void preprocessData() {
   while (true) {
     int count = 0;
     for (int i = 0; i < 3; i++) {
-      if (abs(samples[i + start][0]) + abs(samples[i + start][1]) + abs(samples[i + start][2]) > 3) {
+      if (abs(samples[i + start][0]) + abs(samples[i + start][1]) +
+              abs(samples[i + start][2]) >
+          3) {
         count += 1;
       }
     }
@@ -365,7 +379,9 @@ void preprocessData() {
   while (true) {
     int count = 0;
     for (int i = 0; i < 3; i++) {
-      if (abs(samples[end - i][0]) + abs(samples[end - i][1]) + abs(samples[end - i][2]) > 3) {
+      if (abs(samples[end - i][0]) + abs(samples[end - i][1]) +
+              abs(samples[end - i][2]) >
+          3) {
         count += 1;
       }
     }
@@ -387,12 +403,18 @@ void preprocessData() {
     removed = 0;
     accumulated = 0.0;
     while (true) {
-      tflInputTensor->data.f[tensorIndex++] = (samples[i][0] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] = (samples[i][1] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] = (samples[i][2] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] = (samples[i][3] - minGyro) / rangeOfGyro;
-      tflInputTensor->data.f[tensorIndex++] = (samples[i][4] - minGyro) / rangeOfGyro;
-      tflInputTensor->data.f[tensorIndex++] = (samples[i][5] - minGyro) / rangeOfGyro;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][0] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][1] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][2] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][3] - minGyro) / rangeOfGyro;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][4] - minGyro) / rangeOfGyro;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][5] - minGyro) / rangeOfGyro;
       accumulated += decimate;
       while (accumulated >= 1) {
         i += 1;
@@ -405,12 +427,18 @@ void preprocessData() {
       }
     }
     if (removed < pointToRemove) {
-      tflInputTensor->data.f[tensorIndex++] = (samples[i][0] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] = (samples[i][1] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] = (samples[i][2] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] = (samples[i][3] - minGyro) / rangeOfGyro;
-      tflInputTensor->data.f[tensorIndex++] = (samples[i][4] - minGyro) / rangeOfGyro;
-      tflInputTensor->data.f[tensorIndex++] = (samples[i][5] - minGyro) / rangeOfGyro;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][0] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][1] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][2] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][3] - minGyro) / rangeOfGyro;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][4] - minGyro) / rangeOfGyro;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][5] - minGyro) / rangeOfGyro;
     }
   }
 
@@ -443,8 +471,6 @@ void preprocessData() {
 //     tflInputTensor->data.f[i] = tt[i];
 //   }
 // }
-
-
 
 void systemHaltWithledPattern(int led, int pattern) {
 
@@ -485,8 +511,10 @@ void loop() {
       deviceMode = DEVICE_MOUSE_MODE;
       Serial.println("swithc to mouse");
     }
-    //wait until key is released.
-    while (digitalRead(SWITCH_DEVICE_MODE) == LOW) { ; };
+    // wait until key is released.
+    while (digitalRead(SWITCH_DEVICE_MODE) == LOW) {
+      ;
+    };
   }
 
   if (deviceMode == DEVICE_MOUSE_MODE) {
@@ -518,18 +546,20 @@ void loop() {
 
     readIMUOrientation();
 
-if (lastAx == orientationData.orientation.roll && lastAy == orientationData.orientation.pitch) {
-  return;
-} else {
-  lastAx = orientationData.orientation.roll ; lastAy = orientationData.orientation.pitch;
-}
+    if (lastAx == orientationData.orientation.roll &&
+        lastAy == orientationData.orientation.pitch) {
+      return;
+    } else {
+      lastAx = orientationData.orientation.roll;
+      lastAy = orientationData.orientation.pitch;
+    }
 
-      //     lastAx = linearAccelData.acceleration.x;
-  //     lastAy = linearAccelData.acceleration.y;
-  //     lastAz = linearAccelData.acceleration.z;
-          currentSent = millis();
-          Serial.println (currentSent - lastSent);
-          lastSent = currentSent;
+    //     lastAx = linearAccelData.acceleration.x;
+    //     lastAy = linearAccelData.acceleration.y;
+    //     lastAz = linearAccelData.acceleration.z;
+    currentSent = millis();
+    Serial.println(currentSent - lastSent);
+    lastSent = currentSent;
     // pitch map to y. from top to bottom, y decrease 90 - -90
     // roll map to x. from left to right, x increase. 0 - 360
 
@@ -561,16 +591,17 @@ if (lastAx == orientationData.orientation.roll && lastAy == orientationData.orie
     int32_t x;
     int32_t y;
     digitalWrite(DEBUG_3, HIGH);
-    if (1) { //count % report_freq == 0) {
-      // x = SMOOTHING_RATIO * x + (1 - SMOOTHING_RATIO) * (16384 + -(yaw - yaw0) * SENSITIVITY);
-      // x = x - (yaw - yaw0) * SENSITIVITY;
+    if (1) { // count % report_freq == 0) {
+      // x = SMOOTHING_RATIO * x + (1 - SMOOTHING_RATIO) * (16384 + -(yaw -
+      // yaw0) * SENSITIVITY); x = x - (yaw - yaw0) * SENSITIVITY;
 
       x = (xAngle - lastXAngle) * SENSITIVITY_X;
       if (x < -180 * SENSITIVITY_X) {
         x += 360 * SENSITIVITY_X;
-      }  // x = max(0, min(32767, x));
+      } // x = max(0, min(32767, x));
       // y = y + (pitch - pitch0) * SENSITIVITY;
-      // y = SMOOTHING_RATIO * y + (1 - SMOOTHING_RATIO) * (16384 + -(pitch - pitch0) * SENSITIVITY * VERTICAL_SENSITIVITY_MULTIPLIER);
+      // y = SMOOTHING_RATIO * y + (1 - SMOOTHING_RATIO) * (16384 + -(pitch -
+      // pitch0) * SENSITIVITY * VERTICAL_SENSITIVITY_MULTIPLIER);
       y = (yAngle - lastYAngle) * SENSITIVITY_Y;
 
       if (abs(x) > 5 || abs(y) > 5) {
@@ -630,7 +661,7 @@ if (lastAx == orientationData.orientation.roll && lastAy == orientationData.orie
 
   digitalWrite(LED_BLUE, LIGHT_ON);
   while (true) {
-wait:
+  wait:
     // User deactivated keypad
     if (digitalRead(MOUSE_ACTIVATE) == LOW) {
       startedChar = false;
@@ -638,7 +669,9 @@ wait:
       break;
     }
     readIMU();
-    if (linearAccelData.acceleration.x == lastAx && linearAccelData.acceleration.y == lastAy && linearAccelData.acceleration.z == lastAz) {
+    if (linearAccelData.acceleration.x == lastAx &&
+        linearAccelData.acceleration.y == lastAy &&
+        linearAccelData.acceleration.z == lastAz) {
       delay(0.5);
       goto wait;
     } else {
@@ -777,7 +810,6 @@ wait:
 #endif
 }
 
-
 #ifdef TOM
 
 /*------------------------------------------------------------------*/
@@ -794,7 +826,7 @@ void cent_connect_callback(uint16_t conn_handle) {
   // Get the reference to current connection
   BLEConnection *connection = Bluefruit.Connection(conn_handle);
 
-  char peer_name[32] = { 0 };
+  char peer_name[32] = {0};
   connection->getPeerName(peer_name, sizeof(peer_name));
 
   Serial.print("[Cent] Connected to ");
@@ -819,11 +851,11 @@ void cent_disconnect_callback(uint16_t conn_handle, uint8_t reason) {
 
 /**
  * Callback invoked when uart received data
- * @param cent_uart Reference object to the service where the data 
+ * @param cent_uart Reference object to the service where the data
  * arrived. In this example it is clientUart
  */
 void cent_bleuart_rx_callback(BLEClientUart &cent_uart) {
-  char str[20 + 1] = { 0 };
+  char str[20 + 1] = {0};
   cent_uart.read(str, 20);
 
   Serial.print("[Cent] RX: ");
