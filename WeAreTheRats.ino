@@ -1,6 +1,6 @@
 // #include "LSM6DS3.h"
 #include "Adafruit_BNO055.h"
-#include <Adafruit_Sensor.h>
+// #include <Adafruit_Sensor.h>
 #include <Wire.h>
 
 #include <bluefruit.h>
@@ -509,7 +509,7 @@ void loop() {
   // digitalWrite(LED_CHARGER, digitalRead(D10));
   ledCount++;
   // pluse the green led to indicate system alive.
-  if (ledCount % 100 < 2) {
+  if (ledCount % 5000 < 50) {
     digitalWrite(LED_GREEN, LIGHT_ON);
   } else {
     digitalWrite(LED_GREEN, LIGHT_OFF);
