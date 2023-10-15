@@ -1,17 +1,20 @@
 // #include "LSM6DS3.h"
-#include <Wire.h>
-#include <Adafruit_Sensor.h>
 #include "Adafruit_BNO055.h"
+#include <Adafruit_Sensor.h>
+#include <Wire.h>
 
 // Create a instance of class LSM6DS3
 // LSM6DS3 myIMU(I2C_MODE, 0x6A);         // I2C device address 0x6A
-float accelX, accelY, accelZ,                               // units m/s/s i.e. accelZ if often 9.8 (gravity)
-  gyroX, gyroY, gyroZ,                                      // units dps (degrees per second)
-  gyroDriftX, gyroDriftY, gyroDriftZ;                       // units dps
-float gyroRoll, gyroPitch, gyroYaw,                         // units degrees (expect major drift)
-  gyroCorrectedRoll, gyroCorrectedPitch, gyroCorrectedYaw,  // units degrees (expect minor drift)
-  accRoll, accPitch, accYaw,                                // units degrees (roll and pitch noisy, yaw not possible)
-  complementaryRoll, complementaryPitch, complementaryYaw;  // units degrees (excellent roll, pitch, yaw minor drift)
+float accelX, accelY, accelZ, // units m/s/s i.e. accelZ if often 9.8 (gravity)
+    gyroX, gyroY, gyroZ,      // units dps (degrees per second)
+    gyroDriftX, gyroDriftY, gyroDriftZ; // units dps
+float gyroRoll, gyroPitch, gyroYaw,     // units degrees (expect major drift)
+    gyroCorrectedRoll, gyroCorrectedPitch,
+    gyroCorrectedYaw, // units degrees (expect minor drift)
+    accRoll, accPitch,
+    accYaw, // units degrees (roll and pitch noisy, yaw not possible)
+    complementaryRoll, complementaryPitch,
+    complementaryYaw; // units degrees (excellent roll, pitch, yaw minor drift)
 
 #define MOUSE_LEFT D9
 #define MOUSE_RIGHT D8
@@ -20,23 +23,26 @@ float gyroRoll, gyroPitch, gyroYaw,                         // units degrees (ex
 #define DEBUG_3 D3
 #define IMU_RESET D0
 
-const float accelerationThreshold = 1.6;  // threshold of significant in G's
+const float accelerationThreshold = 1.6; // threshold of significant in G's
 const int numSamples = 500;
 double samples[numSamples][6];
 int samplesRead = 0;
 int startTime, currentTime;
 uint8_t readData;
 
-// Check I2C device address and correct line below (by default address is 0x29 or 0x28)
+// Check I2C device address and correct line below (by default address is 0x29
+// or 0x28)
 //                                   id, address
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
-  // while (!Serial)
-  //   ;
-  //Reset IMU
+  while (!Serial) {
+    ;
+  }
+
+  // Reset IMU
   digitalWrite(IMU_RESET, HIGH);
   digitalWrite(IMU_RESET, LOW);
   digitalWrite(IMU_RESET, HIGH);
@@ -83,31 +89,12 @@ void setup() {
 }
 
 void calibrateIMU(int delayMillis, int calibrationMillis) {
-  gyroDriftX = 0;  //0.67;
-  gyroDriftY = 0;  //-1.38;
-  gyroDriftZ = 0;  //-0.51;
+  gyroDriftX = 0; // 0.67;
+  gyroDriftY = 0; //-1.38;
+  gyroDriftZ = 0; //-0.51;
   return;
 }
 
-// bool readIMU() {
-//   uint8_t readData;
-//   uint8_t data[12];
-//   myIMU.readRegisterRegion(data, 0x22, 12);
-//   int16_t *p = (int16_t *)data;
-//   gyroX = *p * 2000.0 / 32768.0;
-//   p++;
-//   gyroY = *p * 2000.0 / 32768.0;
-//   p++;
-//   gyroZ = *p * 2000.0 / 32768.0;
-//   p++;
-//   accelX = *p * 4.0 / 32768.0;
-//   p++;
-//   accelY = *p * 4.0 / 32768.0;
-//   p++;
-//   accelZ = *p * 4.0 / 32768.0;
-
-//   return true;
-// }
 sensors_event_t orientationData, linearAccelData, angVelData;
 bool readIMU() {
 
@@ -130,7 +117,6 @@ bool d2;
 
 void loop() {
 
-
   // Capture has not started, ignore until user activate keypad
   if (!startedChar) {
     if (digitalRead(MOUSE_ACTIVATE) == LOW) {
@@ -147,18 +133,19 @@ void loop() {
     }
   }
 
-
   digitalWrite(LED_BLUE, HIGH);
 
   while (true) {
-wait:
+  wait:
     // User deactivated keypad
     if (digitalRead(MOUSE_ACTIVATE) == LOW) {
       startedChar = false;
       break;
     }
     readIMU();
-    if (linearAccelData.acceleration.x == lastAx && linearAccelData.acceleration.y == lastAy && linearAccelData.acceleration.z == lastAz) {
+    if (linearAccelData.acceleration.x == lastAx &&
+        linearAccelData.acceleration.y == lastAy &&
+        linearAccelData.acceleration.z == lastAz) {
       delay(0.5);
       goto wait;
     } else {
@@ -185,71 +172,7 @@ wait:
     if (samplesRead >= numSamples) {
       samplesRead = 0;
     }
-    // if (abs(linearAccelData.acceleration.x) + abs(linearAccelData.acceleration.y) + abs(linearAccelData.acceleration.z) < 0.2) {
-    //   delay(0.1);
-    //   goto wait;
-    // }
-    // delay(10);
-    // doCalculations();
-    // count++;
-    // sumX += gyroX;
-    // sumY += gyroY;
-    // sumZ += gyroZ;
-    // if (count % 100 == 0) {
-    //   currentTime = micros();
-    //   Serial.println(currentTime - startTime);
-    //   startTime = currentTime;
-    //   Serial.print(sumX / 100);
-    //   Serial.print(",");
-    //   Serial.print(sumY / 100);
-    //   Serial.print(",");
-    //   Serial.println(sumZ / 100);
-    //   sumX = 0;
-    //   sumY = 0;
-    //   sumZ = 0;
-    // }
-    // return;
-    // wait for significant motion
-    // if (samplesRead == 0) {
-    //   // sum up the absolutes
-    //   float aSum = fabs(accelX) + fabs(accelY) + fabs(accelZ);
-
-    //   // check if it's above the threshold
-    //   if (aSum < accelerationThreshold) {
-    //     return;
-    //   }
-    // }
-
-
-    // check if the all the required samples have been read since
-    // the last time the significant motion was detected
-
-
-    //   Serial.print(',');
-    //   Serial.print(gyroX - gyroDriftX, PRECISION);
-    //   Serial.print(',');
-    //   Serial.print(gyroY - gyroDriftY, PRECISION);
-    //   Serial.print(',');
-    //   Serial.print(gyroZ - gyroDriftZ, PRECISION);
-    //   Serial.print(',');
-    // Serial.print(gyroCorrectedRoll);
-    // Serial.print(',');
-    // Serial.print(gyroCorrectedPitch);
-    // Serial.print(',');
-    // Serial.println(gyroCorrectedYaw);
-
-    // samples[samplesRead][6] = orientationData.orientation.heading;
-    // samples[samplesRead][7] = orientationData.orientation.roll;
-    // samples[samplesRead][8] = orientationData.orientation.pitch;
-
-
-    // if (samplesRead == numSamples) {
-    //   // add an empty line if it's the last sample
-    //   Serial.println();
-    //   break;
-    // }
   }
-
 
   // for  (int ss=0; ss< samplesRead ; ss++) {
 
@@ -270,19 +193,24 @@ wait:
 
 void doCalculations() {
   accRoll = atan2(accelY, accelZ) * 180 / M_PI;
-  accPitch = atan2(-accelX, sqrt(accelY * accelY + accelZ * accelZ)) * 180 / M_PI;
+  accPitch =
+      atan2(-accelX, sqrt(accelY * accelY + accelZ * accelZ)) * 180 / M_PI;
 
-  float lastFrequency = 416;  //(float)1000000.0 / lastInterval;
+  float lastFrequency = 416; //(float)1000000.0 / lastInterval;
   gyroRoll = gyroRoll + (gyroX / lastFrequency);
   gyroPitch = gyroPitch + (gyroY / lastFrequency);
   gyroYaw = gyroYaw + (gyroZ / lastFrequency);
 
-  gyroCorrectedRoll = gyroCorrectedRoll + ((gyroX - gyroDriftX) / lastFrequency);
-  gyroCorrectedPitch = gyroCorrectedPitch + ((gyroY - gyroDriftY) / lastFrequency);
+  gyroCorrectedRoll =
+      gyroCorrectedRoll + ((gyroX - gyroDriftX) / lastFrequency);
+  gyroCorrectedPitch =
+      gyroCorrectedPitch + ((gyroY - gyroDriftY) / lastFrequency);
   gyroCorrectedYaw = gyroCorrectedYaw + ((gyroZ - gyroDriftZ) / lastFrequency);
 
-  complementaryRoll = complementaryRoll + ((gyroX - gyroDriftX) / lastFrequency);
-  complementaryPitch = complementaryPitch + ((gyroY - gyroDriftY) / lastFrequency);
+  complementaryRoll =
+      complementaryRoll + ((gyroX - gyroDriftX) / lastFrequency);
+  complementaryPitch =
+      complementaryPitch + ((gyroY - gyroDriftY) / lastFrequency);
   complementaryYaw = complementaryYaw + ((gyroZ - gyroDriftZ) / lastFrequency);
 
   complementaryRoll = 0.98 * complementaryRoll + 0.02 * accRoll;
