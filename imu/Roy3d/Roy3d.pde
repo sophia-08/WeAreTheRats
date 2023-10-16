@@ -19,6 +19,8 @@ float gyroCorrectedRoll, gyroCorrectedPitch, gyroCorrectedYaw;   // units degree
 float accRoll,           accPitch,           accYaw;             // units degrees (roll and pitch noisy, yaw not possible)
 float complementaryRoll, complementaryPitch, complementaryYaw;   // units degrees (excellent roll, pitch, yaw minor drift)
 
+float x1, y1 ,z1;
+float x2, y2, z2;
 
 // NOTE: You need to provide or discover a portName.  Often it's at a fixed index (e.g. 0, 1) in the serial list.  Or you may prefer to hardcode it.  Look at commented lines below for examples.
 int portIndex = 0;
@@ -27,7 +29,7 @@ int portIndex = 0;
 //String portName = Serial.list()[portIndex];
 //String portName = "/dev/ttyACM0";  // example Linux portname
 //String portName = "COM1";            // example windows portname
-String portName = "/dev/cu.usbmodem14601";
+String portName = "/dev/cu.usbmodem14501";
 
 
 
@@ -66,12 +68,18 @@ void draw() {
     text("Not connected to: " + portName + ", check portName/portIndex", -300, -300);
   }
   
+  line(0, 0, x1*10, y1*10);
+  line(0, 0, x1*10, z1*10);
+    line(0, 0, y1*10, z1*10);
+  line(10, 10, 100, 100);
   drawBox("gyro (raw)\n","✓ has yaw\n× major drift", -450, gyroPitch, gyroRoll, gyroYaw);
   drawBox("gyro (corrected)\n","✓ has yaw\n× minor drift", -150, gyroCorrectedPitch, gyroCorrectedRoll, gyroCorrectedYaw);
-  drawBox("accel (raw)\n","✓ zero drift\n× no yaw + noisy", 150, accPitch, accRoll, accYaw);
-  drawBox("complementary\n","✓great pitch/roll\n× minor yaw drift", 450, complementaryPitch, complementaryRoll, complementaryYaw);
+  //drawBox("accel (raw)\n","✓ zero drift\n× no yaw + noisy", 150, accPitch, accRoll, accYaw);
+  //drawBox("complementary\n","✓great pitch/roll\n× minor yaw drift", 450, complementaryPitch, complementaryRoll, complementaryYaw);
   
 }
+
+float p, r ,y;
 
 /* This draws a moving 3d box representing roll/pitch/yaw including textual stats */
 void drawBox(String name, String description, int xShift, float pitch, float roll, float yaw) {
@@ -98,6 +106,7 @@ void drawBox(String name, String description, int xShift, float pitch, float rol
   
 }
 
+float smooth = 0.8;
 
 void serialEvent (Serial myPort) {
   
@@ -111,18 +120,16 @@ void serialEvent (Serial myPort) {
     String items[] = split(data, ',');
     if (items.length > 1) {
       //--- Roll,Pitch in degrees
-      gyroRoll = float(items[0]);
-      gyroPitch = float(items[1]);
+      gyroRoll = float(items[1]);
+      gyroPitch = float(items[0]);
       gyroYaw = float(items[2]);
-      gyroCorrectedRoll = float(items[3]);
-      gyroCorrectedPitch = float(items[4]);
-      gyroCorrectedYaw = float(items[5]);
-      accRoll = float(items[6]);
-      accPitch = float(items[7]);
-      accYaw = float(items[8]);
-      complementaryRoll = float(items[9]);
-      complementaryPitch = float(items[10]);
-      complementaryYaw = float(items[11]);
+      
+      x2 = x1;
+      y2 = y1;
+      z2 = z1;
+      x1 = gyroCorrectedRoll = gyroCorrectedRoll * smooth +  (1-smooth)* float(items[3]);
+      y1 = gyroCorrectedPitch = gyroCorrectedPitch * smooth +  (1-smooth)*float(items[4]);
+      z1 =gyroCorrectedYaw = gyroCorrectedYaw * smooth +  (1-smooth)*float(items[5]);
   }
   }
 }
