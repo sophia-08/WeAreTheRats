@@ -32,9 +32,9 @@ uint8_t buf[64];
 void setup() {
   Serial.begin(115200);
   buf[0] = 'a';
-// Mystery of why !Serial not ready:
-// The "Serial" is always valid for an Arduino Uno, therefor that piece of code does not wait.
-// In the Leonardo, the "Serial" could be zero, if the serial monitor has not been opened yet.
+  // Mystery of why !Serial not ready:
+  // The "Serial" is always valid for an Arduino Uno, therefor that piece of code does not wait.
+  // In the Leonardo, the "Serial" could be zero, if the serial monitor has not been opened yet.
   // while (!Serial) {
   //   digitalWrite(LED_RED, LIGHT_ON);
   //   delay(10);
@@ -87,7 +87,10 @@ void setup() {
   //Bluefruit.setName(getMcuUniqueID()); // useful testing with multiple central connections
   Bluefruit.Periph.setConnectCallback(connect_callback);
   Bluefruit.Periph.setDisconnectCallback(disconnect_callback);
-  Bluefruit.Periph.setConnInterval(9, 16);  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
+
+// Set a large connection interval, so the link between PC and main ring is not impacted.
+// This is based on the assumption that 125ms delay on the function keys is acceptable.
+  Bluefruit.Periph.setConnInterval(100, 200);  // n*1.25 ms
   // To be consistent OTA DFU should be added first if it exists
   // bledfu.begin();
 
@@ -135,28 +138,37 @@ void startAdv(void) {
 }
 
 int ledCount = 0;
-
 void loop() {
   ledCount++;
-  // HIGH  -- LIGHT_OFF
-  if (ledCount % 50 == 0) {
+
+  // This loop run real quick
+  if (ledCount % 50000 < 10000) {
     digitalWrite(LED_GREEN, LIGHT_ON);
   } else {
     digitalWrite(LED_GREEN, LIGHT_OFF);
   }
 
-  if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
 
-    // buf[0]++;
-    if (buf[0] == 'z') {
-      buf[0] = 'a';
-    }
+  // The hardware is wired MOUSE_ACTIVATE default low
+  // if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
+
+  //   // buf[0]++;
+  //   if (buf[0] == 'z') {
+  //     buf[0] = 'a';
+  //   }
+  //   bleuart.write(buf, 1);
+  //   Serial.println((char)buf[0]);
+  //   while (digitalRead(MOUSE_ACTIVATE) == HIGH)
+  //     ;
+  // }
+
+  if (Serial.available()) {
+    char ch = (char)Serial.read();
+    buf[0] = ch;
     bleuart.write(buf, 1);
-    Serial.println((char)buf[0]);
-    while (digitalRead(MOUSE_ACTIVATE) == HIGH)
-      ;
+    // echo
+    Serial.println(ch);
   }
-
 }
 
 // callback invoked when central connects
