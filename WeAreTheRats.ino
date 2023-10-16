@@ -13,7 +13,7 @@
 #include <tensorflow/lite/schema/schema_generated.h>
 
 #include "model.h"
-// #define TOM
+#define TOM
 const float accelerationThreshold = 2.5; // threshold of significant in G's
 
 const int numSamples = 500; // 119;
@@ -178,7 +178,7 @@ void setup() {
 // connections
 #ifdef TOM
   Bluefruit.begin(1, 1);
-  Bluefruit.Central.setConnInterval(9, 16);
+  Bluefruit.Central.setConnInterval(100, 200);
   // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
 
   // Callbacks for Central
@@ -215,7 +215,7 @@ void setup() {
    */
   Bluefruit.Scanner.setRxCallback(scan_callback);
   Bluefruit.Scanner.restartOnDisconnect(true);
-  Bluefruit.Scanner.setInterval(160, 80); // in unit of 0.625 ms
+  Bluefruit.Scanner.setInterval(160, 5); // in unit of 0.625 ms
   Bluefruit.Scanner.filterUuid(BLEUART_UUID_SERVICE);
   Bluefruit.Scanner.useActiveScan(false);
   Bluefruit.Scanner.start(0); // 0 = Don't stop scanning after n seconds
@@ -577,9 +577,9 @@ void loop() {
 
     // The below code shall run at interval of 10ms
 
-    currentSent = millis();
-    Serial.println(currentSent - lastSent);
-    lastSent = currentSent;
+    // currentSent = millis();
+    // Serial.println(currentSent - lastSent);
+    // lastSent = currentSent;
 
     // With current hardware setup:
     // pitch map to vertical movement (y). from top to bottom, y decrease 90 -
@@ -588,10 +588,9 @@ void loop() {
 
     // Serial.print(orientationData.orientation.pitch);
     // Serial.print(",");
-    // // Serial.print(",");
     // Serial.print(orientationData.orientation.roll);
     // Serial.print(",");
-    // Serial.print(orientationData.orientation.heading);
+    // Serial.println(orientationData.orientation.heading);
     // Serial.print(",");
     // Serial.print(magneticData.magnetic.x);
     // Serial.print(",");
