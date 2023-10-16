@@ -272,7 +272,7 @@ int tensorIndex = 0;
 int count = 0;
 int tmp = 0;
 
-#define report_freq 2
+#define report_freq 3
 
 int lastx, lasty;
 int left, right;
