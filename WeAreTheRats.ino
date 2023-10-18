@@ -25,8 +25,20 @@ int samplesRead = 0;
 #define MOUSE_ACTIVATE D6
 #define IMU_RESET D0
 #define SWITCH_DEVICE_MODE D10
-#define DEBUG_2 D2
-#define DEBUG_3 D3
+#define KEYPAD_CENTER D10
+#define KEYPAD_UP D7
+#define KEYPAD_RIGHT D3
+#define KEYPAD_DOWN D2
+#define KEYPAD_LEFT D1
+
+#define LED_CHARGER 23
+#define LIGHT_ON LOW
+#define LIGHT_OFF HIGH
+
+// VBAT_ENABLE 14
+
+// #define DEBUG_2 D2
+// #define DEBUG_3 D3
 
 #define out_samples 100
 
@@ -91,9 +103,6 @@ const char *GESTURES = "abcdefghijklmnopqrstuvwxyz";
 
 int ledgreen = 0;
 int ledred = 0;
-#define LED_CHARGER 23
-#define LIGHT_ON LOW
-#define LIGHT_OFF HIGH
 
 // const uint8_t BLEUART_UUID_SERVICE[] =
 // {
@@ -102,15 +111,22 @@ int ledred = 0;
 // };
 
 void setup() {
-  Serial.begin(115200);
 
+  // enable battery measuring
+  pinMode(VBAT_ENABLE, OUTPUT);
+  digitalWrite(VBAT_ENABLE, LOW);
+
+  pinMode(PIN_CHARGING_CURRENT, OUTPUT);
+  digitalWrite(PIN_CHARGING_CURRENT, HIGH); // Set to low charging current (50mA)
+
+  Serial.begin(115200);
   pinMode(LED_BLUE, OUTPUT);
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_CHARGER, OUTPUT);
   pinMode(IMU_RESET, OUTPUT);
-  pinMode(DEBUG_2, OUTPUT);
-  pinMode(DEBUG_3, OUTPUT);
+  // pinMode(DEBUG_2, OUTPUT);
+  // pinMode(DEBUG_3, OUTPUT);
 
   // Mystery of why !Serial not ready:
   // The "Serial" is always valid for an Arduino Uno, therefor that piece of
@@ -135,16 +151,23 @@ void setup() {
   digitalWrite(IMU_RESET, HIGH);
 
   pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
-  pinMode(D7, INPUT_PULLUP);
   pinMode(MOUSE_RIGHT, INPUT_PULLUP);
   pinMode(MOUSE_LEFT, INPUT_PULLUP);
-  pinMode(D10, INPUT_PULLUP);
+  pinMode(KEYPAD_LEFT, INPUT_PULLUP);
+  pinMode(KEYPAD_RIGHT, INPUT_PULLUP);
+  pinMode(KEYPAD_CENTER, INPUT_PULLUP);
+  pinMode(KEYPAD_UP, INPUT_PULLUP);
+  pinMode(KEYPAD_DOWN, INPUT_PULLUP);
 
   digitalWrite(MOUSE_ACTIVATE, HIGH);
-  digitalWrite(D7, HIGH);
   digitalWrite(MOUSE_RIGHT, HIGH);
   digitalWrite(MOUSE_LEFT, HIGH);
-  digitalWrite(D10, HIGH);
+  digitalWrite(KEYPAD_LEFT, HIGH);  
+  digitalWrite(KEYPAD_RIGHT, HIGH);
+  digitalWrite(KEYPAD_CENTER, HIGH);
+  digitalWrite(KEYPAD_UP, HIGH);
+  digitalWrite(KEYPAD_DOWN, HIGH);
+  
 
   digitalWrite(LED_RED, LIGHT_OFF);
   digitalWrite(LED_BLUE, LIGHT_OFF);
@@ -303,7 +326,7 @@ bool readIMU() {
 bool readIMUOrientation1() {
   int loop = 0;
   d2 = !d2;
-  digitalWrite(DEBUG_2, d2);
+  // digitalWrite(DEBUG_2, d2);
   // Wait upto 25*0.5 ms. The IMU was configured to 100Hz, so shall has new data
   // every 10ms
   while (loop <= 25) {
@@ -325,7 +348,7 @@ bool readIMUOrientation1() {
 bool readIMUOrientation() {
   int loop = 0;
   d2 = !d2;
-  digitalWrite(DEBUG_2, d2);
+  // digitalWrite(DEBUG_2, d2);
   // Wait upto 25*0.5 ms. The IMU was configured to 100Hz, so shall has new data
   // every 10ms
 
@@ -536,6 +559,8 @@ void loop() {
     left = digitalRead(MOUSE_LEFT);
     right = digitalRead(MOUSE_RIGHT);
 
+    // Serial.println(left);
+
     // detect edge
     if (left != last_left) {
       if (left == LOW) {
@@ -612,7 +637,7 @@ void loop() {
     count++;
     int32_t x;
     int32_t y;
-    digitalWrite(DEBUG_3, HIGH);
+    // digitalWrite(DEBUG_3, HIGH);
 
     // We do not want to overload the BLE link.
     // so here we send 1 report every (report_freq * 10ms)
@@ -651,7 +676,7 @@ void loop() {
         lastYAngle = yAngle;
       }
     }
-    digitalWrite(DEBUG_3, LOW);
+    // digitalWrite(DEBUG_3, LOW);
 
     return;
   }
@@ -678,7 +703,7 @@ void loop() {
       // if (currentTime < t1 + 2000) {
       //   return;
       // }
-      // t1 = currentTime;      
+      // t1 = currentTime;
       startedChar = true;
       samplesRead = 0;
       minAccl = 10;
@@ -741,7 +766,7 @@ void loop() {
       // Serial.println(samples[samplesRead][5], PRECISION);
       samplesRead++;
       d2 = !d2;
-      digitalWrite(DEBUG_2, d2);
+      // digitalWrite(DEBUG_2, d2);
     }
 
     // In case user hold the ACTIVATE button too long
