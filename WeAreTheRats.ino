@@ -46,6 +46,7 @@ int samplesRead = 0;
 #define SMOOTHING_RATIO 0.8
 #define SENSITIVITY_X 30
 #define SENSITIVITY_Y 35
+#define DEBOUNCE_DELAY 5 // ms
 
 #define DEVICE_MOUSE_MODE 0
 #define DEVICE_KEYBOARD_MODE 1
@@ -541,6 +542,9 @@ int lastSent;
 int currentSent;
 
 void loop() {
+
+  // sd_power_system_off();
+
   // ledred = !ledred;
   //  digitalWrite(LED_RED, ledred);
   // digitalWrite(LED_BLUE, digitalRead(D7));
@@ -557,20 +561,24 @@ void loop() {
 
   // Press SWITCH_DEVICE_MODE, the read is low
   if (digitalRead(SWITCH_DEVICE_MODE) == LOW) {
-    if (deviceMode == DEVICE_MOUSE_MODE) {
-      deviceMode = DEVICE_KEYBOARD_MODE;
-      Serial.println("swithc to keyboard");
-    } else {
-      deviceMode = DEVICE_MOUSE_MODE;
-      Serial.println("swithc to mouse");
+    // debounce check
+    delay(DEBOUNCE_DELAY);
+    if (digitalRead(SWITCH_DEVICE_MODE) == LOW) {
+      if (deviceMode == DEVICE_MOUSE_MODE) {
+        deviceMode = DEVICE_KEYBOARD_MODE;
+        Serial.println("swithc to keyboard");
+      } else {
+        deviceMode = DEVICE_MOUSE_MODE;
+        Serial.println("swithc to mouse");
+      }
+      // wait until key is released.
+      while (digitalRead(SWITCH_DEVICE_MODE) == LOW) {
+        ;
+      };
+      // Serial.println(IsChargingBattery());
+      Serial.print("battery: ");
+      Serial.println(GetBatteryVoltage());
     }
-    // wait until key is released.
-    while (digitalRead(SWITCH_DEVICE_MODE) == LOW) {
-      ;
-    };
-    // Serial.println(IsChargingBattery());
-    Serial.print("battery: ");
-    Serial.println(GetBatteryVoltage());
   }
 
   if (deviceMode == DEVICE_MOUSE_MODE) {
@@ -673,7 +681,7 @@ void loop() {
       y = (yAngle - lastYAngle) * SENSITIVITY_Y;
 
       // get rid of movement due to noise.
-      if (abs(x) > 5 || abs(y) > 5) {
+      if (abs(x) > 8 || abs(y) > 8) {
         // if (abs(accelX) + abs(accelY) + abs(accelZ) > 1.5) {
         // mousePosition(x, y);
         // if (abs(x) < 10) x = 0;
