@@ -264,16 +264,16 @@ void setup() {
   // Set up and start advertising
   startAdv();
 
-  // if (!bno.begin()) {
-  //   Serial.print("No BNO055 detected");
-  //   systemHaltWithledPattern(LED_RED, 3);
-  // }
+  if (!bno.begin()) {
+    Serial.print("No BNO055 detected");
+    systemHaltWithledPattern(LED_RED, 3);
+  }
 
-  // // calibrateIMU(250, 250);
-  // lastTime = micros();
-  // deviceMode = DEVICE_MOUSE_MODE;
-  // Serial.print("bno mode ");
-  // Serial.println(bno.getMode());
+  // calibrateIMU(250, 250);
+  lastTime = micros();
+  deviceMode = DEVICE_MOUSE_MODE;
+  Serial.print("bno mode ");
+  Serial.println(bno.getMode());
 }
 
 void startAdv(void) {
@@ -556,11 +556,6 @@ void loop() {
     digitalWrite(LED_GREEN, LIGHT_OFF);
   }
 
-  Serial.println(IsChargingBattery());
-  Serial.println(GetBatteryVoltage());
-  delay(1000);
-  return;
-
   // Press SWITCH_DEVICE_MODE, the read is low
   if (digitalRead(SWITCH_DEVICE_MODE) == LOW) {
     if (deviceMode == DEVICE_MOUSE_MODE) {
@@ -574,6 +569,9 @@ void loop() {
     while (digitalRead(SWITCH_DEVICE_MODE) == LOW) {
       ;
     };
+    // Serial.println(IsChargingBattery());
+    Serial.print("battery: ");
+    Serial.println(GetBatteryVoltage());
   }
 
   if (deviceMode == DEVICE_MOUSE_MODE) {
