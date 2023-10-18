@@ -128,24 +128,23 @@ bool IsChargingBattery() { return digitalRead(BAT_CHARGE_STATE) == LOW; }
 
 void setup() {
 
-  // enable battery measuring
+  // enable battery measuring.
   pinMode(VBAT_ENABLE, OUTPUT);
+  // Due to hardware limitation, do not set to high on Seeed nrf52
   digitalWrite(VBAT_ENABLE, LOW);
 
+  // Read charge state. Low is charging.
   pinMode(BAT_CHARGE_STATE, INPUT);
 
+  // Set charge mode. Set to high charging current (100mA)
   pinMode(PIN_CHARGING_CURRENT, OUTPUT);
-  digitalWrite(PIN_CHARGING_CURRENT,
-               LOW); // Set to high charging current (100mA)
+  digitalWrite(PIN_CHARGING_CURRENT, LOW);
 
   Serial.begin(115200);
   pinMode(LED_BLUE, OUTPUT);
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
-  // pinMode(LED_CHARGER, OUTPUT);
   pinMode(IMU_RESET, OUTPUT);
-  // pinMode(DEBUG_2, OUTPUT);
-  // pinMode(DEBUG_3, OUTPUT);
 
   // Mystery of why !Serial not ready:
   // The "Serial" is always valid for an Arduino Uno, therefor that piece of
