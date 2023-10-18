@@ -31,9 +31,10 @@ int samplesRead = 0;
 #define KEYPAD_DOWN D2
 #define KEYPAD_LEFT D1
 
-#define LED_CHARGER 23
+// #define LED_CHARGER 23
 #define LIGHT_ON LOW
 #define LIGHT_OFF HIGH
+#define BAT_CHARGE_STATE 23 // LOW for charging, HIGH not charging
 
 // VBAT_ENABLE 14
 
@@ -109,6 +110,21 @@ int ledred = 0;
 //     0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0,
 //     0x93, 0xF3, 0xA3, 0xB5, 0x01, 0x00, 0x40, 0x6E
 // };
+#define VBAT_PER_LBS (0.003515625F) // 3.6 reference and 10 bit resolution
+
+float GetBatteryVoltage() {
+  // digitalWrite(VBAT_ENABLE, LOW);
+
+  uint32_t adcCount = analogRead(PIN_VBAT);
+  float adcVoltage = adcCount * VBAT_PER_LBS;
+  float vBat = adcVoltage * (1510.0 / 510.0);
+
+  // digitalWrite(VBAT_ENABLE, HIGH);
+
+  return vBat;
+}
+
+bool IsChargingBattery() { return digitalRead(BAT_CHARGE_STATE) == LOW; }
 
 void setup() {
 
@@ -116,14 +132,17 @@ void setup() {
   pinMode(VBAT_ENABLE, OUTPUT);
   digitalWrite(VBAT_ENABLE, LOW);
 
+  pinMode(BAT_CHARGE_STATE, INPUT);
+
   pinMode(PIN_CHARGING_CURRENT, OUTPUT);
-  digitalWrite(PIN_CHARGING_CURRENT, HIGH); // Set to low charging current (50mA)
+  digitalWrite(PIN_CHARGING_CURRENT,
+               LOW); // Set to high charging current (100mA)
 
   Serial.begin(115200);
   pinMode(LED_BLUE, OUTPUT);
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
-  pinMode(LED_CHARGER, OUTPUT);
+  // pinMode(LED_CHARGER, OUTPUT);
   pinMode(IMU_RESET, OUTPUT);
   // pinMode(DEBUG_2, OUTPUT);
   // pinMode(DEBUG_3, OUTPUT);
@@ -162,17 +181,16 @@ void setup() {
   digitalWrite(MOUSE_ACTIVATE, HIGH);
   digitalWrite(MOUSE_RIGHT, HIGH);
   digitalWrite(MOUSE_LEFT, HIGH);
-  digitalWrite(KEYPAD_LEFT, HIGH);  
+  digitalWrite(KEYPAD_LEFT, HIGH);
   digitalWrite(KEYPAD_RIGHT, HIGH);
   digitalWrite(KEYPAD_CENTER, HIGH);
   digitalWrite(KEYPAD_UP, HIGH);
   digitalWrite(KEYPAD_DOWN, HIGH);
-  
 
   digitalWrite(LED_RED, LIGHT_OFF);
   digitalWrite(LED_BLUE, LIGHT_OFF);
   digitalWrite(LED_GREEN, LIGHT_OFF);
-  digitalWrite(LED_CHARGER, LIGHT_OFF);
+  // digitalWrite(LED_CHARGER, LIGHT_OFF);
 
   // get the TFL representation of the model byte array
   tflModel = tflite::GetModel(model);
@@ -246,16 +264,16 @@ void setup() {
   // Set up and start advertising
   startAdv();
 
-  if (!bno.begin()) {
-    Serial.print("No BNO055 detected");
-    systemHaltWithledPattern(LED_RED, 3);
-  }
+  // if (!bno.begin()) {
+  //   Serial.print("No BNO055 detected");
+  //   systemHaltWithledPattern(LED_RED, 3);
+  // }
 
-  // calibrateIMU(250, 250);
-  lastTime = micros();
-  deviceMode = DEVICE_MOUSE_MODE;
-  Serial.print("bno mode ");
-  Serial.println(bno.getMode());
+  // // calibrateIMU(250, 250);
+  // lastTime = micros();
+  // deviceMode = DEVICE_MOUSE_MODE;
+  // Serial.print("bno mode ");
+  // Serial.println(bno.getMode());
 }
 
 void startAdv(void) {
@@ -537,6 +555,11 @@ void loop() {
   } else {
     digitalWrite(LED_GREEN, LIGHT_OFF);
   }
+
+  Serial.println(IsChargingBattery());
+  Serial.println(GetBatteryVoltage());
+  delay(1000);
+  return;
 
   // Press SWITCH_DEVICE_MODE, the read is low
   if (digitalRead(SWITCH_DEVICE_MODE) == LOW) {
