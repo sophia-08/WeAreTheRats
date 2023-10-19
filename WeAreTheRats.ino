@@ -568,6 +568,16 @@ void loop() {
     digitalWrite(LED_GREEN, LIGHT_OFF);
   }
 
+  // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
+  // When a character is recoganized, a KEY_DOWN event is sent. Here I send the
+  // KEY_UP event
+  if (needSendKeyRelease) {
+    needSendKeyRelease = false;
+    blehid.keyRelease();
+  }
+
+  scanKeys();
+
 #ifdef ENABLE_SLEEP
   if (digitalRead(MOUSE_ACTIVATE) == LOW) {
     sleepCount++;
@@ -735,14 +745,6 @@ void loop() {
   /*****  Below is for Keyboard  ******/
 
   // Device in Keyboard mode
-
-  // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
-  // When a character is recoganized, a KEY_DOWN event is sent. Here I send the
-  // KEY_UP event
-  if (needSendKeyRelease) {
-    needSendKeyRelease = false;
-    blehid.keyRelease();
-  }
 
   // Capture has not started, ignore until user activate keypad
   if (!startedChar) {
@@ -990,3 +992,27 @@ void cent_bleuart_rx_callback(BLEClientUart &cent_uart) {
 }
 
 #endif
+
+void scanOneKey(uint8_t key, uint8_t code) {
+  if (digitalRead(key) == LOW) {
+    delay(1);
+    if (digitalRead(key) == LOW) {
+      // blehid.keyPress(HID_KEY_ARROW_LEFT);
+      uint8_t keycodes[6] = {code,         HID_KEY_NONE, HID_KEY_NONE,
+                             HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE};
+      blehid.keyboardReport(0, keycodes);
+      needSendKeyRelease = true;
+      // wait until key is released.
+      while (digitalRead(key) == LOW) {
+        ;
+      };
+    }
+  }
+}
+
+void scanKeys() {
+  scanOneKey(KEYPAD_LEFT, HID_KEY_ARROW_LEFT);
+  scanOneKey(KEYPAD_RIGHT, HID_KEY_ARROW_RIGHT);
+  scanOneKey(KEYPAD_UP, HID_KEY_ARROW_UP);
+  scanOneKey(KEYPAD_DOWN, HID_KEY_ARROW_DOWN);
+}
