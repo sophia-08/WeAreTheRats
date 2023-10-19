@@ -276,6 +276,14 @@ void setup() {
   Serial.println(bno.getMode());
 }
 
+void systemSleep() {
+  nrf_gpio_cfg_sense_input(g_ADigitalPinMap[MOUSE_ACTIVATE],
+                           NRF_GPIO_PIN_PULLDOWN, NRF_GPIO_PIN_SENSE_HIGH);
+  // power off
+  sd_power_system_off();
+  pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
+}
+
 void startAdv(void) {
   // Advertising packet
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
@@ -540,6 +548,7 @@ void systemHaltWithledPattern(int led, int seconds) {
 
 int lastSent;
 int currentSent;
+int sleepCount;
 
 void loop() {
 
@@ -558,6 +567,20 @@ void loop() {
   } else {
     digitalWrite(LED_GREEN, LIGHT_OFF);
   }
+
+#ifdef ENABLE_SLEEP
+  if (digitalRead(MOUSE_ACTIVATE) == LOW) {
+    sleepCount++;
+  } else {
+    sleepCount = 0;
+  }
+
+  if (sleepCount > 100) {
+    // digitalWrite(LED_RED, LIGHT_ON);
+    systemSleep();
+    // digitalWrite(LED_RED, LIGHT_OFF);
+  }
+#endif
 
   // Press SWITCH_DEVICE_MODE, the read is low
   if (digitalRead(SWITCH_DEVICE_MODE) == LOW) {
