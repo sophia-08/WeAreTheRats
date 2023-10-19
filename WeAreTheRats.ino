@@ -13,6 +13,9 @@
 #include <tensorflow/lite/schema/schema_generated.h>
 
 #include "model.h"
+#include "local_constants.h"
+#include "battery.h"
+#include "system.h"
 #define TOM
 const float accelerationThreshold = 2.5; // threshold of significant in G's
 
@@ -20,38 +23,9 @@ const int numSamples = 500; // 119;
 double samples[numSamples][6];
 
 int samplesRead = 0;
-#define MOUSE_LEFT D9
-#define MOUSE_RIGHT D8
-#define MOUSE_ACTIVATE D6
-#define IMU_RESET D0
-#define SWITCH_DEVICE_MODE D10
-#define KEYPAD_CENTER D10
-#define KEYPAD_UP D7
-#define KEYPAD_RIGHT D3
-#define KEYPAD_DOWN D2
-#define KEYPAD_LEFT D1
-
-// #define LED_CHARGER 23
-#define LIGHT_ON LOW
-#define LIGHT_OFF HIGH
-#define BAT_CHARGE_STATE 23 // LOW for charging, HIGH not charging
-
-// VBAT_ENABLE 14
-
-// #define DEBUG_2 D2
-// #define DEBUG_3 D3
-
 #define out_samples 100
 
-#define SMOOTHING_RATIO 0.8
-#define SENSITIVITY_X 30
-#define SENSITIVITY_Y 35
-#define DEBOUNCE_DELAY 5 // ms
-
-#define DEVICE_MOUSE_MODE 0
-#define DEVICE_KEYBOARD_MODE 1
 int deviceMode;
-
 BLEDis bledis;
 BLEHidAdafruit blehid;
 
@@ -111,158 +85,12 @@ int ledred = 0;
 //     0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0,
 //     0x93, 0xF3, 0xA3, 0xB5, 0x01, 0x00, 0x40, 0x6E
 // };
-#define VBAT_PER_LBS (0.003515625F) // 3.6 reference and 10 bit resolution
-
-float GetBatteryVoltage() {
-  // digitalWrite(VBAT_ENABLE, LOW);
-
-  uint32_t adcCount = analogRead(PIN_VBAT);
-  float adcVoltage = adcCount * VBAT_PER_LBS;
-  float vBat = adcVoltage * (1510.0 / 510.0);
-
-  // digitalWrite(VBAT_ENABLE, HIGH);
-
-  return vBat;
-}
-
-bool IsChargingBattery() { return digitalRead(BAT_CHARGE_STATE) == LOW; }
-
 void setup() {
-
-  // enable battery measuring.
-  pinMode(VBAT_ENABLE, OUTPUT);
-  // Due to hardware limitation, do not set to high on Seeed nrf52
-  digitalWrite(VBAT_ENABLE, LOW);
-
-  // Read charge state. Low is charging.
-  pinMode(BAT_CHARGE_STATE, INPUT);
-
-  // Set charge mode. Set to high charging current (100mA)
-  pinMode(PIN_CHARGING_CURRENT, OUTPUT);
-  digitalWrite(PIN_CHARGING_CURRENT, LOW);
-
+  configGpio();
   Serial.begin(115200);
-  pinMode(LED_BLUE, OUTPUT);
-  pinMode(LED_RED, OUTPUT);
-  pinMode(LED_GREEN, OUTPUT);
-  pinMode(IMU_RESET, OUTPUT);
 
-  // Mystery of why !Serial not ready:
-  // The "Serial" is always valid for an Arduino Uno, therefor that piece of
-  // code does not wait. In the Leonardo, the "Serial" could be zero, if the
-  // serial monitor has not been opened yet.
-
-  // while (!Serial) {
-  //   digitalWrite(LED_RED, LIGHT_ON);
-  //   delay(10);
-  //   digitalWrite(LED_RED, LIGHT_OFF);
-  //   delay(100);
-  // }
-
-  Serial.println("We are the rats\n");
-  Serial.println("-------------------------------------\n");
-
-  // Reset IMU
-  digitalWrite(IMU_RESET, HIGH);
-  delay(0.1);
-  digitalWrite(IMU_RESET, LOW);
-  delay(0.1);
-  digitalWrite(IMU_RESET, HIGH);
-
-  pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
-  pinMode(MOUSE_RIGHT, INPUT_PULLUP);
-  pinMode(MOUSE_LEFT, INPUT_PULLUP);
-  pinMode(KEYPAD_LEFT, INPUT_PULLUP);
-  pinMode(KEYPAD_RIGHT, INPUT_PULLUP);
-  pinMode(KEYPAD_CENTER, INPUT_PULLUP);
-  pinMode(KEYPAD_UP, INPUT_PULLUP);
-  pinMode(KEYPAD_DOWN, INPUT_PULLUP);
-
-  digitalWrite(MOUSE_ACTIVATE, HIGH);
-  digitalWrite(MOUSE_RIGHT, HIGH);
-  digitalWrite(MOUSE_LEFT, HIGH);
-  digitalWrite(KEYPAD_LEFT, HIGH);
-  digitalWrite(KEYPAD_RIGHT, HIGH);
-  digitalWrite(KEYPAD_CENTER, HIGH);
-  digitalWrite(KEYPAD_UP, HIGH);
-  digitalWrite(KEYPAD_DOWN, HIGH);
-
-  digitalWrite(LED_RED, LIGHT_OFF);
-  digitalWrite(LED_BLUE, LIGHT_OFF);
-  digitalWrite(LED_GREEN, LIGHT_OFF);
-  // digitalWrite(LED_CHARGER, LIGHT_OFF);
-
-  // get the TFL representation of the model byte array
-  tflModel = tflite::GetModel(model);
-  if (tflModel->version() != TFLITE_SCHEMA_VERSION) {
-    Serial.println("Model schema mismatch!");
-    systemHaltWithledPattern(LED_RED, 1);
-  }
-
-  // Create an interpreter to run the model
-  tflInterpreter =
-      new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena,
-                                   tensorArenaSize, &tflErrorReporter);
-
-  // Allocate memory for the model's input and output tensors
-  if (tflInterpreter->AllocateTensors() != kTfLiteOk) {
-    Serial.println("AllocateTensors failed!");
-    systemHaltWithledPattern(LED_RED, 2);
-  };
-
-  // Get pointers for the model's input and output tensors
-  tflInputTensor = tflInterpreter->input(0);
-  tflOutputTensor = tflInterpreter->output(0);
-
-// Initialize Bluefruit with max concurrent connections as Peripheral = 1,
-// Central = 1. SRAM usage required by SoftDevice will increase with number of
-// connections
-#ifdef TOM
-  Bluefruit.begin(1, 1);
-  Bluefruit.Central.setConnInterval(100, 200);
-  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
-
-  // Callbacks for Central
-  Bluefruit.Central.setConnectCallback(cent_connect_callback);
-  Bluefruit.Central.setDisconnectCallback(cent_disconnect_callback);
-
-#else
-  Bluefruit.begin();
-#endif
-  // HID Device can have a min connection interval of 9*1.25 = 11.25 ms
-  Bluefruit.Periph.setConnInterval(9, 16);
-  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
-
-  Bluefruit.setTxPower(4); // Check bluefruit.h for supported values
-  Bluefruit.setName("WeAreTheRats");
-
-  // Configure and Start Device Information Service
-  bledis.setManufacturer("Adafruit Industries");
-  bledis.setModel("Bluefruit Feather 52");
-  bledis.begin();
-  blehid.begin();
-
-#ifdef TOM
-  // Init BLE Central Uart Serivce
-  clientUart.begin();
-  clientUart.setRxCallback(cent_bleuart_rx_callback);
-
-  /* Start Central Scanning
-   * - Enable auto scan if disconnected
-   * - Interval = 100 ms, window = 80 ms
-   * - Filter only accept bleuart service
-   * - Don't use active scan
-   * - Start(timeout) with timeout = 0 will scan forever (until connected)
-   */
-  Bluefruit.Scanner.setRxCallback(scan_callback);
-  Bluefruit.Scanner.restartOnDisconnect(true);
-  Bluefruit.Scanner.setInterval(160, 5); // in unit of 0.625 ms
-  Bluefruit.Scanner.filterUuid(BLEUART_UUID_SERVICE);
-  Bluefruit.Scanner.useActiveScan(false);
-  Bluefruit.Scanner.start(0); // 0 = Don't stop scanning after n seconds
-#endif
-  // Set up and start advertising
-  startAdv();
+  loadTFLiteModel();
+  initAndStartBLE();
 
   if (!bno.begin()) {
     Serial.print("No BNO055 detected");
@@ -276,40 +104,7 @@ void setup() {
   Serial.println(bno.getMode());
 }
 
-void systemSleep() {
-  nrf_gpio_cfg_sense_input(g_ADigitalPinMap[MOUSE_ACTIVATE],
-                           NRF_GPIO_PIN_PULLDOWN, NRF_GPIO_PIN_SENSE_HIGH);
-  // power off
-  sd_power_system_off();
-  pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
-}
 
-void startAdv(void) {
-  // Advertising packet
-  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
-  Bluefruit.Advertising.addTxPower();
-  Bluefruit.Advertising.addAppearance(BLE_APPEARANCE_GENERIC_HID);
-
-  // Include BLE HID service
-  Bluefruit.Advertising.addService(blehid);
-
-  // There is enough room for 'Name' in the advertising packet
-  Bluefruit.Advertising.addName();
-
-  /* Start Advertising
-   * - Enable auto advertising if disconnected
-   * - Interval:  fast mode = 20 ms, slow mode = 152.5 ms
-   * - Timeout for fast mode is 30 seconds
-   * - Start(timeout) with timeout = 0 will advertise forever (until connected)
-   *
-   * For recommended advertising interval
-   * https://developer.apple.com/library/content/qa/qa1931/_index.html
-   */
-  Bluefruit.Advertising.restartOnDisconnect(true);
-  Bluefruit.Advertising.setInterval(32, 244); // in unit of 0.625 ms
-  Bluefruit.Advertising.setFastTimeout(30);   // number of seconds in fast mode
-  Bluefruit.Advertising.start(0); // 0 = Don't stop advertising after n seconds
-}
 
 float minAccl = 10;
 float minGyro = 10;
@@ -526,25 +321,6 @@ void preprocessData() {
 //     tflInputTensor->data.f[i] = tt[i];
 //   }
 // }
-
-/**
- * @brief Use the given led indicate system halt. the led shall blink at
- * frequence of give duration
- *
- * @param led
- * @param seconds
- */
-void systemHaltWithledPattern(int led, int seconds) {
-
-  for (;;) {
-
-    digitalWrite(led, LIGHT_ON);
-    delay(1000 * seconds);
-
-    digitalWrite(led, LIGHT_OFF);
-    delay(1000 * seconds);
-  }
-}
 
 int lastSent;
 int currentSent;
@@ -1015,4 +791,168 @@ void scanKeys() {
   scanOneKey(KEYPAD_RIGHT, HID_KEY_ARROW_RIGHT);
   scanOneKey(KEYPAD_UP, HID_KEY_ARROW_UP);
   scanOneKey(KEYPAD_DOWN, HID_KEY_ARROW_DOWN);
+}
+
+void configGpio() {
+  // enable battery measuring.
+  pinMode(VBAT_ENABLE, OUTPUT);
+  // Due to hardware limitation, do not set to high on Seeed nrf52
+  digitalWrite(VBAT_ENABLE, LOW);
+
+  // Read charge state. Low is charging.
+  pinMode(BAT_CHARGE_STATE, INPUT);
+
+  // Set charge mode. Set to high charging current (100mA)
+  pinMode(PIN_CHARGING_CURRENT, OUTPUT);
+  digitalWrite(PIN_CHARGING_CURRENT, LOW);
+
+  pinMode(LED_BLUE, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
+  pinMode(IMU_RESET, OUTPUT);
+
+  // Mystery of why !Serial not ready:
+  // The "Serial" is always valid for an Arduino Uno, therefor that piece of
+  // code does not wait. In the Leonardo, the "Serial" could be zero, if the
+  // serial monitor has not been opened yet.
+
+  // while (!Serial) {
+  //   digitalWrite(LED_RED, LIGHT_ON);
+  //   delay(10);
+  //   digitalWrite(LED_RED, LIGHT_OFF);
+  //   delay(100);
+  // }
+
+  // Reset IMU
+  digitalWrite(IMU_RESET, HIGH);
+  delay(0.1);
+  digitalWrite(IMU_RESET, LOW);
+  delay(0.1);
+  digitalWrite(IMU_RESET, HIGH);
+
+  pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
+  pinMode(MOUSE_RIGHT, INPUT_PULLUP);
+  pinMode(MOUSE_LEFT, INPUT_PULLUP);
+  pinMode(KEYPAD_LEFT, INPUT_PULLUP);
+  pinMode(KEYPAD_RIGHT, INPUT_PULLUP);
+  pinMode(KEYPAD_CENTER, INPUT_PULLUP);
+  pinMode(KEYPAD_UP, INPUT_PULLUP);
+  pinMode(KEYPAD_DOWN, INPUT_PULLUP);
+
+  digitalWrite(MOUSE_ACTIVATE, HIGH);
+  digitalWrite(MOUSE_RIGHT, HIGH);
+  digitalWrite(MOUSE_LEFT, HIGH);
+  digitalWrite(KEYPAD_LEFT, HIGH);
+  digitalWrite(KEYPAD_RIGHT, HIGH);
+  digitalWrite(KEYPAD_CENTER, HIGH);
+  digitalWrite(KEYPAD_UP, HIGH);
+  digitalWrite(KEYPAD_DOWN, HIGH);
+
+  digitalWrite(LED_RED, LIGHT_OFF);
+  digitalWrite(LED_BLUE, LIGHT_OFF);
+  digitalWrite(LED_GREEN, LIGHT_OFF);
+}
+
+void loadTFLiteModel() {
+  // get the TFL representation of the model byte array
+  tflModel = tflite::GetModel(model);
+  if (tflModel->version() != TFLITE_SCHEMA_VERSION) {
+    Serial.println("Model schema mismatch!");
+    systemHaltWithledPattern(LED_RED, 1);
+  }
+
+  // Create an interpreter to run the model
+  tflInterpreter =
+      new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena,
+                                   tensorArenaSize, &tflErrorReporter);
+
+  // Allocate memory for the model's input and output tensors
+  if (tflInterpreter->AllocateTensors() != kTfLiteOk) {
+    Serial.println("AllocateTensors failed!");
+    systemHaltWithledPattern(LED_RED, 2);
+  };
+
+  // Get pointers for the model's input and output tensors
+  tflInputTensor = tflInterpreter->input(0);
+  tflOutputTensor = tflInterpreter->output(0);
+}
+
+
+
+void startAdv(void) {
+  // Advertising packet
+  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
+  Bluefruit.Advertising.addTxPower();
+  Bluefruit.Advertising.addAppearance(BLE_APPEARANCE_GENERIC_HID);
+
+  // Include BLE HID service
+  Bluefruit.Advertising.addService(blehid);
+
+  // There is enough room for 'Name' in the advertising packet
+  Bluefruit.Advertising.addName();
+
+  /* Start Advertising
+   * - Enable auto advertising if disconnected
+   * - Interval:  fast mode = 20 ms, slow mode = 152.5 ms
+   * - Timeout for fast mode is 30 seconds
+   * - Start(timeout) with timeout = 0 will advertise forever (until connected)
+   *
+   * For recommended advertising interval
+   * https://developer.apple.com/library/content/qa/qa1931/_index.html
+   */
+  Bluefruit.Advertising.restartOnDisconnect(true);
+  Bluefruit.Advertising.setInterval(32, 244); // in unit of 0.625 ms
+  Bluefruit.Advertising.setFastTimeout(30);   // number of seconds in fast mode
+  Bluefruit.Advertising.start(0); // 0 = Don't stop advertising after n seconds
+}
+void initAndStartBLE() {
+
+#ifdef TOM
+  // Initialize Bluefruit with max concurrent connections as Peripheral = 1,
+  // Central = 1. SRAM usage required by SoftDevice will increase with number of
+  // connections
+  Bluefruit.begin(1, 1);
+  Bluefruit.Central.setConnInterval(100, 200);
+  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
+
+  // Callbacks for Central
+  Bluefruit.Central.setConnectCallback(cent_connect_callback);
+  Bluefruit.Central.setDisconnectCallback(cent_disconnect_callback);
+#else
+    Bluefruit.begin();
+#endif
+  // HID Device can have a min connection interval of 9*1.25 = 11.25 ms
+  Bluefruit.Periph.setConnInterval(9, 16);
+  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
+
+  Bluefruit.setTxPower(4); // Check bluefruit.h for supported values
+  Bluefruit.setName("WeAreTheRats");
+
+  // Configure and Start Device Information Service
+  bledis.setManufacturer("Adafruit Industries");
+  bledis.setModel("Bluefruit Feather 52");
+  bledis.begin();
+  blehid.begin();
+
+#ifdef TOM
+  // Init BLE Central Uart Serivce
+  clientUart.begin();
+  clientUart.setRxCallback(cent_bleuart_rx_callback);
+
+  /* Start Central Scanning
+   * - Enable auto scan if disconnected
+   * - Interval = 100 ms, window = 80 ms
+   * - Filter only accept bleuart service
+   * - Don't use active scan
+   * - Start(timeout) with timeout = 0 will scan forever (until connected)
+   */
+  Bluefruit.Scanner.setRxCallback(scan_callback);
+  Bluefruit.Scanner.restartOnDisconnect(true);
+  Bluefruit.Scanner.setInterval(160, 5); // in unit of 0.625 ms
+  Bluefruit.Scanner.filterUuid(BLEUART_UUID_SERVICE);
+  Bluefruit.Scanner.useActiveScan(false);
+  Bluefruit.Scanner.start(0); // 0 = Don't stop scanning after n seconds
+#endif
+  // Set up and start advertising
+  startAdv();
 }
