@@ -119,7 +119,7 @@ void loop() {
 
   // Capture has not started, ignore until user activate keypad
   if (!startedChar) {
-    if (digitalRead(MOUSE_ACTIVATE) == LOW) {
+    if (digitalRead(DEVICE_ACTIVATE) == LOW) {
       return;
     } else {
       // User activate keypad, check whether 2s passed since last capture
@@ -138,7 +138,7 @@ void loop() {
   while (true) {
   wait:
     // User deactivated keypad
-    if (digitalRead(MOUSE_ACTIVATE) == LOW) {
+    if (digitalRead(DEVICE_ACTIVATE) == LOW) {
       startedChar = false;
       break;
     }

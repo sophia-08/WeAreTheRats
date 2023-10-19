@@ -21,9 +21,9 @@ void systemHaltWithledPattern(int led, int seconds) {
 }
 
 void systemSleep() {
-  nrf_gpio_cfg_sense_input(g_ADigitalPinMap[MOUSE_ACTIVATE],
+  nrf_gpio_cfg_sense_input(g_ADigitalPinMap[DEVICE_ACTIVATE],
                            NRF_GPIO_PIN_PULLDOWN, NRF_GPIO_PIN_SENSE_HIGH);
   // power off
   sd_power_system_off();
-  pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
+  pinMode(DEVICE_ACTIVATE, INPUT_PULLUP);
 }

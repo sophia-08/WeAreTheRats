@@ -12,9 +12,9 @@
 #include <tensorflow/lite/micro/micro_interpreter.h>
 #include <tensorflow/lite/schema/schema_generated.h>
 
-#include "model.h"
-#include "local_constants.h"
 #include "battery.h"
+#include "local_constants.h"
+#include "model.h"
 #include "system.h"
 #define TOM
 const float accelerationThreshold = 2.5; // threshold of significant in G's
@@ -103,8 +103,6 @@ void setup() {
   Serial.print("bno mode ");
   Serial.println(bno.getMode());
 }
-
-
 
 float minAccl = 10;
 float minGyro = 10;
@@ -197,6 +195,7 @@ int lastSent;
 int currentSent;
 int sleepCount;
 
+int lastTimestampScanMouseClick;
 void loop() {
 
   ledCount++;
@@ -218,7 +217,7 @@ void loop() {
   scanKeys();
 
 #ifdef ENABLE_SLEEP
-  if (digitalRead(MOUSE_ACTIVATE) == LOW) {
+  if (digitalRead(DEVICE_ACTIVATE) == LOW) {
     sleepCount++;
   } else {
     sleepCount = 0;
@@ -255,35 +254,39 @@ void loop() {
 
   if (deviceMode == DEVICE_MOUSE_MODE) {
 
-    // Process the Left and Right click
-    left = digitalRead(MOUSE_LEFT);
-    right = digitalRead(MOUSE_RIGHT);
+    // debounce mouse click buttons
+    if (millis() - lastTimestampScanMouseClick > DEBOUNCE_DELAY) {
+      lastTimestampScanMouseClick = millis();
 
-    // Serial.println(left);
+      // Process the Left and Right click
+      left = digitalRead(MOUSE_LEFT);
+      right = digitalRead(MOUSE_RIGHT);
 
-    // detect edge
-    if (left != last_left) {
-      if (left == LOW) {
-        blehid.mouseButtonPress(MOUSE_BUTTON_LEFT);
-        Serial.println("left down");
-      } else {
-        blehid.mouseButtonRelease();
-        Serial.println("left up");
+      // Serial.println(left);
+
+      // detect edge
+      if (left != last_left) {
+        if (left == LOW) {
+          blehid.mouseButtonPress(MOUSE_BUTTON_LEFT);
+          Serial.println("left down");
+        } else {
+          blehid.mouseButtonRelease();
+          Serial.println("left up");
+        }
+        last_left = left;
       }
-      last_left = left;
-    }
 
-    if (right != last_right) {
-      if (right == LOW) {
-        blehid.mouseButtonPress(MOUSE_BUTTON_RIGHT);
-        Serial.println("right down");
-      } else {
-        blehid.mouseButtonRelease();
-        Serial.println("right up");
+      if (right != last_right) {
+        if (right == LOW) {
+          blehid.mouseButtonPress(MOUSE_BUTTON_RIGHT);
+          Serial.println("right down");
+        } else {
+          blehid.mouseButtonRelease();
+          Serial.println("right up");
+        }
+        last_right = right;
       }
-      last_right = right;
     }
-
     // In mouse mode, we only need orientation.
     readIMUOrientation();
 
@@ -340,7 +343,7 @@ void loop() {
     // digitalWrite(DEBUG_3, HIGH);
 
     // We do not want to overload the BLE link.
-    // so here we send 1 report every (report_freq * 10ms)
+    // so here we send 1 report every (report_freq * 10ms) = 30ms
     if (count % report_freq == 0) {
       x = (xAngle - lastXAngle) * SENSITIVITY_X;
 
@@ -369,7 +372,7 @@ void loop() {
         // Serial.println(orientationData.orientation.pitch);
         // Serial.print(",");
 
-        if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
+        if (digitalRead(DEVICE_ACTIVATE) == HIGH) {
           blehid.mouseMove(x, -y);
         }
         lastXAngle = xAngle;
@@ -387,7 +390,7 @@ void loop() {
 
   // Capture has not started, ignore until user activate keypad
   if (!startedChar) {
-    if (digitalRead(MOUSE_ACTIVATE) == LOW) {
+    if (digitalRead(DEVICE_ACTIVATE) == LOW) {
       return;
     } else {
       // User activate keypad, check whether 2s passed since last capture
@@ -411,7 +414,7 @@ void loop() {
   while (true) {
   wait:
     // User deactivated keypad
-    if (digitalRead(MOUSE_ACTIVATE) == LOW) {
+    if (digitalRead(DEVICE_ACTIVATE) == LOW) {
       startedChar = false;
       inference_started = true;
       break;
@@ -693,7 +696,7 @@ void configGpio() {
   delay(0.1);
   digitalWrite(IMU_RESET, HIGH);
 
-  pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
+  pinMode(DEVICE_ACTIVATE, INPUT_PULLUP);
   pinMode(MOUSE_RIGHT, INPUT_PULLUP);
   pinMode(MOUSE_LEFT, INPUT_PULLUP);
   pinMode(KEYPAD_LEFT, INPUT_PULLUP);
@@ -702,7 +705,7 @@ void configGpio() {
   pinMode(KEYPAD_UP, INPUT_PULLUP);
   pinMode(KEYPAD_DOWN, INPUT_PULLUP);
 
-  digitalWrite(MOUSE_ACTIVATE, HIGH);
+  digitalWrite(DEVICE_ACTIVATE, HIGH);
   digitalWrite(MOUSE_RIGHT, HIGH);
   digitalWrite(MOUSE_LEFT, HIGH);
   digitalWrite(KEYPAD_LEFT, HIGH);
@@ -739,8 +742,6 @@ void loadTFLiteModel() {
   tflInputTensor = tflInterpreter->input(0);
   tflOutputTensor = tflInterpreter->output(0);
 }
-
-
 
 void startAdv(void) {
   // Advertising packet
@@ -819,7 +820,6 @@ void initAndStartBLE() {
   // Set up and start advertising
   startAdv();
 }
-
 
 /**
  * @brief

@@ -56,13 +56,13 @@ void setup() {
   digitalWrite(IMU_RESET, LOW);
   digitalWrite(IMU_RESET, HIGH);
 
-  pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
+  pinMode(DEVICE_ACTIVATE, INPUT_PULLUP);
   pinMode(D7, INPUT_PULLUP);
   pinMode(MOUSE_RIGHT, INPUT_PULLUP);
   pinMode(MOUSE_LEFT, INPUT_PULLUP);
   pinMode(D10, INPUT_PULLUP);
 
-  digitalWrite(MOUSE_ACTIVATE, HIGH);
+  digitalWrite(DEVICE_ACTIVATE, HIGH);
   digitalWrite(D7, HIGH);
   digitalWrite(MOUSE_RIGHT, HIGH);
   digitalWrite(MOUSE_LEFT, HIGH);
@@ -149,8 +149,8 @@ void loop() {
   }
 
 
-  // The hardware is wired MOUSE_ACTIVATE default low
-  // if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
+  // The hardware is wired DEVICE_ACTIVATE default low
+  // if (digitalRead(DEVICE_ACTIVATE) == HIGH) {
 
   //   // buf[0]++;
   //   if (buf[0] == 'z') {
@@ -158,7 +158,7 @@ void loop() {
   //   }
   //   bleuart.write(buf, 1);
   //   Serial.println((char)buf[0]);
-  //   while (digitalRead(MOUSE_ACTIVATE) == HIGH)
+  //   while (digitalRead(DEVICE_ACTIVATE) == HIGH)
   //     ;
   // }
 

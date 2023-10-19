@@ -95,13 +95,13 @@ void setup() {
   delay(0.1);
   digitalWrite(IMU_RESET, HIGH);
 
-  pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
+  pinMode(DEVICE_ACTIVATE, INPUT_PULLUP);
   pinMode(D7, INPUT_PULLUP);
   pinMode(MOUSE_RIGHT, INPUT_PULLUP);
   pinMode(MOUSE_LEFT, INPUT_PULLUP);
   pinMode(D10, INPUT_PULLUP);
 
-  digitalWrite(MOUSE_ACTIVATE, HIGH);
+  digitalWrite(DEVICE_ACTIVATE, HIGH);
   digitalWrite(D7, HIGH);
   digitalWrite(MOUSE_RIGHT, HIGH);
   digitalWrite(MOUSE_LEFT, HIGH);
