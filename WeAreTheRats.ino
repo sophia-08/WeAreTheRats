@@ -193,149 +193,12 @@ bool readIMUOrientation() {
   return true;
 }
 
-/**
- * @brief
- *
- * @note expect sample input data in sequences of accelX, accelY, accelZ, gyroX,
- * gyroY, gyroZ
- */
-void preprocessData() {
-  int pointToRemove;
-  float decimate;
-  float accumulated = 0.0;
-  int removed = 0;
-  int start = 0;
-  int end = samplesRead - 1;
-  // Trim at front. if 2 out of 3 samples have total absolute accelerate read
-  // greater than threshold, make the start
-  while (true) {
-    int count = 0;
-    for (int i = 0; i < 3; i++) {
-      if (abs(samples[i + start][0]) + abs(samples[i + start][1]) +
-              abs(samples[i + start][2]) >
-          accelerationThreshold) {
-        count += 1;
-      }
-    }
-    if (count >= 2) {
-      break;
-    } else {
-      start += 1;
-    }
-  }
-
-  // Trim at end,if 2 out of 3 samples have total absolute accelerate read
-  // greater than threshold, make the start
-  while (true) {
-    int count = 0;
-    for (int i = 0; i < 3; i++) {
-      if (abs(samples[end - i][0]) + abs(samples[end - i][1]) +
-              abs(samples[end - i][2]) >
-          3) {
-        count += 1;
-      }
-    }
-    if (count >= 2) {
-      break;
-    } else {
-      end -= 1;
-    }
-  }
-
-  Serial.print(start);
-  Serial.print(" e ");
-  Serial.println(end);
-
-  if (end - start + 1 > out_samples) {
-    pointToRemove = end - start + 1 - out_samples;
-    decimate = float(pointToRemove) / float(out_samples);
-    int i = start;
-    removed = 0;
-    accumulated = 0.0;
-    while (true) {
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][0] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][1] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][2] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][3] - minGyro) / rangeOfGyro;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][4] - minGyro) / rangeOfGyro;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][5] - minGyro) / rangeOfGyro;
-      accumulated += decimate;
-      while (accumulated >= 1) {
-        i += 1;
-        removed++;
-        accumulated -= 1;
-      }
-      i += 1;
-      if (i >= end) {
-        break;
-      }
-    }
-    if (removed < pointToRemove) {
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][0] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][1] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][2] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][3] - minGyro) / rangeOfGyro;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][4] - minGyro) / rangeOfGyro;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][5] - minGyro) / rangeOfGyro;
-    }
-  }
-
-  Serial.print("Samples:");
-  Serial.print(samplesRead);
-  Serial.print(", tensor ");
-  Serial.println(tensorIndex);
-
-  // dumpTensors();
-}
-
-// void dumpTensors() {
-//   for (int i = 0; i < tensorIndex;) {
-//     Serial.print(tflInputTensor->data.f[i++]);
-//     Serial.print(", ");
-//     Serial.print(tflInputTensor->data.f[i++]);
-//     Serial.print(", ");
-//     Serial.print(tflInputTensor->data.f[i++]);
-//     Serial.print(", ");
-//     Serial.print(tflInputTensor->data.f[i++]);
-//     Serial.print(", ");
-//     Serial.print(tflInputTensor->data.f[i++]);
-//     Serial.print(", ");
-//     Serial.println(tflInputTensor->data.f[i++]);
-//   }
-// }
-// void loadTest() {
-
-//   for (int i = 0; i < numSamples * 6; i++) {
-//     tflInputTensor->data.f[i] = tt[i];
-//   }
-// }
-
 int lastSent;
 int currentSent;
 int sleepCount;
 
 void loop() {
 
-  // sd_power_system_off();
-
-  // ledred = !ledred;
-  //  digitalWrite(LED_RED, ledred);
-  // digitalWrite(LED_BLUE, digitalRead(D7));
-  // digitalWrite(LED_RED, digitalRead(MOUSE_RIGHT));
-  // digitalWrite(LED_GREEN, digitalRead(D9));
-  // digitalWrite(LED_CHARGER, digitalRead(D10));
   ledCount++;
   // pluse the green led to indicate system alive.
   if (ledCount % 5000 < 50) {
@@ -956,3 +819,133 @@ void initAndStartBLE() {
   // Set up and start advertising
   startAdv();
 }
+
+
+/**
+ * @brief
+ *
+ * @note expect sample input data in sequences of accelX, accelY, accelZ, gyroX,
+ * gyroY, gyroZ
+ */
+void preprocessData() {
+  int pointToRemove;
+  float decimate;
+  float accumulated = 0.0;
+  int removed = 0;
+  int start = 0;
+  int end = samplesRead - 1;
+  // Trim at front. if 2 out of 3 samples have total absolute accelerate read
+  // greater than threshold, make the start
+  while (true) {
+    int count = 0;
+    for (int i = 0; i < 3; i++) {
+      if (abs(samples[i + start][0]) + abs(samples[i + start][1]) +
+              abs(samples[i + start][2]) >
+          accelerationThreshold) {
+        count += 1;
+      }
+    }
+    if (count >= 2) {
+      break;
+    } else {
+      start += 1;
+    }
+  }
+
+  // Trim at end,if 2 out of 3 samples have total absolute accelerate read
+  // greater than threshold, make the start
+  while (true) {
+    int count = 0;
+    for (int i = 0; i < 3; i++) {
+      if (abs(samples[end - i][0]) + abs(samples[end - i][1]) +
+              abs(samples[end - i][2]) >
+          3) {
+        count += 1;
+      }
+    }
+    if (count >= 2) {
+      break;
+    } else {
+      end -= 1;
+    }
+  }
+
+  Serial.print(start);
+  Serial.print(" e ");
+  Serial.println(end);
+
+  if (end - start + 1 > out_samples) {
+    pointToRemove = end - start + 1 - out_samples;
+    decimate = float(pointToRemove) / float(out_samples);
+    int i = start;
+    removed = 0;
+    accumulated = 0.0;
+    while (true) {
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][0] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][1] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][2] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][3] - minGyro) / rangeOfGyro;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][4] - minGyro) / rangeOfGyro;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][5] - minGyro) / rangeOfGyro;
+      accumulated += decimate;
+      while (accumulated >= 1) {
+        i += 1;
+        removed++;
+        accumulated -= 1;
+      }
+      i += 1;
+      if (i >= end) {
+        break;
+      }
+    }
+    if (removed < pointToRemove) {
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][0] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][1] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][2] - minAccl) / rangeOfAccl;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][3] - minGyro) / rangeOfGyro;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][4] - minGyro) / rangeOfGyro;
+      tflInputTensor->data.f[tensorIndex++] =
+          (samples[i][5] - minGyro) / rangeOfGyro;
+    }
+  }
+
+  Serial.print("Samples:");
+  Serial.print(samplesRead);
+  Serial.print(", tensor ");
+  Serial.println(tensorIndex);
+
+  // dumpTensors();
+}
+
+// void dumpTensors() {
+//   for (int i = 0; i < tensorIndex;) {
+//     Serial.print(tflInputTensor->data.f[i++]);
+//     Serial.print(", ");
+//     Serial.print(tflInputTensor->data.f[i++]);
+//     Serial.print(", ");
+//     Serial.print(tflInputTensor->data.f[i++]);
+//     Serial.print(", ");
+//     Serial.print(tflInputTensor->data.f[i++]);
+//     Serial.print(", ");
+//     Serial.print(tflInputTensor->data.f[i++]);
+//     Serial.print(", ");
+//     Serial.println(tflInputTensor->data.f[i++]);
+//   }
+// }
+// void loadTest() {
+
+//   for (int i = 0; i < numSamples * 6; i++) {
+//     tflInputTensor->data.f[i] = tt[i];
+//   }
+// }
