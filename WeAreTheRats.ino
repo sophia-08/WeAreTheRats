@@ -214,7 +214,7 @@ void loop() {
     blehid.keyRelease();
   }
 
-  scanKeys();
+  scanNavigateButtons();
 
 #ifdef ENABLE_SLEEP
   if (digitalRead(DEVICE_ACTIVATE) == LOW) {
@@ -635,28 +635,127 @@ void cent_bleuart_rx_callback(BLEClientUart &cent_uart) {
 
 #endif
 
-void scanOneKey(uint8_t key, uint8_t code) {
-  if (digitalRead(key) == LOW) {
-    delay(1);
-    if (digitalRead(key) == LOW) {
-      // blehid.keyPress(HID_KEY_ARROW_LEFT);
-      uint8_t keycodes[6] = {code,         HID_KEY_NONE, HID_KEY_NONE,
+#define DOUBLE_CLICK_INTERVAL 400
+#define MOUSE_STEPS_PER_CLICK 5
+int lastUpTime, lastDownTime, lastKey;
+uint8_t navigateButtons[4] = {KEYPAD_LEFT, KEYPAD_RIGHT, KEYPAD_UP, KEYPAD_DOWN};
+uint8_t navigateButtonLastState[4] = {HIGH, HIGH, HIGH, HIGH};
+uint8_t navigateButtonInDoubleClickMode[4] = {0, 0, 0, 0};
+uint8_t navigateButtonSingleClickKeyboardCode[4] = {HID_KEY_ARROW_LEFT,
+                                         HID_KEY_ARROW_RIGHT, HID_KEY_ARROW_UP,
+                                         HID_KEY_ARROW_DOWN};
+uint8_t navigateButtonDoubleClickKeyboardCode[4] = {HID_KEY_HOME, HID_KEY_END,
+                                         HID_KEY_PAGE_UP, HID_KEY_PAGE_DOWN};
+
+int8_t navigateButtonSingleClickMouseCode[4][2] = {{-MOUSE_STEPS_PER_CLICK, 0},
+                                        {MOUSE_STEPS_PER_CLICK, 0},
+                                        {0, -MOUSE_STEPS_PER_CLICK},
+                                        {0, MOUSE_STEPS_PER_CLICK}};
+int8_t navigateButtonDoubleClickMouseCode[4] = {0, 0, -1, 1};
+uint32_t navigateButtonLastDownTime[4];
+uint32_t skipScroll;
+
+void scanOneButton(uint8_t keyIndex) {
+  // detect edge
+  uint8_t state = digitalRead(navigateButtons[keyIndex]);
+  if (state == navigateButtonLastState[keyIndex]) { // no change
+
+    // For mouse, when the button is pressed and held,  we need continue send mouseMove() event.
+    // This need be done without wait.
+    if (state == LOW && deviceMode == DEVICE_MOUSE_MODE) {
+      if (navigateButtonInDoubleClickMode[keyIndex]) {
+        // Serial.print("mouse scroll: ");
+        // Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
+        // in press and hold mode, Scroll too fast, skip every x 
+        skipScroll++;
+        if (skipScroll % 6 == 0) {
+          blehid.mouseScroll(navigateButtonDoubleClickMouseCode[keyIndex]);
+        }        
+      } else {
+        // Serial.print("mouse move: ");
+        // Serial.print(navigateButtonSingleClickMouseCode[keyIndex][0]);
+        // Serial.print(" ");
+        // Serial.println(navigateButtonSingleClickMouseCode[keyIndex][1]);
+        blehid.mouseMove(navigateButtonSingleClickMouseCode[keyIndex][0],
+                         navigateButtonSingleClickMouseCode[keyIndex][1]);
+      }
+    }
+    return;
+  };
+
+  delay(1);
+  state = digitalRead(navigateButtons[keyIndex]);
+  if (state == navigateButtonLastState[keyIndex]) { // only noise
+    return;
+  }
+
+  navigateButtonLastState[keyIndex] = state;
+  uint32_t time1 = millis();
+  bool doubleClick = false;
+
+  // high -> low
+  if (state == LOW) {
+    // If the button was pressed again within threshold, it's a double click
+    if (time1 - navigateButtonLastDownTime[keyIndex] < DOUBLE_CLICK_INTERVAL) {
+      doubleClick = true;
+
+      // For Mouse. save the double click flag, used for repeat events.
+      if (navigateButtons[keyIndex] == KEYPAD_UP || navigateButtons[keyIndex] == KEYPAD_DOWN) {
+        navigateButtonInDoubleClickMode[keyIndex] = true;
+      }
+    }
+    if (deviceMode == DEVICE_KEYBOARD_MODE) {
+      // keyboard mode
+      uint8_t keycodes[6] = {HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE,
                              HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE};
+      if (doubleClick) {
+        keycodes[0] = navigateButtonDoubleClickKeyboardCode[keyIndex];
+      } else {
+        keycodes[0] = navigateButtonSingleClickKeyboardCode[keyIndex];
+      }
+
+      // Serial.print("key: ");
+      // Serial.println(keycodes[0]);
       blehid.keyboardReport(0, keycodes);
-      needSendKeyRelease = true;
-      // wait until key is released.
-      while (digitalRead(key) == LOW) {
-        ;
-      };
+    } else {
+      // mouse mode
+      if (doubleClick) {
+        if (navigateButtonDoubleClickMouseCode[keyIndex] != 0) {
+          // Serial.print("mouse scroll: ");
+          // Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
+          blehid.mouseScroll(navigateButtonDoubleClickMouseCode[keyIndex]);
+          skipScroll  =0;
+        }
+      } else {
+        // Serial.print("mouse move: ");
+        // Serial.print(navigateButtonSingleClickMouseCode[keyIndex][0]);
+        // Serial.print(" ");
+        // Serial.println(navigateButtonSingleClickMouseCode[keyIndex][1]);
+        blehid.mouseMove(navigateButtonSingleClickMouseCode[keyIndex][0],
+                         navigateButtonSingleClickMouseCode[keyIndex][1]);
+      }
+    }
+    navigateButtonLastDownTime[keyIndex] = time1;
+  } else {
+    // low -> high
+
+    // Reset double click flag.
+    navigateButtonInDoubleClickMode[keyIndex] = false;
+
+    if (deviceMode == DEVICE_KEYBOARD_MODE) {
+      // keyboard mode. sent key release event
+      // Serial.println("key released");
+      blehid.keyRelease();
+    } else {
+      // mouse mode, nothing to do?
     }
   }
 }
 
-void scanKeys() {
-  scanOneKey(KEYPAD_LEFT, HID_KEY_ARROW_LEFT);
-  scanOneKey(KEYPAD_RIGHT, HID_KEY_ARROW_RIGHT);
-  scanOneKey(KEYPAD_UP, HID_KEY_ARROW_UP);
-  scanOneKey(KEYPAD_DOWN, HID_KEY_ARROW_DOWN);
+void scanNavigateButtons() {
+  for (int i = 0; i < 4; i++) {
+    scanOneButton(i);
+  }
 }
 
 void configGpio() {
