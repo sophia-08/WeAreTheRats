@@ -317,7 +317,7 @@ void loop() {
         // Serial.println(orientationData.orientation.pitch);
         // Serial.print(",");
 
-        if (digitalRead(DEVICE_ACTIVATE) == HIGH) {
+        if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
           blehid.mouseMove(x, -y);
         }
         lastXAngle = xAngle;
@@ -335,7 +335,7 @@ void loop() {
 
   // Capture has not started, ignore until user activate keypad
   if (!startedChar) {
-    if (digitalRead(DEVICE_ACTIVATE) == LOW) {
+    if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
       return;
     } else {
       // User activate keypad, check whether 2s passed since last capture
@@ -359,7 +359,7 @@ void loop() {
   while (true) {
   wait:
     // User deactivated keypad
-    if (digitalRead(DEVICE_ACTIVATE) == LOW) {
+    if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
       startedChar = false;
       inference_started = true;
       break;
@@ -601,10 +601,12 @@ int8_t navigateButtonDoubleClickMouseCode[4] = {0, 0, -1, 1};
 uint32_t navigateButtonLastDownTime[4];
 uint32_t skipScroll;
 
-uint8_t clickButtons[3] = {MOUSE_LEFT, MOUSE_RIGHT, SWITCH_DEVICE_MODE};
-uint8_t clickButtonLastState[3] = {HIGH, HIGH, HIGH};
-uint8_t clickButtonCode[3] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0};
-int lastTimestampScanMouseClick;
+uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
+                          KEYPAD_ACTIVATE};
+uint8_t clickButtonLastState[] = {HIGH, HIGH, HIGH, HIGH};
+uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0};
+uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0};
+// int lastTimestampScanMouseClick;
 
 void scanOneClickButton(uint8_t keyIndex) {
 
@@ -623,36 +625,41 @@ void scanOneClickButton(uint8_t keyIndex) {
   // Serial.println(left);
   clickButtonLastState[keyIndex] = state;
 
-  if (clickButtons[keyIndex] == SWITCH_DEVICE_MODE) {
-    // Press SWITCH_DEVICE_MODE, the read is low
-    if (state == LOW) {
-      if (deviceMode == DEVICE_MOUSE_MODE) {
-        deviceMode = DEVICE_KEYBOARD_MODE;
-        Serial.println("swithc to keyboard");
+  switch (clickButtons[keyIndex]) {
+  case MOUSE_ACTIVATE:
+    deviceMode = DEVICE_MOUSE_MODE;
+    break;
+  case KEYPAD_ACTIVATE:
+    deviceMode = DEVICE_KEYBOARD_MODE;
+    break;
+  default:
+    if (deviceMode == DEVICE_MOUSE_MODE) {
+      if (state == LOW) {
+        blehid.mouseButtonPress(clickButtonCode[keyIndex]);
+        Serial.println("button down");
       } else {
-        deviceMode = DEVICE_MOUSE_MODE;
-        Serial.println("swithc to mouse");
+        blehid.mouseButtonRelease();
+        Serial.println("button up");
+      }
+    } else {
+      if (state == LOW) {
+        uint8_t keycodes[6] = {HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE,
+                               HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE};
+        keycodes[0] = clickButtonKeyboardCode[keyIndex];
+        blehid.keyboardReport(0, keycodes);
+        Serial.println("button down");
+      } else {
+        blehid.keyRelease();
+        Serial.println("button up");
       }
     }
-    // Serial.println(IsChargingBattery());
-    Serial.print("battery: ");
-    Serial.println(GetBatteryVoltage());
-    // Finished process of SWITCH_DEVICE_MODE, return here
-    return;
-  }
-
-  // Below is to process the button for left/right click
-  if (state == LOW) {
-    blehid.mouseButtonPress(clickButtonCode[keyIndex]);
-    Serial.println("button down");
-  } else {
-    blehid.mouseButtonRelease();
-    Serial.println("button up");
   }
 }
 
 void scanClickButtons() {
-  for (int i = 0; i < 3; i++) {
+
+  // Only mouse left and right click
+  for (int i = 0; i < 4; i++) {
     scanOneClickButton(i);
   }
 }
@@ -798,7 +805,7 @@ void configGpio() {
   delay(0.1);
   digitalWrite(IMU_RESET, HIGH);
 
-  pinMode(DEVICE_ACTIVATE, INPUT_PULLUP);
+  pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
   pinMode(MOUSE_RIGHT, INPUT_PULLUP);
   pinMode(MOUSE_LEFT, INPUT_PULLUP);
   pinMode(KEYPAD_LEFT, INPUT_PULLUP);
@@ -807,7 +814,7 @@ void configGpio() {
   pinMode(KEYPAD_UP, INPUT_PULLUP);
   pinMode(KEYPAD_DOWN, INPUT_PULLUP);
 
-  digitalWrite(DEVICE_ACTIVATE, HIGH);
+  digitalWrite(MOUSE_ACTIVATE, HIGH);
   digitalWrite(MOUSE_RIGHT, HIGH);
   digitalWrite(MOUSE_LEFT, HIGH);
   digitalWrite(KEYPAD_LEFT, HIGH);
