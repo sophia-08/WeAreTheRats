@@ -597,7 +597,8 @@ int8_t navigateButtonSingleClickMouseCode[4][2] = {{-MOUSE_STEPS_PER_CLICK, 0},
                                                    {MOUSE_STEPS_PER_CLICK, 0},
                                                    {0, -MOUSE_STEPS_PER_CLICK},
                                                    {0, MOUSE_STEPS_PER_CLICK}};
-int8_t navigateButtonDoubleClickMouseCode[4] = {0, 0, -1, 1};
+int8_t navigateButtonDoubleClickMouseCode[4] = {MOUSE_BUTTON_BACKWARD,
+                                                MOUSE_BUTTON_FORWARD, -1, 1};
 uint32_t navigateButtonLastDownTime[4];
 uint32_t skipScroll;
 
@@ -730,12 +731,19 @@ void scanOneNavigateButton(uint8_t keyIndex) {
     } else {
       // mouse mode
       if (doubleClick) {
-        if (navigateButtonDoubleClickMouseCode[keyIndex] != 0) {
+        switch (navigateButtons[keyIndex]) {
+        case KEYPAD_UP:
+        case KEYPAD_DOWN:
           // Serial.print("mouse scroll: ");
           // Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
           blehid.mouseScroll(navigateButtonDoubleClickMouseCode[keyIndex]);
           skipScroll = 0;
+          break;
+        case KEYPAD_LEFT:
+        case KEYPAD_RIGHT:
+          blehid.mouseButtonPress(navigateButtonDoubleClickMouseCode[keyIndex]);
         }
+
       } else {
         // Serial.print("mouse move: ");
         // Serial.print(navigateButtonSingleClickMouseCode[keyIndex][0]);
@@ -757,7 +765,17 @@ void scanOneNavigateButton(uint8_t keyIndex) {
       // Serial.println("key released");
       blehid.keyRelease();
     } else {
-      // mouse mode, nothing to do?
+      // mouse mode
+      if (doubleClick) {
+        switch (navigateButtons[keyIndex]) {
+        case KEYPAD_LEFT:
+        case KEYPAD_RIGHT:
+          blehid.mouseButtonRelease();
+          break;
+        default:
+          break;
+        }
+      }
     }
   }
 }
