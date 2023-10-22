@@ -195,7 +195,6 @@ int lastSent;
 int currentSent;
 int sleepCount;
 
-int lastTimestampScanMouseClick;
 void loop() {
 
   ledCount++;
@@ -205,16 +204,18 @@ void loop() {
   } else {
     digitalWrite(LED_GREEN, LIGHT_OFF);
   }
+  scanNavigateButtons();
+  scanClickButtons();
 
   // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
-  // When a character is recoganized, a KEY_DOWN event is sent. Here I send the
-  // KEY_UP event
+  // For air writing, when a character is recoganized, only KEY_DOWN event is
+  // sent. so I need generate a KEY_UP event. needSendKeyRelease is used for the
+  // purpose. At the end of air writing, needSendKeyRelease is set.  In next
+  // round loop(), here I send the KEY_UP event and reset the flag.
   if (needSendKeyRelease) {
     needSendKeyRelease = false;
     blehid.keyRelease();
   }
-
-  scanNavigateButtons();
 
 #ifdef ENABLE_SLEEP
   if (digitalRead(DEVICE_ACTIVATE) == LOW) {
@@ -230,63 +231,7 @@ void loop() {
   }
 #endif
 
-  // Press SWITCH_DEVICE_MODE, the read is low
-  if (digitalRead(SWITCH_DEVICE_MODE) == LOW) {
-    // debounce check
-    delay(DEBOUNCE_DELAY);
-    if (digitalRead(SWITCH_DEVICE_MODE) == LOW) {
-      if (deviceMode == DEVICE_MOUSE_MODE) {
-        deviceMode = DEVICE_KEYBOARD_MODE;
-        Serial.println("swithc to keyboard");
-      } else {
-        deviceMode = DEVICE_MOUSE_MODE;
-        Serial.println("swithc to mouse");
-      }
-      // wait until key is released.
-      while (digitalRead(SWITCH_DEVICE_MODE) == LOW) {
-        ;
-      };
-      // Serial.println(IsChargingBattery());
-      Serial.print("battery: ");
-      Serial.println(GetBatteryVoltage());
-    }
-  }
-
   if (deviceMode == DEVICE_MOUSE_MODE) {
-
-    // debounce mouse click buttons
-    if (millis() - lastTimestampScanMouseClick > DEBOUNCE_DELAY) {
-      lastTimestampScanMouseClick = millis();
-
-      // Process the Left and Right click
-      left = digitalRead(MOUSE_LEFT);
-      right = digitalRead(MOUSE_RIGHT);
-
-      // Serial.println(left);
-
-      // detect edge
-      if (left != last_left) {
-        if (left == LOW) {
-          blehid.mouseButtonPress(MOUSE_BUTTON_LEFT);
-          Serial.println("left down");
-        } else {
-          blehid.mouseButtonRelease();
-          Serial.println("left up");
-        }
-        last_left = left;
-      }
-
-      if (right != last_right) {
-        if (right == LOW) {
-          blehid.mouseButtonPress(MOUSE_BUTTON_RIGHT);
-          Serial.println("right down");
-        } else {
-          blehid.mouseButtonRelease();
-          Serial.println("right up");
-        }
-        last_right = right;
-      }
-    }
     // In mouse mode, we only need orientation.
     readIMUOrientation();
 
@@ -638,39 +583,96 @@ void cent_bleuart_rx_callback(BLEClientUart &cent_uart) {
 #define DOUBLE_CLICK_INTERVAL 400
 #define MOUSE_STEPS_PER_CLICK 5
 int lastUpTime, lastDownTime, lastKey;
-uint8_t navigateButtons[4] = {KEYPAD_LEFT, KEYPAD_RIGHT, KEYPAD_UP, KEYPAD_DOWN};
+uint8_t navigateButtons[4] = {KEYPAD_LEFT, KEYPAD_RIGHT, KEYPAD_UP,
+                              KEYPAD_DOWN};
 uint8_t navigateButtonLastState[4] = {HIGH, HIGH, HIGH, HIGH};
 uint8_t navigateButtonInDoubleClickMode[4] = {0, 0, 0, 0};
-uint8_t navigateButtonSingleClickKeyboardCode[4] = {HID_KEY_ARROW_LEFT,
-                                         HID_KEY_ARROW_RIGHT, HID_KEY_ARROW_UP,
-                                         HID_KEY_ARROW_DOWN};
-uint8_t navigateButtonDoubleClickKeyboardCode[4] = {HID_KEY_HOME, HID_KEY_END,
-                                         HID_KEY_PAGE_UP, HID_KEY_PAGE_DOWN};
+uint8_t navigateButtonSingleClickKeyboardCode[4] = {
+    HID_KEY_ARROW_LEFT, HID_KEY_ARROW_RIGHT, HID_KEY_ARROW_UP,
+    HID_KEY_ARROW_DOWN};
+uint8_t navigateButtonDoubleClickKeyboardCode[4] = {
+    HID_KEY_HOME, HID_KEY_END, HID_KEY_PAGE_UP, HID_KEY_PAGE_DOWN};
 
 int8_t navigateButtonSingleClickMouseCode[4][2] = {{-MOUSE_STEPS_PER_CLICK, 0},
-                                        {MOUSE_STEPS_PER_CLICK, 0},
-                                        {0, -MOUSE_STEPS_PER_CLICK},
-                                        {0, MOUSE_STEPS_PER_CLICK}};
+                                                   {MOUSE_STEPS_PER_CLICK, 0},
+                                                   {0, -MOUSE_STEPS_PER_CLICK},
+                                                   {0, MOUSE_STEPS_PER_CLICK}};
 int8_t navigateButtonDoubleClickMouseCode[4] = {0, 0, -1, 1};
 uint32_t navigateButtonLastDownTime[4];
 uint32_t skipScroll;
 
-void scanOneButton(uint8_t keyIndex) {
+uint8_t clickButtons[3] = {MOUSE_LEFT, MOUSE_RIGHT, SWITCH_DEVICE_MODE};
+uint8_t clickButtonLastState[3] = {HIGH, HIGH, HIGH};
+uint8_t clickButtonCode[3] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0};
+int lastTimestampScanMouseClick;
+
+void scanOneClickButton(uint8_t keyIndex) {
+
+  uint8_t state = digitalRead(clickButtons[keyIndex]);
+  if (state == clickButtonLastState[keyIndex]) { // no change
+    return;
+  }
+
+  delay(3);
+  state = digitalRead(clickButtons[keyIndex]);
+  if (state == clickButtonLastState[keyIndex]) { // no change
+    return;
+  }
+
+  //  edge is detected
+  // Serial.println(left);
+  clickButtonLastState[keyIndex] = state;
+
+  if (clickButtons[keyIndex] == SWITCH_DEVICE_MODE) {
+    // Press SWITCH_DEVICE_MODE, the read is low
+    if (state == LOW) {
+      if (deviceMode == DEVICE_MOUSE_MODE) {
+        deviceMode = DEVICE_KEYBOARD_MODE;
+        Serial.println("swithc to keyboard");
+      } else {
+        deviceMode = DEVICE_MOUSE_MODE;
+        Serial.println("swithc to mouse");
+      }
+    }
+    // Serial.println(IsChargingBattery());
+    Serial.print("battery: ");
+    Serial.println(GetBatteryVoltage());
+    // Finished process of SWITCH_DEVICE_MODE, return here
+    return;
+  }
+
+  // Below is to process the button for left/right click
+  if (state == LOW) {
+    blehid.mouseButtonPress(clickButtonCode[keyIndex]);
+    Serial.println("button down");
+  } else {
+    blehid.mouseButtonRelease();
+    Serial.println("button up");
+  }
+}
+
+void scanClickButtons() {
+  for (int i = 0; i < 3; i++) {
+    scanOneClickButton(i);
+  }
+}
+
+void scanOneNavigateButton(uint8_t keyIndex) {
   // detect edge
   uint8_t state = digitalRead(navigateButtons[keyIndex]);
   if (state == navigateButtonLastState[keyIndex]) { // no change
 
-    // For mouse, when the button is pressed and held,  we need continue send mouseMove() event.
-    // This need be done without wait.
+    // For mouse, when the button is pressed and held,  we need continue send
+    // mouseMove() event. This need be done without wait.
     if (state == LOW && deviceMode == DEVICE_MOUSE_MODE) {
       if (navigateButtonInDoubleClickMode[keyIndex]) {
         // Serial.print("mouse scroll: ");
         // Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
-        // in press and hold mode, Scroll too fast, skip every x 
+        // in press and hold mode, Scroll too fast, skip every x
         skipScroll++;
         if (skipScroll % 6 == 0) {
           blehid.mouseScroll(navigateButtonDoubleClickMouseCode[keyIndex]);
-        }        
+        }
       } else {
         // Serial.print("mouse move: ");
         // Serial.print(navigateButtonSingleClickMouseCode[keyIndex][0]);
@@ -700,7 +702,8 @@ void scanOneButton(uint8_t keyIndex) {
       doubleClick = true;
 
       // For Mouse. save the double click flag, used for repeat events.
-      if (navigateButtons[keyIndex] == KEYPAD_UP || navigateButtons[keyIndex] == KEYPAD_DOWN) {
+      if (navigateButtons[keyIndex] == KEYPAD_UP ||
+          navigateButtons[keyIndex] == KEYPAD_DOWN) {
         navigateButtonInDoubleClickMode[keyIndex] = true;
       }
     }
@@ -724,7 +727,7 @@ void scanOneButton(uint8_t keyIndex) {
           // Serial.print("mouse scroll: ");
           // Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
           blehid.mouseScroll(navigateButtonDoubleClickMouseCode[keyIndex]);
-          skipScroll  =0;
+          skipScroll = 0;
         }
       } else {
         // Serial.print("mouse move: ");
@@ -754,7 +757,7 @@ void scanOneButton(uint8_t keyIndex) {
 
 void scanNavigateButtons() {
   for (int i = 0; i < 4; i++) {
-    scanOneButton(i);
+    scanOneNavigateButton(i);
   }
 }
 
