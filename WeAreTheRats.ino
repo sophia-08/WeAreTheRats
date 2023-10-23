@@ -16,7 +16,8 @@
 #include "local_constants.h"
 #include "model.h"
 #include "system.h"
-#define TOM
+// #define TOM
+// #define BNO
 const float accelerationThreshold = 2.5; // threshold of significant in G's
 
 const int numSamples = 500; // 119;
@@ -92,16 +93,17 @@ void setup() {
   loadTFLiteModel();
   initAndStartBLE();
 
+#ifdef BNO
   if (!bno.begin()) {
     Serial.print("No BNO055 detected");
     systemHaltWithledPattern(LED_RED, 3);
   }
-
+  Serial.print("bno mode ");
+  Serial.println(bno.getMode());
+#endif
   // calibrateIMU(250, 250);
   lastTime = micros();
   deviceMode = DEVICE_MOUSE_MODE;
-  Serial.print("bno mode ");
-  Serial.println(bno.getMode());
 }
 
 float minAccl = 10;
@@ -135,14 +137,16 @@ bool d2;
 sensors_event_t orientationData, linearAccelData, angVelData, magneticData;
 
 bool readIMU() {
-
+#ifdef BNO
   // bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
   bno.getEvent(&angVelData, Adafruit_BNO055::VECTOR_GYROSCOPE);
   bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
+#endif
   return true;
 }
 
 bool readIMUOrientation1() {
+#ifdef BNO
   int loop = 0;
   d2 = !d2;
   // digitalWrite(DEBUG_2, d2);
@@ -161,10 +165,12 @@ bool readIMUOrientation1() {
 
   lastHeading = orientationData.orientation.heading;
   lastRoll = orientationData.orientation.roll;
+#endif
   return true;
 }
 
 bool readIMUOrientation() {
+#ifdef BNO
   int loop = 0;
   d2 = !d2;
   // digitalWrite(DEBUG_2, d2);
@@ -187,7 +193,7 @@ bool readIMUOrientation() {
   //  }
   bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
   // bno.getEvent(&magneticData, Adafruit_BNO055::VECTOR_MAGNETOMETER);
-
+#endif
   return true;
 }
 
