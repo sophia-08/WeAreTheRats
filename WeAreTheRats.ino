@@ -14,10 +14,13 @@
 
 #include "battery.h"
 #include "local_constants.h"
+#ifdef TSFLOW
 #include "model.h"
+#endif
 #include "system.h"
 // #define TOM
 // #define BNO
+// #define TSFLOW
 const float accelerationThreshold = 2.5; // threshold of significant in G's
 
 const int numSamples = 500; // 119;
@@ -55,6 +58,7 @@ float roll, pitch, yaw;
 
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
 
+#ifdef TSFLOW
 // global variables used for TensorFlow Lite (Micro)
 tflite::MicroErrorReporter tflErrorReporter;
 
@@ -72,6 +76,7 @@ TfLiteTensor *tflOutputTensor = nullptr;
 // be adjusted based on the model you are using
 constexpr int tensorArenaSize = 128 * 1024;
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
+#endif
 
 // array to map gesture index to a name
 const char *GESTURES = "abcdefghijklmnopqrstuvwxyz";
@@ -90,7 +95,10 @@ void setup() {
   configGpio();
   Serial.begin(115200);
 
+#ifdef TSFLOW
   loadTFLiteModel();
+#endif
+
   initAndStartBLE();
 
 #ifdef BNO
@@ -446,6 +454,8 @@ void loop() {
     tensorIndex = 0;
     rangeOfAccl = maxAccl - minAccl;
     rangeOfGyro = maxGyro - minGyro;
+
+#ifdef TSFLOW
     preprocessData();
 
     // Invoke ML inference
@@ -471,11 +481,13 @@ void loop() {
     }
     Serial.println(ch);
 
+
     // Send KEY_DOWN
     blehid.keyPress(ch);
 
     // Send KEY_UP at next loop
     needSendKeyRelease = true;
+#endif
 
 #if 1
     // ledgreen = !ledgreen;
@@ -852,6 +864,7 @@ void configGpio() {
   digitalWrite(LED_GREEN, LIGHT_OFF);
 }
 
+#ifdef TSFLOW
 void loadTFLiteModel() {
   // get the TFL representation of the model byte array
   tflModel = tflite::GetModel(model);
@@ -875,6 +888,7 @@ void loadTFLiteModel() {
   tflInputTensor = tflInterpreter->input(0);
   tflOutputTensor = tflInterpreter->output(0);
 }
+#endif
 
 void startAdv(void) {
   // Advertising packet
@@ -954,6 +968,7 @@ void initAndStartBLE() {
   startAdv();
 }
 
+#ifdef TSFLOW
 /**
  * @brief
  *
@@ -1060,7 +1075,7 @@ void preprocessData() {
 
   // dumpTensors();
 }
-
+#endif
 // void dumpTensors() {
 //   for (int i = 0; i < tensorIndex;) {
 //     Serial.print(tflInputTensor->data.f[i++]);
