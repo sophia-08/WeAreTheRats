@@ -1,12 +1,15 @@
 // #define TOM
 // #define BNO055
 // #define TSFLOW
+#define BNO085
 
 // #include "LSM6DS3.h"
 #ifdef BNO055
 #include "Adafruit_BNO055.h"
 #endif
-// #include <Adafruit_BNO08x.h>
+#ifdef BNO085
+#include <Adafruit_BNO08x.h>
+#endif
 // #include <Adafruit_Sensor.h>
 #include <Wire.h>
 
@@ -65,7 +68,48 @@ float roll, pitch, yaw;
 #ifdef BNO055
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
 sensors_event_t orientationData, linearAccelData, angVelData, magneticData;
+#endif
 
+#ifdef BNO085
+#define BNO08X_RESET -1
+struct euler_t {
+  float yaw;
+  float pitch;
+  float roll;
+} ypr;
+
+Adafruit_BNO08x bno08x(BNO08X_RESET);
+sh2_SensorValue_t sensorValue;
+sh2_SensorId_t reportType = SH2_ROTATION_VECTOR; // SH2_ARVR_STABILIZED_RV;
+long reportIntervalUs = 10000;
+void setReports(sh2_SensorId_t reportType, long report_interval) {
+  Serial.println("Setting desired reports");
+  if (!bno08x.enableReport(reportType, report_interval)) {
+    Serial.println("Could not enable stabilized remote vector");
+  }
+}
+
+void quaternionToEuler(sh2_RotationVectorWAcc_t* rv, euler_t* ypr, bool degrees = false) {
+
+    float qr = rv->real;
+    float qi = rv->i;
+    float qj = rv->j;
+    float qk = rv->k;
+    float sqr = sq(qr);
+    float sqi = sq(qi);
+    float sqj = sq(qj);
+    float sqk = sq(qk);
+
+    ypr->yaw = atan2(2.0 * (qi * qj + qk * qr), (sqi - sqj - sqk + sqr));
+    ypr->pitch = asin(-2.0 * (qi * qk - qj * qr) / (sqi + sqj + sqk + sqr));
+    ypr->roll = atan2(2.0 * (qj * qk + qi * qr), (-sqi - sqj + sqk + sqr));
+
+    if (degrees) {
+      ypr->yaw *= RAD_TO_DEG;
+      ypr->pitch *= RAD_TO_DEG;
+      ypr->roll *= RAD_TO_DEG;
+    }
+}
 #endif
 
 #ifdef TSFLOW
@@ -104,6 +148,7 @@ int ledred = 0;
 void setup() {
   configGpio();
   Serial.begin(115200);
+while (!Serial) delay(10); 
 
 #ifdef TSFLOW
   loadTFLiteModel();
@@ -119,6 +164,24 @@ void setup() {
   Serial.print("bno mode ");
   Serial.println(bno.getMode());
 #endif
+
+#ifdef BNO085
+  // Try to initialize!
+  if (!bno08x.begin_I2C()) {
+  //if (!bno08x.begin_UART(&Serial1)) {  // Requires a device with > 300 byte UART buffer!
+  //if (!bno08x.begin_SPI(BNO08X_CS, BNO08X_INT)) {
+    Serial.println("Failed to find BNO08x chip");
+    while (1) { delay(10); }
+  }
+  Serial.println("BNO08x Found!");
+
+
+  setReports(reportType, reportIntervalUs);
+
+  Serial.println("Reading events");
+  delay(100);
+  #endif
+
   // calibrateIMU(250, 250);
   lastTime = micros();
   deviceMode = DEVICE_MOUSE_MODE;
@@ -227,6 +290,33 @@ void loop() {
   } else {
     digitalWrite(LED_GREEN, LIGHT_OFF);
   }
+
+#ifdef BNO085
+  if (bno08x.getSensorEvent(&sensorValue)) {
+    // in this demo only one report type will be received depending on FAST_MODE define (above)
+    switch (sensorValue.sensorId) {
+      // case SH2_ARVR_STABILIZED_RV:
+      case SH2_ROTATION_VECTOR:
+        quaternionToEuler(&sensorValue.un.rotationVector, &ypr, true);
+        break;
+      // case SH2_GYRO_INTEGRATED_RV:
+      //   // faster (more noise?)
+      //   quaternionToEulerGI(&sensorValue.un.gyroIntegratedRV, &ypr, true);
+        // break;
+    }
+    static long last = 0;
+    long now = micros();
+    Serial.print(now - last);             Serial.print("\t");
+    last = now;
+    Serial.print(sensorValue.status);     Serial.print("\t");  // This is accuracy in the range of 0 to 3
+    Serial.print(ypr.yaw);                Serial.print("\t");
+    Serial.print(ypr.pitch);              Serial.print("\t");
+    Serial.println(ypr.roll);
+  }
+  return;
+
+#endif
+
   scanNavigateButtons();
   scanClickButtons();
 
