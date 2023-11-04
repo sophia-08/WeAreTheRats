@@ -1,5 +1,5 @@
 // #define TOM
-//#define BNO055
+// #define BNO055
 // #define TSFLOW
 
 // #include "LSM6DS3.h"
@@ -264,7 +264,7 @@ void loop() {
     // IMU data is available. Here we also assume for each sample, the IMU read
     // changes.
 
-  #ifdef BNO055
+#ifdef BNO055
     if (lastAx == orientationData.orientation.roll &&
         lastAy == orientationData.orientation.pitch) {
       return;
@@ -391,7 +391,7 @@ void loop() {
     }
     readIMU();
 
-      #ifdef BNO055
+#ifdef BNO055
     if (linearAccelData.acceleration.x == lastAx &&
         linearAccelData.acceleration.y == lastAy &&
         linearAccelData.acceleration.z == lastAz) {
@@ -435,7 +435,7 @@ void loop() {
       d2 = !d2;
       // digitalWrite(DEBUG_2, d2);
     }
-    #endif
+#endif
 
     // In case user hold the ACTIVATE button too long
     if (samplesRead >= numSamples) {
@@ -494,7 +494,6 @@ void loop() {
       };
     }
     Serial.println(ch);
-
 
     // Send KEY_DOWN
     blehid.keyPress(ch);
