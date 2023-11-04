@@ -1,26 +1,32 @@
+// #define TOM
+//#define BNO055
+// #define TSFLOW
+
 // #include "LSM6DS3.h"
+#ifdef BNO055
 #include "Adafruit_BNO055.h"
+#endif
+// #include <Adafruit_BNO08x.h>
 // #include <Adafruit_Sensor.h>
 #include <Wire.h>
 
 #include <bluefruit.h>
 // #include <MadgwickAHRS.h>  // Madgwick 1.2.0 by Arduino
 
+#ifdef TSFLOW
 #include <TensorFlowLite.h>
 #include <tensorflow/lite/micro/all_ops_resolver.h>
 #include <tensorflow/lite/micro/micro_error_reporter.h>
 #include <tensorflow/lite/micro/micro_interpreter.h>
 #include <tensorflow/lite/schema/schema_generated.h>
-
+#endif
 #include "battery.h"
 #include "local_constants.h"
 #ifdef TSFLOW
 #include "model.h"
 #endif
 #include "system.h"
-// #define TOM
-// #define BNO
-// #define TSFLOW
+
 const float accelerationThreshold = 2.5; // threshold of significant in G's
 
 const int numSamples = 500; // 119;
@@ -56,7 +62,11 @@ uint8_t readData;
 float roll0, pitch0, yaw0;
 float roll, pitch, yaw;
 
+#ifdef BNO055
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
+sensors_event_t orientationData, linearAccelData, angVelData, magneticData;
+
+#endif
 
 #ifdef TSFLOW
 // global variables used for TensorFlow Lite (Micro)
@@ -101,7 +111,7 @@ void setup() {
 
   initAndStartBLE();
 
-#ifdef BNO
+#ifdef BNO055
   if (!bno.begin()) {
     Serial.print("No BNO055 detected");
     systemHaltWithledPattern(LED_RED, 3);
@@ -142,10 +152,9 @@ bool needSendKeyRelease = false;
 float xAngle, yAngle, lastXAngle, lastYAngle;
 
 bool d2;
-sensors_event_t orientationData, linearAccelData, angVelData, magneticData;
 
 bool readIMU() {
-#ifdef BNO
+#ifdef BNO055
   // bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
   bno.getEvent(&angVelData, Adafruit_BNO055::VECTOR_GYROSCOPE);
   bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
@@ -154,7 +163,7 @@ bool readIMU() {
 }
 
 bool readIMUOrientation1() {
-#ifdef BNO
+#ifdef BNO055
   int loop = 0;
   d2 = !d2;
   // digitalWrite(DEBUG_2, d2);
@@ -178,7 +187,7 @@ bool readIMUOrientation1() {
 }
 
 bool readIMUOrientation() {
-#ifdef BNO
+#ifdef BNO055
   int loop = 0;
   d2 = !d2;
   // digitalWrite(DEBUG_2, d2);
@@ -254,6 +263,8 @@ void loop() {
     // IMU data if it's stale data. So here we check and only continue after new
     // IMU data is available. Here we also assume for each sample, the IMU read
     // changes.
+
+  #ifdef BNO055
     if (lastAx == orientationData.orientation.roll &&
         lastAy == orientationData.orientation.pitch) {
       return;
@@ -291,7 +302,7 @@ void loop() {
 
     xAngle = orientationData.orientation.roll;
     yAngle = orientationData.orientation.pitch;
-
+#endif
     if (count == report_freq - 1) {
       lastXAngle = xAngle;
       lastYAngle = yAngle;
@@ -379,6 +390,8 @@ void loop() {
       break;
     }
     readIMU();
+
+      #ifdef BNO055
     if (linearAccelData.acceleration.x == lastAx &&
         linearAccelData.acceleration.y == lastAy &&
         linearAccelData.acceleration.z == lastAz) {
@@ -422,6 +435,7 @@ void loop() {
       d2 = !d2;
       // digitalWrite(DEBUG_2, d2);
     }
+    #endif
 
     // In case user hold the ACTIVATE button too long
     if (samplesRead >= numSamples) {
