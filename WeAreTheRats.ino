@@ -148,7 +148,7 @@ int ledred = 0;
 void setup() {
   configGpio();
   Serial.begin(115200);
-while (!Serial) delay(10); 
+// while (!Serial) delay(10); 
 
 #ifdef TSFLOW
   loadTFLiteModel();
@@ -281,11 +281,12 @@ int lastSent;
 int currentSent;
 int sleepCount;
 
+
 void loop() {
 
   ledCount++;
   // pluse the green led to indicate system alive.
-  if (ledCount % 5000 < 50) {
+  if (ledCount % 1000 < 10) {
     digitalWrite(LED_GREEN, LIGHT_ON);
   } else {
     digitalWrite(LED_GREEN, LIGHT_OFF);
@@ -312,13 +313,15 @@ void loop() {
     Serial.print(ypr.yaw);                Serial.print("\t");
     Serial.print(ypr.pitch);              Serial.print("\t");
     Serial.println(ypr.roll);
+    xAngle = -ypr.yaw;
+    yAngle = ypr.roll;
   }
-  return;
+  // return;
 
 #endif
 
-  scanNavigateButtons();
-  scanClickButtons();
+  // scanNavigateButtons();
+  // scanClickButtons();
 
   // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
   // For air writing, when a character is recoganized, only KEY_DOWN event is
@@ -345,6 +348,7 @@ void loop() {
 #endif
 
   if (deviceMode == DEVICE_MOUSE_MODE) {
+    #ifdef BNO055  
     // In mouse mode, we only need orientation.
     readIMUOrientation();
 
@@ -354,7 +358,6 @@ void loop() {
     // IMU data is available. Here we also assume for each sample, the IMU read
     // changes.
 
-#ifdef BNO055
     if (lastAx == orientationData.orientation.roll &&
         lastAy == orientationData.orientation.pitch) {
       return;
