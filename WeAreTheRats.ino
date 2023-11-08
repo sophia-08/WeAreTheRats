@@ -2,7 +2,8 @@
 // #define BNO055
 // #define TSFLOW
 #define BNO085
-
+// #define IMU_USE_RESET
+#define IMU_USE_INT
 // #include "LSM6DS3.h"
 #ifdef BNO055
 #include "Adafruit_BNO055.h"
@@ -946,7 +947,6 @@ void configGpio() {
   pinMode(LED_BLUE, OUTPUT);
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
-  pinMode(IMU_RESET, OUTPUT);
 
   // Mystery of why !Serial not ready:
   // The "Serial" is always valid for an Arduino Uno, therefor that piece of
@@ -960,12 +960,19 @@ void configGpio() {
   //   delay(100);
   // }
 
+#ifdef IMU_USE_RESET
+  pinMode(IMU_RESET, OUTPUT);
   // Reset IMU
   digitalWrite(IMU_RESET, HIGH);
   delay(0.1);
   digitalWrite(IMU_RESET, LOW);
   delay(0.1);
   digitalWrite(IMU_RESET, HIGH);
+#endif
+
+#ifdef IMU_USE_INT
+  pinMode(IMU_INT, INPUT_PULLUP);
+#endif
 
   pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
   pinMode(MOUSE_RIGHT, INPUT_PULLUP);
