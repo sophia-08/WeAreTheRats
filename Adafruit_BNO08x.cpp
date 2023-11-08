@@ -395,6 +395,7 @@ extern bool newData ;
 extern float rtVector[4];
 extern float accl[3];
 extern float gyro[3];
+extern int calStatus;;
 
 static void sensorHandler(void *cookie, sh2_SensorEvent_t *event) {
   int rc;
@@ -422,6 +423,7 @@ static void sensorHandler(void *cookie, sh2_SensorEvent_t *event) {
       rtVector[1] = _sensor_value->un.rotationVector.j;
       rtVector[2] = _sensor_value->un.rotationVector.k;
       rtVector[3] = _sensor_value->un.rotationVector.real;
+      calStatus = _sensor_value->status;
       break;
       case SH2_LINEAR_ACCELERATION:
       accl[0] = _sensor_value->un.linearAcceleration.x;

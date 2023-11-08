@@ -72,10 +72,21 @@ sensors_event_t orientationData, linearAccelData, angVelData, magneticData;
 #endif
 
 #ifdef BNO085
+// New data available.  currently for keyboard, new data available every 10ms;
+// for mouse, every 20ms
 bool newData = false;
+
+// Rotation Vector. i, j, k, real
 float rtVector[4];
+
+// Linear acceleration, x, y, z
 float accl[3];
+
+// gyro, x, y, z
 float gyro[3];
+
+// calibration status
+int calStatus;
 
 #define BNO08X_RESET -1
 struct euler_t {
@@ -389,7 +400,7 @@ void loop() {
     Serial.print(now - last);
     Serial.print("\t");
     last = now;
-    Serial.print(sensorValue.status);
+    Serial.print(calStatus);
     Serial.print("\t");
     // This is accuracy in the range of 0 to 3 Serial.print(ypr.yaw);
     int i;
@@ -407,8 +418,8 @@ void loop() {
     }
     Serial.println("");
 
-    quaternionToEuler(rtVector[0], rtVector[1], rtVector[2],
-                      rtVector[3], &ypr, true);
+    quaternionToEuler(rtVector[0], rtVector[1], rtVector[2], rtVector[3], &ypr,
+                      true);
     xAngle = -ypr.yaw;
     yAngle = ypr.roll;
   }
