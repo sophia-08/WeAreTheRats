@@ -9,7 +9,7 @@
 #include "Adafruit_BNO055.h"
 #endif
 #ifdef BNO085
-#include <Adafruit_BNO08x.h>
+#include "Adafruit_BNO08x.h"
 #endif
 // #include <Adafruit_Sensor.h>
 #include <Wire.h>
