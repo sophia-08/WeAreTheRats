@@ -89,26 +89,27 @@ void setReports(sh2_SensorId_t reportType, long report_interval) {
   }
 }
 
-void quaternionToEuler(sh2_RotationVectorWAcc_t* rv, euler_t* ypr, bool degrees = false) {
+void quaternionToEuler(sh2_RotationVectorWAcc_t *rv, euler_t *ypr,
+                       bool degrees = false) {
 
-    float qr = rv->real;
-    float qi = rv->i;
-    float qj = rv->j;
-    float qk = rv->k;
-    float sqr = sq(qr);
-    float sqi = sq(qi);
-    float sqj = sq(qj);
-    float sqk = sq(qk);
+  float qr = rv->real;
+  float qi = rv->i;
+  float qj = rv->j;
+  float qk = rv->k;
+  float sqr = sq(qr);
+  float sqi = sq(qi);
+  float sqj = sq(qj);
+  float sqk = sq(qk);
 
-    ypr->yaw = atan2(2.0 * (qi * qj + qk * qr), (sqi - sqj - sqk + sqr));
-    ypr->pitch = asin(-2.0 * (qi * qk - qj * qr) / (sqi + sqj + sqk + sqr));
-    ypr->roll = atan2(2.0 * (qj * qk + qi * qr), (-sqi - sqj + sqk + sqr));
+  ypr->yaw = atan2(2.0 * (qi * qj + qk * qr), (sqi - sqj - sqk + sqr));
+  ypr->pitch = asin(-2.0 * (qi * qk - qj * qr) / (sqi + sqj + sqk + sqr));
+  ypr->roll = atan2(2.0 * (qj * qk + qi * qr), (-sqi - sqj + sqk + sqr));
 
-    if (degrees) {
-      ypr->yaw *= RAD_TO_DEG;
-      ypr->pitch *= RAD_TO_DEG;
-      ypr->roll *= RAD_TO_DEG;
-    }
+  if (degrees) {
+    ypr->yaw *= RAD_TO_DEG;
+    ypr->pitch *= RAD_TO_DEG;
+    ypr->roll *= RAD_TO_DEG;
+  }
 }
 #endif
 
@@ -148,7 +149,7 @@ int ledred = 0;
 void setup() {
   configGpio();
   Serial.begin(115200);
-// while (!Serial) delay(10); 
+  // while (!Serial) delay(10);
 
 #ifdef TSFLOW
   loadTFLiteModel();
@@ -168,19 +169,20 @@ void setup() {
 #ifdef BNO085
   // Try to initialize!
   if (!bno08x.begin_I2C()) {
-  //if (!bno08x.begin_UART(&Serial1)) {  // Requires a device with > 300 byte UART buffer!
-  //if (!bno08x.begin_SPI(BNO08X_CS, BNO08X_INT)) {
+    // if (!bno08x.begin_UART(&Serial1)) {  // Requires a device with > 300 byte
+    // UART buffer! if (!bno08x.begin_SPI(BNO08X_CS, BNO08X_INT)) {
     Serial.println("Failed to find BNO08x chip");
-    while (1) { delay(10); }
+    while (1) {
+      delay(10);
+    }
   }
   Serial.println("BNO08x Found!");
-
 
   setReports(reportType, reportIntervalUs);
 
   Serial.println("Reading events");
   delay(100);
-  #endif
+#endif
 
   // calibrateIMU(250, 250);
   lastTime = micros();
@@ -281,38 +283,54 @@ int lastSent;
 int currentSent;
 int sleepCount;
 
-
 void loop() {
 
   ledCount++;
   // pluse the green led to indicate system alive.
   if (ledCount % 1000 < 10) {
-    digitalWrite(LED_GREEN, LIGHT_ON);
+    if (deviceMode == DEVICE_MOUSE_MODE) {
+      digitalWrite(LED_GREEN, LIGHT_ON);
+      digitalWrite(LED_BLUE, LIGHT_OFF);
+    } else {
+      digitalWrite(LED_BLUE, LIGHT_ON);
+      digitalWrite(LED_GREEN, LIGHT_OFF);
+    }
+
   } else {
-    digitalWrite(LED_GREEN, LIGHT_OFF);
+    if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
+      digitalWrite(LED_GREEN, LIGHT_ON);
+    } else {
+      digitalWrite(LED_GREEN, LIGHT_OFF);
+    }
+    if (digitalRead(KEYPAD_ACTIVATE) == HIGH) {
+      digitalWrite(LED_BLUE, LIGHT_ON);
+    } else {
+      digitalWrite(LED_BLUE, LIGHT_OFF);
+    }
   }
 
 #ifdef BNO085
   if (bno08x.getSensorEvent(&sensorValue)) {
-    // in this demo only one report type will be received depending on FAST_MODE define (above)
+    // in this demo only one report type will be received depending on FAST_MODE
+    // define (above)
     switch (sensorValue.sensorId) {
-      // case SH2_ARVR_STABILIZED_RV:
-      case SH2_ROTATION_VECTOR:
-        quaternionToEuler(&sensorValue.un.rotationVector, &ypr, true);
-        break;
+    // case SH2_ARVR_STABILIZED_RV:
+    case SH2_ROTATION_VECTOR:
+      quaternionToEuler(&sensorValue.un.rotationVector, &ypr, true);
+      break;
       // case SH2_GYRO_INTEGRATED_RV:
       //   // faster (more noise?)
       //   quaternionToEulerGI(&sensorValue.un.gyroIntegratedRV, &ypr, true);
-        // break;
+      // break;
     }
     static long last = 0;
     long now = micros();
-    Serial.print(now - last);             Serial.print("\t");
-    last = now;
-    Serial.print(sensorValue.status);     Serial.print("\t");  // This is accuracy in the range of 0 to 3
-    Serial.print(ypr.yaw);                Serial.print("\t");
-    Serial.print(ypr.pitch);              Serial.print("\t");
-    Serial.println(ypr.roll);
+    // Serial.print(now - last);             Serial.print("\t");
+    // last = now;
+    // Serial.print(sensorValue.status);     Serial.print("\t");  // This is
+    // accuracy in the range of 0 to 3 Serial.print(ypr.yaw);
+    // Serial.print("\t"); Serial.print(ypr.pitch); Serial.print("\t");
+    // Serial.println(ypr.roll);
     xAngle = -ypr.yaw;
     yAngle = ypr.roll;
   }
@@ -320,8 +338,8 @@ void loop() {
 
 #endif
 
-  // scanNavigateButtons();
-  // scanClickButtons();
+  scanNavigateButtons();
+  scanClickButtons();
 
   // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
   // For air writing, when a character is recoganized, only KEY_DOWN event is
@@ -348,7 +366,7 @@ void loop() {
 #endif
 
   if (deviceMode == DEVICE_MOUSE_MODE) {
-    #ifdef BNO055  
+#ifdef BNO055
     // In mouse mode, we only need orientation.
     readIMUOrientation();
 
@@ -858,14 +876,16 @@ void scanOneNavigateButton(uint8_t keyIndex) {
         switch (navigateButtons[keyIndex]) {
         case KEYPAD_UP:
         case KEYPAD_DOWN:
-          // Serial.print("mouse scroll: ");
-          // Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
+          Serial.print("mouse scroll: ");
+          Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
           blehid.mouseScroll(navigateButtonDoubleClickMouseCode[keyIndex]);
           skipScroll = 0;
           break;
         case KEYPAD_LEFT:
         case KEYPAD_RIGHT:
           blehid.mouseButtonPress(navigateButtonDoubleClickMouseCode[keyIndex]);
+          Serial.print("mouse db ");
+          Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
         }
 
       } else {
