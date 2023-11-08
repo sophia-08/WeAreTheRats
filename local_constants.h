@@ -4,12 +4,14 @@
 #define MOUSE_RIGHT D8
 #define MOUSE_ACTIVATE D6
 #define IMU_RESET D0
+#define IMU_INT D0
 #define KEYPAD_ACTIVATE D10
 #define KEYPAD_CENTER D10
 #define KEYPAD_UP D7
 #define KEYPAD_RIGHT D3
 #define KEYPAD_DOWN D2
 #define KEYPAD_LEFT D1
+
 
 // #define LED_CHARGER 23
 #define LIGHT_ON LOW
