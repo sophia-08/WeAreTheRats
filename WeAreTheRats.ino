@@ -81,7 +81,7 @@ struct euler_t {
 Adafruit_BNO08x bno08x(BNO08X_RESET);
 sh2_SensorValue_t sensorValue;
 sh2_SensorId_t reportType = SH2_ROTATION_VECTOR; // SH2_ARVR_STABILIZED_RV;
-long reportIntervalUs = 10000;
+long reportIntervalUs = 20000;
 void setReports(sh2_SensorId_t reportType, long report_interval) {
   Serial.println("Setting desired reports");
   if (!bno08x.enableReport(reportType, report_interval)) {
@@ -722,7 +722,7 @@ void cent_bleuart_rx_callback(BLEClientUart &cent_uart) {
 
 #endif
 
-#define DOUBLE_CLICK_INTERVAL 400
+#define DOUBLE_CLICK_INTERVAL 300
 #define MOUSE_STEPS_PER_CLICK 5
 int lastUpTime, lastDownTime, lastKey;
 uint8_t navigateButtons[4] = {KEYPAD_LEFT, KEYPAD_RIGHT, KEYPAD_UP,
