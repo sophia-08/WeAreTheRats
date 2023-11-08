@@ -142,6 +142,18 @@ const char *GESTURES = "abcdefghijklmnopqrstuvwxyz";
 int ledgreen = 0;
 int ledred = 0;
 
+void myinthandler() {
+  static int xx;
+  xx++;
+  // newData = true;
+  // Serial.println("int");
+  if (xx % 100 < 2) {
+    digitalWrite(LED_RED, LIGHT_ON);
+  } else {
+    digitalWrite(LED_RED, LIGHT_OFF);
+  }
+}
+
 // const uint8_t BLEUART_UUID_SERVICE[] =
 // {
 //     0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0,
@@ -186,6 +198,12 @@ void setup() {
   // calibrateIMU(250, 250);
   lastTime = micros();
   deviceMode = DEVICE_MOUSE_MODE;
+
+  // nrf_gpio_cfg_sense_input(g_ADigitalPinMap[IMU_INT],
+  //                        NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
+
+  //
+  // attachInterrupt(IMU_INT, myinthandler, FALLING); // RISING
 }
 
 float minAccl = 10;
@@ -307,8 +325,26 @@ void loop() {
       digitalWrite(LED_BLUE, LIGHT_OFF);
     }
   }
+  scanNavigateButtons();
+  scanClickButtons();
+  // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
+  // For air writing, when a character is recoganized, only KEY_DOWN event is
+  // sent. so I need generate a KEY_UP event. needSendKeyRelease is used for the
+  // purpose. At the end of air writing, needSendKeyRelease is set.  In next
+  // round loop(), here I send the KEY_UP event and reset the flag.
+  if (needSendKeyRelease) {
+    needSendKeyRelease = false;
+    blehid.keyRelease();
+  }
 
 #ifdef BNO085
+  // BNO085 pull IMU_INT LOW when data is ready
+  // so do nothing in case of IMU_INT high
+  if (digitalRead(IMU_INT) == HIGH) {
+    return;
+    // systemSleep();
+  }
+
   if (bno08x.getSensorEvent(&sensorValue)) {
     // in this demo only one report type will be received depending on FAST_MODE
     // define (above)
@@ -336,19 +372,6 @@ void loop() {
   // return;
 
 #endif
-
-  scanNavigateButtons();
-  scanClickButtons();
-
-  // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
-  // For air writing, when a character is recoganized, only KEY_DOWN event is
-  // sent. so I need generate a KEY_UP event. needSendKeyRelease is used for the
-  // purpose. At the end of air writing, needSendKeyRelease is set.  In next
-  // round loop(), here I send the KEY_UP event and reset the flag.
-  if (needSendKeyRelease) {
-    needSendKeyRelease = false;
-    blehid.keyRelease();
-  }
 
 #ifdef ENABLE_SLEEP
   if (digitalRead(DEVICE_ACTIVATE) == LOW) {
