@@ -126,62 +126,8 @@ bool Adafruit_BNO08x::begin_I2C(uint8_t i2c_address, TwoWire *wire,
   return _init(sensor_id);
 }
 
-/**
- *  @brief  Sets up the hardware and initializes UART
- *
- * @param serial Pointer to Stream (HardwareSerial/SoftwareSerial) interface
- * @param sensor_id
- *            The user-defined ID to differentiate different sensors
- * @return  true if initialization was successful, otherwise false.
- */
-bool Adafruit_BNO08x::begin_UART(HardwareSerial *serial, int32_t sensor_id) {
-  uart_dev = serial;
 
-  _HAL.open = uarthal_open;
-  _HAL.close = uarthal_close;
-  _HAL.read = uarthal_read;
-  _HAL.write = uarthal_write;
-  _HAL.getTimeUs = hal_getTimeUs;
 
-  return _init(sensor_id);
-}
-
-/*!
- *    @brief  Sets up the hardware and initializes hardware SPI
- *    @param  cs_pin The arduino pin # connected to chip select
- *    @param  int_pin The arduino pin # connected to BNO08x INT
- *    @param  theSPI The SPI object to be used for SPI connections.
- *    @param  sensor_id
- *            The user-defined ID to differentiate different sensors
- *    @return true if initialization was successful, otherwise false.
- */
-bool Adafruit_BNO08x::begin_SPI(uint8_t cs_pin, uint8_t int_pin,
-                                SPIClass *theSPI, int32_t sensor_id) {
-  i2c_dev = NULL;
-
-  _int_pin = int_pin;
-  pinMode(_int_pin, INPUT_PULLUP);
-
-  if (spi_dev) {
-    delete spi_dev; // remove old interface
-  }
-  spi_dev = new Adafruit_SPIDevice(cs_pin,
-                                   1000000,               // frequency
-                                   SPI_BITORDER_MSBFIRST, // bit order
-                                   SPI_MODE3,             // data mode
-                                   theSPI);
-  if (!spi_dev->begin()) {
-    return false;
-  }
-
-  _HAL.open = spihal_open;
-  _HAL.close = spihal_close;
-  _HAL.read = spihal_read;
-  _HAL.write = spihal_write;
-  _HAL.getTimeUs = hal_getTimeUs;
-
-  return _init(sensor_id);
-}
 
 /*!  @brief Initializer for post i2c/spi init
  *   @param sensor_id Optional unique ID for the sensor set
@@ -411,221 +357,6 @@ static int i2chal_write(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len) {
 
   return write_size;
 }
-
-/**************************************** UART interface
- * ***********************************************************/
-
-static int uarthal_open(sh2_Hal_t *self) {
-  // Serial.println("UART HAL open");
-  uart_dev->begin(3000000);
-
-  // flush input
-  while (uart_dev->available()) {
-    uart_dev->read();
-    yield();
-  }
-
-  // send a software reset
-  uint8_t softreset_pkt[] = {0x7E, 1, 5, 0, 1, 0, 1, 0x7E};
-  for (int i = 0; i < sizeof(softreset_pkt); i++) {
-    uart_dev->write(softreset_pkt[i]);
-    delay(1);
-  }
-
-  return 0;
-}
-
-static void uarthal_close(sh2_Hal_t *self) {
-  // Serial.println("UART HAL close");
-  uart_dev->end();
-}
-
-static int uarthal_read(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len,
-                        uint32_t *t_us) {
-  uint8_t c;
-  uint16_t packet_size = 0;
-
-  // Serial.println("UART HAL read");
-
-  // read packet start
-  while (1) {
-    yield();
-
-    if (!uart_dev->available()) {
-      continue;
-    }
-    c = uart_dev->read();
-    // Serial.print(c, HEX); Serial.print(", ");
-    if (c == 0x7E) {
-      break;
-    }
-  }
-
-  // read protocol id
-  while (uart_dev->available() < 2) {
-    yield();
-  }
-  c = uart_dev->read();
-  // Serial.print(c, HEX); Serial.print(", ");
-  if (c == 0x7E) {
-    c = uart_dev->read();
-    // Serial.print(c, HEX); Serial.print(", ");
-    if (c != 0x01) {
-      return 0;
-    }
-  } else if (c != 0x01) {
-    return 0;
-  }
-
-  while (true) {
-    yield();
-
-    if (!uart_dev->available()) {
-      continue;
-    }
-    c = uart_dev->read();
-    // Serial.print(c, HEX); Serial.print(", ");
-    if (c == 0x7E) {
-      break;
-    }
-    if (c == 0x7D) {
-      // escape!
-      while (!uart_dev->available()) {
-        continue;
-      }
-      c = uart_dev->read();
-      c ^= 0x20;
-    }
-    pBuffer[packet_size] = c;
-    packet_size++;
-  }
-
-  /*
-  Serial.print("Read UART packet size: ");
-  Serial.println(packet_size);
-  for (int i=0; i<packet_size; i++) {
-    Serial.print(pBuffer[i], HEX);
-    Serial.print(", ");
-    if (i % 16 == 15) Serial.println();
-  }
-  Serial.println();
-  */
-
-  return packet_size;
-}
-
-static int uarthal_write(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len) {
-  uint8_t c;
-
-  // Serial.print("UART HAL write packet size: ");
-  // Serial.println(len);
-
-  // start byte
-  uart_dev->write(0x7E);
-  delay(1);
-  // protocol id
-  uart_dev->write(0x01);
-  delay(1);
-
-  for (int i = 0; i < len; i++) {
-    c = pBuffer[i];
-    if ((c == 0x7E) || (c == 0x7D)) {
-      uart_dev->write(0x7D); // control
-      delay(1);
-      c ^= 0x20;
-    }
-    uart_dev->write(c);
-    delay(1);
-  }
-  // end byte
-  uart_dev->write(0x7E);
-
-  return len;
-}
-
-/**************************************** UART interface
- * ***********************************************************/
-
-static int spihal_open(sh2_Hal_t *self) {
-  // Serial.println("SPI HAL open");
-
-  spihal_wait_for_int();
-
-  return 0;
-}
-
-static bool spihal_wait_for_int(void) {
-  for (int i = 0; i < 500; i++) {
-    if (!digitalRead(_int_pin))
-      return true;
-    // Serial.print(".");
-    delay(1);
-  }
-  // Serial.println("Timed out!");
-  hal_hardwareReset();
-
-  return false;
-}
-
-static void spihal_close(sh2_Hal_t *self) {
-  // Serial.println("SPI HAL close");
-}
-
-static int spihal_read(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len,
-                       uint32_t *t_us) {
-  // Serial.println("SPI HAL read");
-
-  uint16_t packet_size = 0;
-
-  if (!spihal_wait_for_int()) {
-    return 0;
-  }
-
-  if (!spi_dev->read(pBuffer, 4, 0x00)) {
-    return 0;
-  }
-
-  // Determine amount to read
-  packet_size = (uint16_t)pBuffer[0] | (uint16_t)pBuffer[1] << 8;
-  // Unset the "continue" bit
-  packet_size &= ~0x8000;
-
-  /*
-  Serial.print("Read SHTP header. ");
-  Serial.print("Packet size: ");
-  Serial.print(packet_size);
-  Serial.print(" & buffer size: ");
-  Serial.println(len);
-  */
-
-  if (packet_size > len) {
-    return 0;
-  }
-
-  if (!spihal_wait_for_int()) {
-    return 0;
-  }
-
-  if (!spi_dev->read(pBuffer, packet_size, 0x00)) {
-    return 0;
-  }
-
-  return packet_size;
-}
-
-static int spihal_write(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len) {
-  // Serial.print("SPI HAL write packet size: ");
-  // Serial.println(len);
-
-  if (!spihal_wait_for_int()) {
-    return 0;
-  }
-
-  spi_dev->write(pBuffer, len);
-
-  return len;
-}
-
 /**************************************** HAL interface
  * ***********************************************************/
 
@@ -659,6 +390,12 @@ static void hal_callback(void *cookie, sh2_AsyncEvent_t *pEvent) {
 
 uint64_t lastT;
 // Handle sensor events.
+
+extern bool newData ;
+extern float rtVector[4];
+extern float accl[3];
+extern float gyro[3];
+
 static void sensorHandler(void *cookie, sh2_SensorEvent_t *event) {
   int rc;
 
@@ -669,12 +406,34 @@ static void sensorHandler(void *cookie, sh2_SensorEvent_t *event) {
   // Serial.print(", ");
   // Serial.print(event->reportId, HEX);
   // Serial.print(", ");
-  //   Serial.println(event->len);
+  // Serial.println(event->len);
+
+
 
   rc = sh2_decodeSensorEvent(_sensor_value, event);
   if (rc != SH2_OK) {
     Serial.println("BNO08x - Error decoding sensor event");
     _sensor_value->timestamp = 0;
     return;
+  } else{
+    switch (_sensor_value->sensorId) {
+      case SH2_ROTATION_VECTOR:
+      rtVector[0] = _sensor_value->un.rotationVector.i;
+      rtVector[1] = _sensor_value->un.rotationVector.j;
+      rtVector[2] = _sensor_value->un.rotationVector.k;
+      rtVector[3] = _sensor_value->un.rotationVector.real;
+      break;
+      case SH2_LINEAR_ACCELERATION:
+      accl[0] = _sensor_value->un.linearAcceleration.x;
+      accl[1] = _sensor_value->un.linearAcceleration.y;
+      accl[2] = _sensor_value->un.linearAcceleration.z;
+      break;
+      case SH2_GYROSCOPE_CALIBRATED:
+      gyro[0] = _sensor_value->un.gyroscope.x;
+      gyro[1] = _sensor_value->un.gyroscope.y;
+      gyro[2] = _sensor_value->un.gyroscope.z;
+      newData = true;
+      break;
+    }
   }
 }

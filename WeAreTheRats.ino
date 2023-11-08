@@ -72,6 +72,11 @@ sensors_event_t orientationData, linearAccelData, angVelData, magneticData;
 #endif
 
 #ifdef BNO085
+bool newData = false;
+float rtVector[4];
+float accl[3];
+float gyro[3];
+
 #define BNO08X_RESET -1
 struct euler_t {
   float yaw;
@@ -81,22 +86,34 @@ struct euler_t {
 
 Adafruit_BNO08x bno08x(BNO08X_RESET);
 sh2_SensorValue_t sensorValue;
-sh2_SensorId_t reportType = SH2_ROTATION_VECTOR; // SH2_ARVR_STABILIZED_RV;
-long reportIntervalUs = 20000;
-void setReports(sh2_SensorId_t reportType, long report_interval) {
-  Serial.println("Setting desired reports");
-  if (!bno08x.enableReport(reportType, report_interval)) {
-    Serial.println("Could not enable stabilized remote vector");
+// sh2_SensorId_t reportType = SH2_ROTATION_VECTOR; // SH2_ARVR_STABILIZED_RV;
+// long reportIntervalUs = 20000;
+void setReports() {
+  int dataRate;
+  if (deviceMode == DEVICE_MOUSE_MODE) {
+    dataRate = 20 * 1000;
+  } else {
+    dataRate = 10 * 1000;
+  }
+
+  if (!bno08x.enableReport(SH2_ROTATION_VECTOR, dataRate)) {
+    Serial.println("Could not enable rotation vector");
+  }
+  if (!bno08x.enableReport(SH2_LINEAR_ACCELERATION, dataRate)) {
+    Serial.println("Could not enable linear acceleration");
+  }
+  if (!bno08x.enableReport(SH2_GYROSCOPE_CALIBRATED, dataRate)) {
+    Serial.println("Could not enable gyroscope");
   }
 }
 
-void quaternionToEuler(sh2_RotationVectorWAcc_t *rv, euler_t *ypr,
+void quaternionToEuler(float qi, float qj, float qk, float qr, euler_t *ypr,
                        bool degrees = false) {
 
-  float qr = rv->real;
-  float qi = rv->i;
-  float qj = rv->j;
-  float qk = rv->k;
+  // float qr = rv->real;
+  // float qi = rv->i;
+  // float qj = rv->j;
+  // float qk = rv->k;
   float sqr = sq(qr);
   float sqi = sq(qi);
   float sqj = sq(qj);
@@ -162,7 +179,8 @@ void myinthandler() {
 void setup() {
   configGpio();
   Serial.begin(115200);
-  // while (!Serial) delay(10);
+  while (!Serial)
+    delay(10);
 
 #ifdef TSFLOW
   loadTFLiteModel();
@@ -189,9 +207,7 @@ void setup() {
   }
   Serial.println("BNO08x Found!");
 
-  setReports(reportType, reportIntervalUs);
-
-  Serial.println("Reading events");
+  setReports();
   delay(100);
 #endif
 
@@ -340,36 +356,62 @@ void loop() {
 #ifdef BNO085
   // BNO085 pull IMU_INT LOW when data is ready
   // so do nothing in case of IMU_INT high
+#ifdef IMU_USE_INT
   if (digitalRead(IMU_INT) == HIGH) {
     return;
     // systemSleep();
   }
-
+#endif
+  static uint32_t last = 0;
+  long now = micros();
   if (bno08x.getSensorEvent(&sensorValue)) {
     // in this demo only one report type will be received depending on FAST_MODE
     // define (above)
-    switch (sensorValue.sensorId) {
-    // case SH2_ARVR_STABILIZED_RV:
-    case SH2_ROTATION_VECTOR:
-      quaternionToEuler(&sensorValue.un.rotationVector, &ypr, true);
-      break;
-      // case SH2_GYRO_INTEGRATED_RV:
-      //   // faster (more noise?)
-      //   quaternionToEulerGI(&sensorValue.un.gyroIntegratedRV, &ypr, true);
-      // break;
-    }
-    static long last = 0;
-    long now = micros();
+    // switch (sensorValue.sensorId) {
+    // // case SH2_ARVR_STABILIZED_RV:
+    // case SH2_ROTATION_VECTOR:
+    //   quaternionToEuler(&sensorValue.un.rotationVector, &ypr, true);
+    //   break;
+
+    // }
+
     // Serial.print(now - last);             Serial.print("\t");
     // last = now;
     // Serial.print(sensorValue.status);     Serial.print("\t");  // This is
     // accuracy in the range of 0 to 3 Serial.print(ypr.yaw);
     // Serial.print("\t"); Serial.print(ypr.pitch); Serial.print("\t");
     // Serial.println(ypr.roll);
+  }
+  // return;
+  if (newData) {
+    uint32_t now = micros();
+    newData = false;
+    Serial.print(now - last);
+    Serial.print("\t");
+    last = now;
+    Serial.print(sensorValue.status);
+    Serial.print("\t");
+    // This is accuracy in the range of 0 to 3 Serial.print(ypr.yaw);
+    int i;
+    for (i = 0; i < 4; i++) {
+      Serial.print("\t");
+      Serial.print(rtVector[i]);
+    }
+    for (i = 0; i < 3; i++) {
+      Serial.print("\t");
+      Serial.print(accl[i]);
+    }
+    for (i = 0; i < 3; i++) {
+      Serial.print("\t");
+      Serial.print(gyro[i]);
+    }
+    Serial.println("");
+
+    quaternionToEuler(rtVector[0], rtVector[1], rtVector[2],
+                      rtVector[3], &ypr, true);
     xAngle = -ypr.yaw;
     yAngle = ypr.roll;
   }
-  // return;
 
 #endif
 
@@ -793,9 +835,11 @@ void scanOneClickButton(uint8_t keyIndex) {
   switch (clickButtons[keyIndex]) {
   case MOUSE_ACTIVATE:
     deviceMode = DEVICE_MOUSE_MODE;
+    setReports();
     break;
   case KEYPAD_ACTIVATE:
     deviceMode = DEVICE_KEYBOARD_MODE;
+    setReports();
     break;
   default:
     if (deviceMode == DEVICE_MOUSE_MODE) {
