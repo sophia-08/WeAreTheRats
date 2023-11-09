@@ -121,10 +121,6 @@ void setReports() {
 void quaternionToEuler(float qi, float qj, float qk, float qr, euler_t *ypr,
                        bool degrees = false) {
 
-  // float qr = rv->real;
-  // float qi = rv->i;
-  // float qj = rv->j;
-  // float qk = rv->k;
   float sqr = sq(qr);
   float sqi = sq(qi);
   float sqj = sq(qj);
@@ -338,7 +334,7 @@ void loop() {
 
   ledCount++;
   // pluse the green led to indicate system alive.
-  if (ledCount % 1000 < 10) {
+  if (ledCount % 1000 < 30) {
     if (deviceMode == DEVICE_MOUSE_MODE) {
       digitalWrite(LED_GREEN, LIGHT_ON);
       digitalWrite(LED_BLUE, LIGHT_OFF);
@@ -383,24 +379,8 @@ void loop() {
   static uint32_t last = 0;
   long now = micros();
   if (bno08x.getSensorEvent(&sensorValue)) {
-    // in this demo only one report type will be received depending on FAST_MODE
-    // define (above)
-    // switch (sensorValue.sensorId) {
-    // // case SH2_ARVR_STABILIZED_RV:
-    // case SH2_ROTATION_VECTOR:
-    //   quaternionToEuler(&sensorValue.un.rotationVector, &ypr, true);
-    //   break;
-
-    // }
-
-    // Serial.print(now - last);             Serial.print("\t");
-    // last = now;
-    // Serial.print(sensorValue.status);     Serial.print("\t");  // This is
-    // accuracy in the range of 0 to 3 Serial.print(ypr.yaw);
-    // Serial.print("\t"); Serial.print(ypr.pitch); Serial.print("\t");
-    // Serial.println(ypr.roll);
   }
-  // return;
+
   if (newData) {
     uint32_t now = micros();
     newData = false;
@@ -409,7 +389,7 @@ void loop() {
     last = now;
     Serial.print(calStatus);
     Serial.print("\t");
-    // This is accuracy in the range of 0 to 3 Serial.print(ypr.yaw);
+    // This is accuracy in the range of 0 to 3 
     int i;
     for (i = 0; i < 4; i++) {
       Serial.print("\t");
