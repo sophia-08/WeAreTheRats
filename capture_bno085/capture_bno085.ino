@@ -7,13 +7,13 @@
 #include "Adafruit_BNO08x.h"
 #endif
 
-#include <Wire.h>
 #include "local_constants.h"
 #include "system.h"
+#include <Wire.h>
 
-const float accelerationThreshold = 2.5;  // threshold of significant in G's
+const float accelerationThreshold = 2.5; // threshold of significant in G's
 
-const int numSamples = 500;  // 119;
+const int numSamples = 500; // 119;
 double samples[numSamples][6];
 
 int samplesRead = 0;
@@ -21,17 +21,16 @@ int samplesRead = 0;
 
 int deviceMode;
 
-
-float accelX, accelY, accelZ,          // units m/s/s i.e. accelZ if often 9.8 (gravity)
-  gyroX, gyroY, gyroZ,                 // units dps (degrees per second)
-  gyroDriftX, gyroDriftY, gyroDriftZ,  // units dps
-  gyroRoll, gyroPitch, gyroYaw,        // units degrees (expect major drift)
-  gyroCorrectedRoll, gyroCorrectedPitch,
-  gyroCorrectedYaw,  // units degrees (expect minor drift)
-  accRoll, accPitch,
-  accYaw,  // units degrees (roll and pitch noisy, yaw not possible)
-  complementaryRoll, complementaryPitch,
-  complementaryYaw;  // units degrees (excellent roll, pitch, yaw minor drift)
+float accelX, accelY, accelZ, // units m/s/s i.e. accelZ if often 9.8 (gravity)
+    gyroX, gyroY, gyroZ,      // units dps (degrees per second)
+    gyroDriftX, gyroDriftY, gyroDriftZ, // units dps
+    gyroRoll, gyroPitch, gyroYaw,       // units degrees (expect major drift)
+    gyroCorrectedRoll, gyroCorrectedPitch,
+    gyroCorrectedYaw, // units degrees (expect minor drift)
+    accRoll, accPitch,
+    accYaw, // units degrees (roll and pitch noisy, yaw not possible)
+    complementaryRoll, complementaryPitch,
+    complementaryYaw; // units degrees (excellent roll, pitch, yaw minor drift)
 
 long lastTime;
 long lastInterval;
@@ -107,7 +106,6 @@ void quaternionToEuler(float qi, float qj, float qk, float qr, euler_t *ypr,
 }
 #endif
 
-
 int ledgreen = 0;
 int ledred = 0;
 void setup() {
@@ -122,7 +120,7 @@ void setup() {
     // }
   }
   digitalWrite(LED_RED, LIGHT_OFF);
-
+  deviceMode = DEVICE_KEYBOARD_MODE;
 #ifdef BNO085
   // Try to initialize!
   if (!bno08x.begin_I2C()) {
@@ -139,7 +137,6 @@ void setup() {
 
   // calibrateIMU(250, 250);
   lastTime = micros();
-  deviceMode = DEVICE_MOUSE_MODE;
 }
 
 float minAccl = 10;
@@ -171,7 +168,6 @@ float xAngle, yAngle, lastXAngle, lastYAngle;
 
 bool d2;
 
-
 int lastSent;
 int currentSent;
 int sleepCount;
@@ -201,57 +197,87 @@ void loop() {
       digitalWrite(LED_BLUE, LIGHT_OFF);
     }
   }
-#ifdef BNO085
-  // BNO085 pull IMU_INT LOW when data is ready
-  // so do nothing in case of IMU_INT high
+
+  // Capture has not started, ignore until user activate keypad
+  if (!startedChar) {
+    if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
+      return;
+    } else {
+      // User activate keypad, check whether 2s passed since last capture
+      // int currentTime = millis();
+      // if (currentTime < t1 + 2000) {
+      //   return;
+      // }
+      // t1 = currentTime;
+      samplesRead = 0;
+      startedChar = true;
+    }
+  }
+
+  delay(150);
+
+  while (true) {
+  wait:
+    // User deactivated keypad
+    if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
+      startedChar = false;
+      break;
+    }
+
+// BNO085 pull IMU_INT LOW when data is ready
+// so do nothing in case of IMU_INT high
 #ifdef IMU_USE_INT
-  if (digitalRead(IMU_INT) == HIGH) {
-    return;
-    // systemSleep();
-  }
+    while (digitalRead(IMU_INT) == HIGH) {
+    }
 #endif
-  static uint32_t last = 0;
-  long now = micros();
-  if (bno08x.getSensorEvent(&sensorValue)) {
+    static uint32_t last = 0;
+    long now = micros();
+    if (bno08x.getSensorEvent(&sensorValue)) {
+    }
+
+    if (newData) {
+      uint32_t now = micros();
+      newData = false;
+      Serial.print(samplesRead);
+      Serial.print("\t");
+      Serial.print(now - last);
+      Serial.print("\t");
+      last = now;
+      Serial.print(calStatus);
+      // Serial.print("\t");
+      // This is accuracy in the range of 0 to 3
+      int i;
+      for (i = 0; i < 4; i++) {
+        Serial.print("\t");
+        Serial.print(rtVector[i]);
+      }
+      for (i = 0; i < 3; i++) {
+        Serial.print("\t");
+        Serial.print(accl[i]);
+      }
+      for (i = 0; i < 3; i++) {
+        Serial.print("\t");
+        Serial.print(gyro[i]);
+      }
+
+      quaternionToEuler(rtVector[0], rtVector[1], rtVector[2], rtVector[3],
+                        &ypr, false);
+
+      Serial.print("\t");
+      Serial.print(ypr.yaw);
+      Serial.print("\t");
+      Serial.print(ypr.pitch);
+      Serial.print("\t");
+      Serial.print(ypr.roll);
+      Serial.println("");
+      if (samplesRead == 0) {
+        if (abs(accl[0]) + abs(accl[1]) + abs(accl[2]) < 3) {
+          continue;
+        }
+      }
+      samplesRead++;
+    }
   }
-
-  if (newData) {
-    uint32_t now = micros();
-    newData = false;
-    Serial.print(now - last);
-    Serial.print("\t");
-    last = now;
-    Serial.print(calStatus);
-    // Serial.print("\t");
-    // This is accuracy in the range of 0 to 3
-    int i;
-    for (i = 0; i < 4; i++) {
-      Serial.print("\t");
-      Serial.print(rtVector[i]);
-    }
-    for (i = 0; i < 3; i++) {
-      Serial.print("\t");
-      Serial.print(accl[i]);
-    }
-    for (i = 0; i < 3; i++) {
-      Serial.print("\t");
-      Serial.print(gyro[i]);
-    }
-
-
-    quaternionToEuler(rtVector[0], rtVector[1], rtVector[2], rtVector[3], &ypr,
-                      false);
-
-    Serial.print("\t");
-    Serial.print(ypr.yaw);
-    Serial.print("\t");
-    Serial.print(ypr.pitch);
-    Serial.print("\t");
-    Serial.print(ypr.roll);
-    Serial.println("");
-  }
-
-#endif
 }
 
 void configGpio() {
@@ -319,29 +345,3 @@ void configGpio() {
   digitalWrite(LED_BLUE, LIGHT_OFF);
   digitalWrite(LED_GREEN, LIGHT_OFF);
 }
-
-#ifdef TSFLOW
-void loadTFLiteModel() {
-  // get the TFL representation of the model byte array
-  tflModel = tflite::GetModel(model);
-  if (tflModel->version() != TFLITE_SCHEMA_VERSION) {
-    Serial.println("Model schema mismatch!");
-    systemHaltWithledPattern(LED_RED, 1);
-  }
-
-  // Create an interpreter to run the model
-  tflInterpreter =
-    new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena,
-                                 tensorArenaSize, &tflErrorReporter);
-
-  // Allocate memory for the model's input and output tensors
-  if (tflInterpreter->AllocateTensors() != kTfLiteOk) {
-    Serial.println("AllocateTensors failed!");
-    systemHaltWithledPattern(LED_RED, 2);
-  };
-
-  // Get pointers for the model's input and output tensors
-  tflInputTensor = tflInterpreter->input(0);
-  tflOutputTensor = tflInterpreter->output(0);
-}
-#endif
