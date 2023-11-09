@@ -190,8 +190,15 @@ void myinthandler() {
 void setup() {
   configGpio();
   Serial.begin(115200);
-  while (!Serial)
+  int i = 0;
+  while (!Serial) {
+    digitalWrite(LED_RED, LIGHT_ON);
     delay(10);
+    if (++i > 1000) {
+      break;
+    }
+  }
+    digitalWrite(LED_RED, LIGHT_OFF);
 
 #ifdef TSFLOW
   loadTFLiteModel();
@@ -243,7 +250,7 @@ int tensorIndex = 0;
 int count = 0;
 int tmp = 0;
 
-#define report_freq 3
+#define report_freq 1
 
 int lastx, lasty;
 int left, right;
