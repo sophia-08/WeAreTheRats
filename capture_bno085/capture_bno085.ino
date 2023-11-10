@@ -2,6 +2,7 @@
 #define BNO085
 // #define IMU_USE_RESET
 #define IMU_USE_INT
+#define sep ","
 
 #ifdef BNO085
 #include "Adafruit_BNO08x.h"
@@ -16,7 +17,7 @@ const float accelerationThreshold = 2.5; // threshold of significant in G's
 const int numSamples = 500; // 119;
 double samples[numSamples][6];
 
-int samplesRead = 0;
+int samplesRead = -1;
 #define out_samples 100
 
 int deviceMode;
@@ -129,7 +130,7 @@ void setup() {
     Serial.println("Failed to find BNO08x chip");
     systemHaltWithledPattern(LED_RED, 3);
   }
-  Serial.println("BNO08x Found!");
+  // Serial.println("BNO08x Found!");
 
   setReports();
   delay(100);
@@ -191,16 +192,15 @@ void loop() {
     } else {
       digitalWrite(LED_GREEN, LIGHT_OFF);
     }
-    if (digitalRead(KEYPAD_ACTIVATE) == HIGH) {
-      digitalWrite(LED_BLUE, LIGHT_ON);
-    } else {
+
       digitalWrite(LED_BLUE, LIGHT_OFF);
-    }
+    
   }
 
   // Capture has not started, ignore until user activate keypad
   if (!startedChar) {
     if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
+      samplesRead = -1;
       return;
     } else {
       // User activate keypad, check whether 2s passed since last capture
@@ -209,13 +209,17 @@ void loop() {
       //   return;
       // }
       // t1 = currentTime;
-      samplesRead = 0;
+      samplesRead = -1;
       startedChar = true;
     }
   }
 
-  delay(150);
-
+  // User finger is on keyboard_activation pad
+  // To begin, wait 200ms
+  delay(200);
+    // if (digitalRead(KEYPAD_ACTIVATE) == HIGH) {
+  
+    // } 
   while (true) {
   wait:
     // User deactivated keypad
@@ -238,43 +242,61 @@ void loop() {
     if (newData) {
       uint32_t now = micros();
       newData = false;
+
+      // Wait for hand to rest 
+      if (samplesRead == -1) {
+        if (abs(accl[0]) + abs(accl[1]) + abs(accl[2]) > 1) {
+          // Serial.println("wait idle");
+          continue;
+        }
+        digitalWrite(LED_BLUE, LIGHT_ON);
+        samplesRead = 0;
+        continue;
+      }
+      
+      // wait for hand to move
+      if (samplesRead == 0) {
+        if (abs(accl[0]) + abs(accl[1]) + abs(accl[2]) < 4) {
+          // Serial.println("wait move");
+          continue;
+        }
+      }      
+
+      // Capture samples until keyboard_activation is release.
+
       Serial.print(samplesRead);
-      Serial.print("\t");
+      Serial.print(sep);
       Serial.print(now - last);
-      Serial.print("\t");
+      Serial.print(sep);
       last = now;
       Serial.print(calStatus);
-      // Serial.print("\t");
+      // Serial.print(sep);
       // This is accuracy in the range of 0 to 3
       int i;
       for (i = 0; i < 4; i++) {
-        Serial.print("\t");
-        Serial.print(rtVector[i]);
+        Serial.print(sep);
+        Serial.print(rtVector[i],5);
       }
       for (i = 0; i < 3; i++) {
-        Serial.print("\t");
-        Serial.print(accl[i]);
+        Serial.print(sep);
+        Serial.print(accl[i],5);
       }
       for (i = 0; i < 3; i++) {
-        Serial.print("\t");
-        Serial.print(gyro[i]);
+        Serial.print(sep);
+        Serial.print(gyro[i],5);
       }
 
       quaternionToEuler(rtVector[0], rtVector[1], rtVector[2], rtVector[3],
                         &ypr, false);
 
-      Serial.print("\t");
-      Serial.print(ypr.yaw);
-      Serial.print("\t");
-      Serial.print(ypr.pitch);
-      Serial.print("\t");
-      Serial.print(ypr.roll);
+      Serial.print(sep);
+      Serial.print(ypr.yaw,5);
+      Serial.print(sep);
+      Serial.print(ypr.pitch,5);
+      Serial.print(sep);
+      Serial.print(ypr.roll,5);
       Serial.println("");
-      if (samplesRead == 0) {
-        if (abs(accl[0]) + abs(accl[1]) + abs(accl[2]) < 3) {
-          continue;
-        }
-      }
+
       samplesRead++;
     }
   }
