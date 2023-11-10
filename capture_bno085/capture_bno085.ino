@@ -216,7 +216,21 @@ void loop() {
 
   // User finger is on keyboard_activation pad
   // To begin, wait 200ms
-  delay(200);
+  // delay(200);
+
+  // Loop to read 20 samples, at 100Hz, takes 200ms
+  // This is better than delay, clear up data in IMU.
+  for (int i=0; i<20;) {
+
+    while (digitalRead(IMU_INT) == HIGH) {
+    }
+    if (bno08x.getSensorEvent(&sensorValue)) {
+    }
+    if (newData) {
+      i++;
+      newData = false;
+    }
+  }
     // if (digitalRead(KEYPAD_ACTIVATE) == HIGH) {
   
     // } 
