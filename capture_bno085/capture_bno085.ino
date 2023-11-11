@@ -3,6 +3,7 @@
 // #define IMU_USE_RESET
 #define IMU_USE_INT
 #define sep ","
+#define PRECISION 5
 
 #ifdef BNO085
 #include "Adafruit_BNO08x.h"
@@ -158,7 +159,7 @@ int last_left, last_right;
 
 bool inference_started = false;
 
-#define PRECISION 4
+
 float lastAx, lastAy, lastAz;
 float lastHeading, lastRoll;
 bool startedChar = false;
@@ -289,26 +290,26 @@ void loop() {
       int i;
       for (i = 0; i < 4; i++) {
         Serial.print(sep);
-        Serial.print(rtVector[i],5);
+        Serial.print(rtVector[i],PRECISION);
       }
       for (i = 0; i < 3; i++) {
         Serial.print(sep);
-        Serial.print(accl[i],5);
+        Serial.print(accl[i],PRECISION);
       }
       for (i = 0; i < 3; i++) {
         Serial.print(sep);
-        Serial.print(gyro[i],5);
+        Serial.print(gyro[i],PRECISION);
       }
 
       quaternionToEuler(rtVector[0], rtVector[1], rtVector[2], rtVector[3],
                         &ypr, false);
 
       Serial.print(sep);
-      Serial.print(ypr.yaw,5);
+      Serial.print(ypr.yaw,PRECISION);
       Serial.print(sep);
-      Serial.print(ypr.pitch,5);
+      Serial.print(ypr.pitch,PRECISION);
       Serial.print(sep);
-      Serial.print(ypr.roll,5);
+      Serial.print(ypr.roll,PRECISION);
       Serial.println("");
 
       samplesRead++;
