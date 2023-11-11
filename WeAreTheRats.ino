@@ -481,6 +481,9 @@ void loop() {
     tensorIndex = 0;
     inference_started = false;
     startedChar = false;
+    digitalWrite(LED_RED, LIGHT_ON);
+    delay(500);
+    digitalWrite(LED_RED, LIGHT_OFF);    
     return;
   }
 
@@ -516,6 +519,11 @@ void loop() {
       };
     }
     Serial.println(ch);
+    if (ch == '.') {
+          digitalWrite(LED_RED, LIGHT_ON);
+    delay(500);
+    digitalWrite(LED_RED, LIGHT_OFF);   
+    }
 
     // Send KEY_DOWN
     blehid.keyPress(ch);
