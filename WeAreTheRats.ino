@@ -33,7 +33,7 @@ const float accelerationThreshold = 2.5; // threshold of significant in G's
 
 int samplesRead = 0;
 #define out_samples 150
-  int tensorIndex = 0;
+int tensorIndex = 0;
 #define accl_min -30.0
 #define accl_max 30.0
 #define gyro_min -15.0
@@ -72,7 +72,7 @@ struct euler_t {
   float yaw;
   float pitch;
   float roll;
-} ypr;
+} ypr, ypr0;
 
 Adafruit_BNO08x bno08x(BNO08X_RESET);
 sh2_SensorValue_t sensorValue;
@@ -133,7 +133,7 @@ TfLiteTensor *tflOutputTensor = nullptr;
 
 // Create a static memory buffer for TFLM, the size may need to
 // be adjusted based on the model you are using
-constexpr int tensorArenaSize = 190 * 1024;
+constexpr int tensorArenaSize = 170 * 1024;
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 #endif
 
@@ -154,9 +154,9 @@ void setup() {
   while (!Serial) {
     digitalWrite(LED_RED, LIGHT_ON);
     delay(10);
-    if (++i > 1000) {
-      break;
-    }
+    // if (++i > 1000) {
+    //   break;
+    // }
   }
   digitalWrite(LED_RED, LIGHT_OFF);
 
@@ -192,30 +192,28 @@ void setup() {
 }
 
 int count = 0;
-int tmp = 0;
-
 #define report_freq 1
-
-int lastx, lasty;
-int left, right;
-int last_left, last_right;
-
 bool inference_started = false;
 
 #define PRECISION 4
-float lastAx, lastAy, lastAz;
-float lastHeading, lastRoll;
 bool startedChar = false;
 int t1 = 0;
 int ledCount;
 bool needSendKeyRelease = false;
 float xAngle, yAngle, lastXAngle, lastYAngle;
 
-bool d2;
-
-int lastSent;
-int currentSent;
-int sleepCount;
+#define pi 3.14159265358979323846
+float calRotation(float x, float x0) {
+  float tmp1;
+  tmp1 = x - x0;
+  if (tmp1 > pi) {
+    tmp1 -= pi * 2;
+  }
+  if (tmp1 < -pi) {
+    tmp1 += pi * 2;
+  }
+  return tmp1;
+}
 
 void loop() {
 
@@ -298,20 +296,6 @@ void loop() {
     yAngle = ypr.roll;
   }
 
-#endif
-
-#ifdef ENABLE_SLEEP
-  if (digitalRead(DEVICE_ACTIVATE) == LOW) {
-    sleepCount++;
-  } else {
-    sleepCount = 0;
-  }
-
-  if (sleepCount > 100) {
-    // digitalWrite(LED_RED, LIGHT_ON);
-    systemSleep();
-    // digitalWrite(LED_RED, LIGHT_OFF);
-  }
 #endif
 
   if (deviceMode == DEVICE_MOUSE_MODE) {
@@ -460,15 +444,30 @@ void loop() {
       quaternionToEuler(rtVector[0], rtVector[1], rtVector[2], rtVector[3],
                         &ypr, false);
 
-      tflInputTensor->data.f[tensorIndex++] = (accl[0]- accl_min) / (accl_max - accl_min);
-      tflInputTensor->data.f[tensorIndex++] = (accl[1]- accl_min) / (accl_max - accl_min);
-      tflInputTensor->data.f[tensorIndex++] = (accl[2]- accl_min) / (accl_max - accl_min);
-      tflInputTensor->data.f[tensorIndex++] = (gyro[0]- gyro_min) / (gyro_max - gyro_min);
-      tflInputTensor->data.f[tensorIndex++] = (gyro[1] - gyro_min) / (gyro_max - gyro_min);
-      tflInputTensor->data.f[tensorIndex++] = (gyro[2]- gyro_min) / (gyro_max - gyro_min);
-      tflInputTensor->data.f[tensorIndex++] = (ypr.yaw- roto_min) / (roto_max - roto_min);
-      tflInputTensor->data.f[tensorIndex++] = (ypr.pitch- roto_min) / (roto_max - roto_min);
-      tflInputTensor->data.f[tensorIndex++] = (ypr.roll- roto_min) / (roto_max - roto_min);
+      if (samplesRead == 0) {
+        ypr0 = ypr;
+      }
+
+      tflInputTensor->data.f[tensorIndex++] =
+          (accl[0] - accl_min) / (accl_max - accl_min);
+      tflInputTensor->data.f[tensorIndex++] =
+          (accl[1] - accl_min) / (accl_max - accl_min);
+      tflInputTensor->data.f[tensorIndex++] =
+          (accl[2] - accl_min) / (accl_max - accl_min);
+      tflInputTensor->data.f[tensorIndex++] =
+          (gyro[0] - gyro_min) / (gyro_max - gyro_min);
+      tflInputTensor->data.f[tensorIndex++] =
+          (gyro[1] - gyro_min) / (gyro_max - gyro_min);
+      tflInputTensor->data.f[tensorIndex++] =
+          (gyro[2] - gyro_min) / (gyro_max - gyro_min);
+
+      tflInputTensor->data.f[tensorIndex++] =
+          (calRotation(ypr.yaw, ypr0.yaw) - roto_min) / (roto_max - roto_min);
+      tflInputTensor->data.f[tensorIndex++] =
+          (calRotation(ypr.pitch, ypr0.pitch) - roto_min) /
+          (roto_max - roto_min);
+      tflInputTensor->data.f[tensorIndex++] =
+          (calRotation(ypr.roll, ypr0.roll) - roto_min) / (roto_max - roto_min);
 
       samplesRead++;
     }
@@ -485,9 +484,10 @@ void loop() {
     return;
   }
 
-  Serial.print("tensor ");    Serial.println(tensorIndex);
-  for (int i = tensorIndex; i < out_samples*9; i++) {
-      tflInputTensor->data.f[i] = 0;
+  Serial.print("tensor ");
+  Serial.println(tensorIndex);
+  for (int i = tensorIndex; i < out_samples * 9; i++) {
+    tflInputTensor->data.f[i] = 0;
   }
 
 #ifdef TSFLOW
@@ -635,7 +635,6 @@ void scanOneClickButton(uint8_t keyIndex) {
   }
 
   //  edge is detected
-  // Serial.println(left);
   clickButtonLastState[keyIndex] = state;
 
   switch (clickButtons[keyIndex]) {
