@@ -222,7 +222,6 @@ void loop() {
   // Loop to read 20 samples, at 100Hz, takes 200ms
   // This is better than delay, clear up data in IMU.
   for (int i=0; i<20;) {
-
     while (digitalRead(IMU_INT) == HIGH) {
     }
     if (bno08x.getSensorEvent(&sensorValue)) {
