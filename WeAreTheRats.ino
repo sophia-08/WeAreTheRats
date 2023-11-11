@@ -1,13 +1,11 @@
 // #define TOM
-// #define BNO055
-// #define TSFLOW
+#define BNO055
+#define TSFLOW
 #define BNO085
 // #define IMU_USE_RESET
 #define IMU_USE_INT
 // #include "LSM6DS3.h"
-#ifdef BNO055
-#include "Adafruit_BNO055.h"
-#endif
+
 #ifdef BNO085
 #include "Adafruit_BNO08x.h"
 #endif
@@ -33,11 +31,11 @@
 
 const float accelerationThreshold = 2.5; // threshold of significant in G's
 
-const int numSamples = 500; // 119;
+const int numSamples = 200; // 119;
 double samples[numSamples][6];
 
 int samplesRead = 0;
-#define out_samples 100
+#define out_samples 150
 
 int deviceMode;
 BLEDis bledis;
@@ -65,11 +63,6 @@ uint8_t readData;
 
 float roll0, pitch0, yaw0;
 float roll, pitch, yaw;
-
-#ifdef BNO055
-Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
-sensors_event_t orientationData, linearAccelData, angVelData, magneticData;
-#endif
 
 #ifdef BNO085
 // New data available.  currently for keyboard, new data available every 10ms;
@@ -194,22 +187,13 @@ void setup() {
       break;
     }
   }
-    digitalWrite(LED_RED, LIGHT_OFF);
+  digitalWrite(LED_RED, LIGHT_OFF);
 
 #ifdef TSFLOW
   loadTFLiteModel();
 #endif
 
   initAndStartBLE();
-
-#ifdef BNO055
-  if (!bno.begin()) {
-    Serial.print("No BNO055 detected");
-    systemHaltWithledPattern(LED_RED, 3);
-  }
-  Serial.print("bno mode ");
-  Serial.println(bno.getMode());
-#endif
 
 #ifdef BNO085
   // Try to initialize!
@@ -264,67 +248,6 @@ bool needSendKeyRelease = false;
 float xAngle, yAngle, lastXAngle, lastYAngle;
 
 bool d2;
-
-bool readIMU() {
-#ifdef BNO055
-  // bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
-  bno.getEvent(&angVelData, Adafruit_BNO055::VECTOR_GYROSCOPE);
-  bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
-#endif
-  return true;
-}
-
-bool readIMUOrientation1() {
-#ifdef BNO055
-  int loop = 0;
-  d2 = !d2;
-  // digitalWrite(DEBUG_2, d2);
-  // Wait upto 25*0.5 ms. The IMU was configured to 100Hz, so shall has new data
-  // every 10ms
-  while (loop <= 25) {
-    loop++;
-    bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
-    if (orientationData.orientation.heading == lastHeading &&
-        orientationData.orientation.roll == lastRoll) {
-      delay(0.5);
-    } else {
-      break;
-    }
-  }
-
-  lastHeading = orientationData.orientation.heading;
-  lastRoll = orientationData.orientation.roll;
-#endif
-  return true;
-}
-
-bool readIMUOrientation() {
-#ifdef BNO055
-  int loop = 0;
-  d2 = !d2;
-  // digitalWrite(DEBUG_2, d2);
-  // Wait upto 25*0.5 ms. The IMU was configured to 100Hz, so shall has new data
-  // every 10ms
-
-  // while (loop <= 25) {
-  //    loop++;
-  //    bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
-  //    if (linearAccelData.acceleration.x == lastAx &&
-  //    linearAccelData.acceleration.y == lastAy &&
-  //    linearAccelData.acceleration.z == lastAz) {
-  //      delay(0.5);
-  //    } else {
-  //      lastAx = linearAccelData.acceleration.x;
-  //      lastAy = linearAccelData.acceleration.y;
-  //      lastAz = linearAccelData.acceleration.z;
-  //      break;
-  //    }
-  //  }
-  bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
-  // bno.getEvent(&magneticData, Adafruit_BNO055::VECTOR_MAGNETOMETER);
-#endif
-  return true;
-}
 
 int lastSent;
 int currentSent;
@@ -389,7 +312,7 @@ void loop() {
     last = now;
     Serial.print(calStatus);
     Serial.print("\t");
-    // This is accuracy in the range of 0 to 3 
+    // This is accuracy in the range of 0 to 3
     int i;
     for (i = 0; i < 4; i++) {
       Serial.print("\t");
@@ -428,54 +351,6 @@ void loop() {
 #endif
 
   if (deviceMode == DEVICE_MOUSE_MODE) {
-#ifdef BNO055
-    // In mouse mode, we only need orientation.
-    readIMUOrientation();
-
-    // In sense fuse mdoe, The IMU runs at 100Hz, which means new data every
-    // 10ms. The loop() runs about every 4ms. It's not meanful to process the
-    // IMU data if it's stale data. So here we check and only continue after new
-    // IMU data is available. Here we also assume for each sample, the IMU read
-    // changes.
-
-    if (lastAx == orientationData.orientation.roll &&
-        lastAy == orientationData.orientation.pitch) {
-      return;
-    } else {
-      lastAx = orientationData.orientation.roll;
-      lastAy = orientationData.orientation.pitch;
-    }
-
-    // The below code shall run at interval of 10ms
-
-    // currentSent = millis();
-    // Serial.println(currentSent - lastSent);
-    // lastSent = currentSent;
-
-    // With current hardware setup:
-    // pitch map to vertical movement (y). from top to bottom, y decrease 90 -
-    // -90 roll map to horizontal movement (x). from left to right, x increase.
-    // 0 - 360
-
-    // Serial.print(orientationData.orientation.pitch);
-    // Serial.print(",");
-    // Serial.print(orientationData.orientation.roll);
-    // Serial.print(",");
-    // Serial.println(orientationData.orientation.heading);
-    // Serial.print(",");
-    // Serial.print(magneticData.magnetic.x);
-    // Serial.print(",");
-    // // Serial.print(",");
-    // Serial.print(magneticData.magnetic.y);
-    // Serial.print(",");
-    // Serial.println(magneticData.magnetic.z);
-    // // Serial.print(",");
-
-    // return;
-
-    xAngle = orientationData.orientation.roll;
-    yAngle = orientationData.orientation.pitch;
-#endif
     if (count == report_freq - 1) {
       lastXAngle = xAngle;
       lastYAngle = yAngle;
@@ -562,53 +437,6 @@ void loop() {
       inference_started = true;
       break;
     }
-    readIMU();
-
-#ifdef BNO055
-    if (linearAccelData.acceleration.x == lastAx &&
-        linearAccelData.acceleration.y == lastAy &&
-        linearAccelData.acceleration.z == lastAz) {
-      delay(0.5);
-      goto wait;
-    } else {
-      lastAx = linearAccelData.acceleration.x;
-      lastAy = linearAccelData.acceleration.y;
-      lastAz = linearAccelData.acceleration.z;
-      samples[samplesRead][0] = linearAccelData.acceleration.x;
-      samples[samplesRead][1] = linearAccelData.acceleration.y;
-      samples[samplesRead][2] = linearAccelData.acceleration.z;
-      samples[samplesRead][3] = angVelData.gyro.x;
-      samples[samplesRead][4] = angVelData.gyro.y;
-      samples[samplesRead][5] = angVelData.gyro.z;
-
-      for (int i = 0; i < 3; i++) {
-        if (minAccl > samples[samplesRead][i]) {
-          minAccl = samples[samplesRead][i];
-        }
-        if (maxAccl < samples[samplesRead][i]) {
-          maxAccl = samples[samplesRead][i];
-        }
-      }
-      for (int i = 3; i < 6; i++) {
-        if (minGyro > samples[samplesRead][i]) {
-          minGyro = samples[samplesRead][i];
-        }
-        if (maxGyro < samples[samplesRead][i]) {
-          maxGyro = samples[samplesRead][i];
-        }
-      }
-      // Serial.print(samplesRead);
-      // Serial.print(',');
-      // for (int i = 0; i < 5; i++) {
-      //   Serial.print(samples[samplesRead][i], PRECISION);
-      //   Serial.print(',');
-      // }
-      // Serial.println(samples[samplesRead][5], PRECISION);
-      samplesRead++;
-      d2 = !d2;
-      // digitalWrite(DEBUG_2, d2);
-    }
-#endif
 
     // In case user hold the ACTIVATE button too long
     if (samplesRead >= numSamples) {
@@ -674,47 +502,7 @@ void loop() {
     // Send KEY_UP at next loop
     needSendKeyRelease = true;
 #endif
-
-#if 1
-    // ledgreen = !ledgreen;
-    // ledgreen = (ledgreen + 1) % 400;
-    // digitalWrite(LED_GREEN, ledgreen);
-    // Serial.println("loop");
-    // blehid.mouseMove(20, 50);
-
-    // {
-    //   Serial.print(accelX);
-    //   Serial.print(",");
-    //   Serial.print(accelY);
-    //   Serial.print(",");
-    //   Serial.print(accelZ);
-    //   Serial.print(",");
-
-    //   Serial.print(-x);
-    //   Serial.print(",");
-    //   Serial.println(y);
-    // }
-
-    // yaw0 = yaw;
-    // pitch0 = pitch;
-
-    // Serial.print(yaw);
-    // Serial.print(",");
-    // Serial.print(yaw0);
-    // Serial.print(",  \t");
-    // Serial.print(pitch);
-    // Serial.print(",");
-    // Serial.print(pitch0);
-    // Serial.print(",  \t");
-    // Serial.print(x);
-    // Serial.print(",");
-    // Serial.println(y);
   }
-
-// Serial.print(roll);Serial.print(",");
-// Serial.print(pitch);Serial.print(",");
-// Serial.println(yaw);
-#endif
 }
 
 #ifdef TOM
@@ -1126,7 +914,7 @@ void initAndStartBLE() {
   Bluefruit.Central.setConnectCallback(cent_connect_callback);
   Bluefruit.Central.setDisconnectCallback(cent_disconnect_callback);
 #else
-    Bluefruit.begin();
+  Bluefruit.begin();
 #endif
   // HID Device can have a min connection interval of 9*1.25 = 11.25 ms
   Bluefruit.Periph.setConnInterval(9, 16);
