@@ -1,5 +1,5 @@
 // #define TOM
-#define BNO055
+
 #define TSFLOW
 #define BNO085
 // #define IMU_USE_RESET
@@ -46,23 +46,12 @@ BLEHidAdafruit blehid;
 BLEClientUart clientUart;
 #endif
 
-float accelX, accelY, accelZ, // units m/s/s i.e. accelZ if often 9.8 (gravity)
-    gyroX, gyroY, gyroZ,      // units dps (degrees per second)
-    gyroDriftX, gyroDriftY, gyroDriftZ, // units dps
-    gyroRoll, gyroPitch, gyroYaw,       // units degrees (expect major drift)
-    gyroCorrectedRoll, gyroCorrectedPitch,
-    gyroCorrectedYaw, // units degrees (expect minor drift)
-    accRoll, accPitch,
-    accYaw, // units degrees (roll and pitch noisy, yaw not possible)
-    complementaryRoll, complementaryPitch,
-    complementaryYaw; // units degrees (excellent roll, pitch, yaw minor drift)
 
-long lastTime;
-long lastInterval;
-uint8_t readData;
 
-float roll0, pitch0, yaw0;
-float roll, pitch, yaw;
+
+
+
+
 
 #ifdef BNO085
 // New data available.  currently for keyboard, new data available every 10ms;
@@ -156,20 +145,6 @@ const char *GESTURES = "abcdefghijklmnopqrstuvwxyz";
 
 #define NUM_GESTURES 26
 
-int ledgreen = 0;
-int ledred = 0;
-
-void myinthandler() {
-  static int xx;
-  xx++;
-  // newData = true;
-  // Serial.println("int");
-  if (xx % 100 < 2) {
-    digitalWrite(LED_RED, LIGHT_ON);
-  } else {
-    digitalWrite(LED_RED, LIGHT_OFF);
-  }
-}
 
 // const uint8_t BLEUART_UUID_SERVICE[] =
 // {
@@ -210,7 +185,7 @@ void setup() {
 #endif
 
   // calibrateIMU(250, 250);
-  lastTime = micros();
+
   deviceMode = DEVICE_MOUSE_MODE;
 
   // nrf_gpio_cfg_sense_input(g_ADigitalPinMap[IMU_INT],
@@ -599,7 +574,7 @@ uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
 uint8_t clickButtonLastState[] = {HIGH, HIGH, HIGH, HIGH};
 uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0};
 uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0};
-// int lastTimestampScanMouseClick;
+
 
 void scanOneClickButton(uint8_t keyIndex) {
 
