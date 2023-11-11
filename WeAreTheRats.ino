@@ -31,11 +31,15 @@
 
 const float accelerationThreshold = 2.5; // threshold of significant in G's
 
-const int numSamples = 200; // 119;
-float samples[numSamples][9];
-
 int samplesRead = 0;
 #define out_samples 150
+  int tensorIndex = 0;
+#define accl_min -30.0
+#define accl_max 30.0
+#define gyro_min -15.0
+#define gyro_max 15.0
+#define roto_min -3.0
+#define roto_max 2.0
 
 int deviceMode;
 BLEDis bledis;
@@ -410,7 +414,7 @@ void loop() {
       break;
     }
 
-    if (samplesRead >= numSamples) {
+    if (samplesRead >= out_samples) {
       // Wait for user release the button
       while (digitalRead(KEYPAD_ACTIVATE) == HIGH)
         ;
@@ -449,21 +453,22 @@ void loop() {
           // Serial.println("wait move");
           continue;
         }
+        tensorIndex = 0;
       }
 
       // Capture samples until keyboard_activation is release.
       quaternionToEuler(rtVector[0], rtVector[1], rtVector[2], rtVector[3],
                         &ypr, false);
 
-      samples[samplesRead][0] = accl[0];
-      samples[samplesRead][1] = accl[1];
-      samples[samplesRead][2] = accl[2];
-      samples[samplesRead][3] = gyro[0];
-      samples[samplesRead][4] = gyro[1];
-      samples[samplesRead][5] = gyro[2];
-      samples[samplesRead][6] = ypr.yaw;
-      samples[samplesRead][7] = ypr.pitch;
-      samples[samplesRead][8] = ypr.roll;
+      tflInputTensor->data.f[tensorIndex++] = (accl[0]- accl_min) / (accl_max - accl_min);
+      tflInputTensor->data.f[tensorIndex++] = (accl[1]- accl_min) / (accl_max - accl_min);
+      tflInputTensor->data.f[tensorIndex++] = (accl[2]- accl_min) / (accl_max - accl_min);
+      tflInputTensor->data.f[tensorIndex++] = (gyro[0]- gyro_min) / (gyro_max - gyro_min);
+      tflInputTensor->data.f[tensorIndex++] = (gyro[1] - gyro_min) / (gyro_max - gyro_min);
+      tflInputTensor->data.f[tensorIndex++] = (gyro[2]- gyro_min) / (gyro_max - gyro_min);
+      tflInputTensor->data.f[tensorIndex++] = (ypr.yaw- roto_min) / (roto_max - roto_min);
+      tflInputTensor->data.f[tensorIndex++] = (ypr.pitch- roto_min) / (roto_max - roto_min);
+      tflInputTensor->data.f[tensorIndex++] = (ypr.roll- roto_min) / (roto_max - roto_min);
 
       samplesRead++;
     }
@@ -473,18 +478,21 @@ void loop() {
   if (samplesRead < 60) {
     Serial.print("not enough samples, ");
     Serial.println(samplesRead);
-    samplesRead = 0;
+    samplesRead = -1;
+    tensorIndex = 0;
     inference_started = false;
     startedChar = false;
     return;
   }
 
+  Serial.print("tensor ");    Serial.println(tensorIndex);
+  for (int i = tensorIndex; i < out_samples*9; i++) {
+      tflInputTensor->data.f[i] = 0;
+  }
+
 #ifdef TSFLOW
   if (inference_started) {
     inference_started = false;
-
-
-    preprocessData();
 
     // Invoke ML inference
     TfLiteStatus invokeStatus = tflInterpreter->Invoke();
@@ -965,62 +973,6 @@ void initAndStartBLE() {
   startAdv();
 }
 
-#ifdef TSFLOW
-/**
- * @brief
- *
- * @note expect sample input data in sequences of accelX, accelY, accelZ,
- * gyroX, gyroY, gyroZ
- */
-void preprocessData() {
-  int tensorIndex = 0;
-#define accl_min -30.0
-#define accl_max 30.0
-#define gyro_min -15.0
-#define gyro_max 15.0
-#define roto_min -3.0
-#define roto_max 2.0
-
-  int no = out_samples;
-  if (samplesRead < no) {
-    no = samplesRead;
-  }
-
-  for (int i = 0; i < no; i++) {
-    tflInputTensor->data.f[tensorIndex++] =
-        (samples[i][0] - accl_min) / (accl_max - accl_min);
-    tflInputTensor->data.f[tensorIndex++] =
-        (samples[i][1] - accl_min) / (accl_max - accl_min);
-    tflInputTensor->data.f[tensorIndex++] =
-        (samples[i][2] - accl_min) / (accl_max - accl_min);
-    tflInputTensor->data.f[tensorIndex++] =
-        (samples[i][3] - gyro_min) / (gyro_max - gyro_min);
-    tflInputTensor->data.f[tensorIndex++] =
-        (samples[i][4] - gyro_min) / (gyro_max - gyro_min);
-    tflInputTensor->data.f[tensorIndex++] =
-        (samples[i][5] - gyro_min) / (gyro_max - gyro_min);
-    tflInputTensor->data.f[tensorIndex++] =
-        (samples[i][6] - roto_min) / (roto_max - roto_min);
-    tflInputTensor->data.f[tensorIndex++] =
-        (samples[i][7] - roto_min) / (roto_max - roto_min);
-    tflInputTensor->data.f[tensorIndex++] =
-        (samples[i][8] - roto_min) / (roto_max - roto_min);
-  }
-
-  for (int i = no; i < out_samples; i++) {
-    for (int j = 0; j < 9; j++) {
-      tflInputTensor->data.f[tensorIndex++] = 0;
-    }
-  }
-
-  Serial.print("Samples:");
-  Serial.print(samplesRead);
-  Serial.print(", tensor ");
-  Serial.println(tensorIndex);
-
-  // dumpTensors();
-}
-#endif
 // void dumpTensors() {
 //   for (int i = 0; i < tensorIndex;) {
 //     Serial.print(tflInputTensor->data.f[i++]);
