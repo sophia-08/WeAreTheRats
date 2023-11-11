@@ -32,7 +32,7 @@
 const float accelerationThreshold = 2.5; // threshold of significant in G's
 
 const int numSamples = 200; // 119;
-double samples[numSamples][6];
+float samples[numSamples][9];
 
 int samplesRead = 0;
 #define out_samples 150
@@ -45,13 +45,6 @@ BLEHidAdafruit blehid;
 // Central uart client
 BLEClientUart clientUart;
 #endif
-
-
-
-
-
-
-
 
 #ifdef BNO085
 // New data available.  currently for keyboard, new data available every 10ms;
@@ -136,7 +129,7 @@ TfLiteTensor *tflOutputTensor = nullptr;
 
 // Create a static memory buffer for TFLM, the size may need to
 // be adjusted based on the model you are using
-constexpr int tensorArenaSize = 128 * 1024;
+constexpr int tensorArenaSize = 190 * 1024;
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 #endif
 
@@ -144,7 +137,6 @@ byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 const char *GESTURES = "abcdefghijklmnopqrstuvwxyz";
 
 #define NUM_GESTURES 26
-
 
 // const uint8_t BLEUART_UUID_SERVICE[] =
 // {
@@ -194,13 +186,6 @@ void setup() {
   //
   // attachInterrupt(IMU_INT, myinthandler, FALLING); // RISING
 }
-
-float minAccl = 10;
-float minGyro = 10;
-float maxAccl = -10;
-float maxGyro = -10;
-float rangeOfAccl, rangeOfGyro;
-int tensorIndex = 0;
 
 int count = 0;
 int tmp = 0;
@@ -282,26 +267,26 @@ void loop() {
   if (newData) {
     uint32_t now = micros();
     newData = false;
-    Serial.print(now - last);
-    Serial.print("\t");
-    last = now;
-    Serial.print(calStatus);
-    Serial.print("\t");
-    // This is accuracy in the range of 0 to 3
-    int i;
-    for (i = 0; i < 4; i++) {
-      Serial.print("\t");
-      Serial.print(rtVector[i]);
-    }
-    for (i = 0; i < 3; i++) {
-      Serial.print("\t");
-      Serial.print(accl[i]);
-    }
-    for (i = 0; i < 3; i++) {
-      Serial.print("\t");
-      Serial.print(gyro[i]);
-    }
-    Serial.println("");
+    // Serial.print(now - last);
+    // Serial.print("\t");
+    // last = now;
+    // Serial.print(calStatus);
+    // Serial.print("\t");
+    // // This is accuracy in the range of 0 to 3
+    // int i;
+    // for (i = 0; i < 4; i++) {
+    //   Serial.print("\t");
+    //   Serial.print(rtVector[i]);
+    // }
+    // for (i = 0; i < 3; i++) {
+    //   Serial.print("\t");
+    //   Serial.print(accl[i]);
+    // }
+    // for (i = 0; i < 3; i++) {
+    //   Serial.print("\t");
+    //   Serial.print(gyro[i]);
+    // }
+    // Serial.println("");
 
     quaternionToEuler(rtVector[0], rtVector[1], rtVector[2], rtVector[3], &ypr,
                       true);
@@ -384,6 +369,7 @@ void loop() {
   // Capture has not started, ignore until user activate keypad
   if (!startedChar) {
     if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
+      samplesRead = -1;
       return;
     } else {
       // User activate keypad, check whether 2s passed since last capture
@@ -393,19 +379,30 @@ void loop() {
       // }
       // t1 = currentTime;
       startedChar = true;
-      samplesRead = 0;
-      minAccl = 10;
-      minGyro = 10;
-      maxAccl = -10;
-      maxGyro = -10;
+      samplesRead = -1;
     }
   }
 
-  digitalWrite(LED_BLUE, LIGHT_ON);
+  // User finger is on keyboard_activation pad
+  // To begin, wait 200ms
+  // delay(200);
+
+  // Loop to read 20 samples, at 100Hz, takes 200ms
+  // This is better than delay, clear up data in IMU.
+  for (int i = 0; i < 20;) {
+    while (digitalRead(IMU_INT) == HIGH) {
+    }
+    if (bno08x.getSensorEvent(&sensorValue)) {
+    }
+    if (newData) {
+      i++;
+      newData = false;
+    }
+  }
 
   // Keep sampling until user release the ACTIVATE button
   while (true) {
-  wait:
+
     // User deactivated keypad
     if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
       startedChar = false;
@@ -413,15 +410,67 @@ void loop() {
       break;
     }
 
-    // In case user hold the ACTIVATE button too long
     if (samplesRead >= numSamples) {
-      samplesRead = 0;
+      // Wait for user release the button
+      while (digitalRead(KEYPAD_ACTIVATE) == HIGH)
+        ;
+      startedChar = false;
+      inference_started = true;
+      break;
+    }
+
+// BNO085 pull IMU_INT LOW when data is ready
+// so do nothing in case of IMU_INT high
+#ifdef IMU_USE_INT
+    while (digitalRead(IMU_INT) == HIGH) {
+    }
+#endif
+    if (bno08x.getSensorEvent(&sensorValue)) {
+    }
+
+    if (newData) {
+      uint32_t now = micros();
+      newData = false;
+
+      // Wait for hand to rest
+      if (samplesRead == -1) {
+        if (abs(accl[0]) + abs(accl[1]) + abs(accl[2]) > 1) {
+          // Serial.println("wait idle");
+          continue;
+        }
+        digitalWrite(LED_BLUE, LIGHT_ON);
+        samplesRead = 0;
+        continue;
+      }
+
+      // wait for hand to move
+      if (samplesRead == 0) {
+        if (abs(accl[0]) + abs(accl[1]) + abs(accl[2]) < 4) {
+          // Serial.println("wait move");
+          continue;
+        }
+      }
+
+      // Capture samples until keyboard_activation is release.
+      quaternionToEuler(rtVector[0], rtVector[1], rtVector[2], rtVector[3],
+                        &ypr, false);
+
+      samples[samplesRead][0] = accl[0];
+      samples[samplesRead][1] = accl[1];
+      samples[samplesRead][2] = accl[2];
+      samples[samplesRead][3] = gyro[0];
+      samples[samplesRead][4] = gyro[1];
+      samples[samplesRead][5] = gyro[2];
+      samples[samplesRead][6] = ypr.yaw;
+      samples[samplesRead][7] = ypr.pitch;
+      samples[samplesRead][8] = ypr.roll;
+
+      samplesRead++;
     }
   }
 
-  digitalWrite(LED_BLUE, LIGHT_OFF);
   // Not enough samples, restart
-  if (samplesRead < out_samples) {
+  if (samplesRead < 60) {
     Serial.print("not enough samples, ");
     Serial.println(samplesRead);
     samplesRead = 0;
@@ -430,22 +479,11 @@ void loop() {
     return;
   }
 
-  Serial.print("ranges:");
-  Serial.print(minAccl);
-  Serial.print(",");
-  Serial.print(maxAccl);
-  Serial.print(",");
-  Serial.print(minGyro);
-  Serial.print(",");
-  Serial.println(maxGyro);
-
+#ifdef TSFLOW
   if (inference_started) {
     inference_started = false;
-    tensorIndex = 0;
-    rangeOfAccl = maxAccl - minAccl;
-    rangeOfGyro = maxGyro - minGyro;
 
-#ifdef TSFLOW
+
     preprocessData();
 
     // Invoke ML inference
@@ -476,8 +514,8 @@ void loop() {
 
     // Send KEY_UP at next loop
     needSendKeyRelease = true;
-#endif
   }
+#endif
 }
 
 #ifdef TOM
@@ -574,7 +612,6 @@ uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
 uint8_t clickButtonLastState[] = {HIGH, HIGH, HIGH, HIGH};
 uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0};
 uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0};
-
 
 void scanOneClickButton(uint8_t keyIndex) {
 
@@ -865,7 +902,8 @@ void startAdv(void) {
    * - Enable auto advertising if disconnected
    * - Interval:  fast mode = 20 ms, slow mode = 152.5 ms
    * - Timeout for fast mode is 30 seconds
-   * - Start(timeout) with timeout = 0 will advertise forever (until connected)
+   * - Start(timeout) with timeout = 0 will advertise forever (until
+   * connected)
    *
    * For recommended advertising interval
    * https://developer.apple.com/library/content/qa/qa1931/_index.html
@@ -879,8 +917,8 @@ void initAndStartBLE() {
 
 #ifdef TOM
   // Initialize Bluefruit with max concurrent connections as Peripheral = 1,
-  // Central = 1. SRAM usage required by SoftDevice will increase with number of
-  // connections
+  // Central = 1. SRAM usage required by SoftDevice will increase with number
+  // of connections
   Bluefruit.begin(1, 1);
   Bluefruit.Central.setConnInterval(100, 200);
   // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
@@ -931,99 +969,47 @@ void initAndStartBLE() {
 /**
  * @brief
  *
- * @note expect sample input data in sequences of accelX, accelY, accelZ, gyroX,
- * gyroY, gyroZ
+ * @note expect sample input data in sequences of accelX, accelY, accelZ,
+ * gyroX, gyroY, gyroZ
  */
 void preprocessData() {
-  int pointToRemove;
-  float decimate;
-  float accumulated = 0.0;
-  int removed = 0;
-  int start = 0;
-  int end = samplesRead - 1;
-  // Trim at front. if 2 out of 3 samples have total absolute accelerate read
-  // greater than threshold, make the start
-  while (true) {
-    int count = 0;
-    for (int i = 0; i < 3; i++) {
-      if (abs(samples[i + start][0]) + abs(samples[i + start][1]) +
-              abs(samples[i + start][2]) >
-          accelerationThreshold) {
-        count += 1;
-      }
-    }
-    if (count >= 2) {
-      break;
-    } else {
-      start += 1;
-    }
+  int tensorIndex = 0;
+#define accl_min -30.0
+#define accl_max 30.0
+#define gyro_min -15.0
+#define gyro_max 15.0
+#define roto_min -3.0
+#define roto_max 2.0
+
+  int no = out_samples;
+  if (samplesRead < no) {
+    no = samplesRead;
   }
 
-  // Trim at end,if 2 out of 3 samples have total absolute accelerate read
-  // greater than threshold, make the start
-  while (true) {
-    int count = 0;
-    for (int i = 0; i < 3; i++) {
-      if (abs(samples[end - i][0]) + abs(samples[end - i][1]) +
-              abs(samples[end - i][2]) >
-          3) {
-        count += 1;
-      }
-    }
-    if (count >= 2) {
-      break;
-    } else {
-      end -= 1;
-    }
+  for (int i = 0; i < no; i++) {
+    tflInputTensor->data.f[tensorIndex++] =
+        (samples[i][0] - accl_min) / (accl_max - accl_min);
+    tflInputTensor->data.f[tensorIndex++] =
+        (samples[i][1] - accl_min) / (accl_max - accl_min);
+    tflInputTensor->data.f[tensorIndex++] =
+        (samples[i][2] - accl_min) / (accl_max - accl_min);
+    tflInputTensor->data.f[tensorIndex++] =
+        (samples[i][3] - gyro_min) / (gyro_max - gyro_min);
+    tflInputTensor->data.f[tensorIndex++] =
+        (samples[i][4] - gyro_min) / (gyro_max - gyro_min);
+    tflInputTensor->data.f[tensorIndex++] =
+        (samples[i][5] - gyro_min) / (gyro_max - gyro_min);
+    tflInputTensor->data.f[tensorIndex++] =
+        (samples[i][6] - roto_min) / (roto_max - roto_min);
+    tflInputTensor->data.f[tensorIndex++] =
+        (samples[i][7] - roto_min) / (roto_max - roto_min);
+    tflInputTensor->data.f[tensorIndex++] =
+        (samples[i][8] - roto_min) / (roto_max - roto_min);
   }
 
-  Serial.print(start);
-  Serial.print(" e ");
-  Serial.println(end);
-
-  if (end - start + 1 > out_samples) {
-    pointToRemove = end - start + 1 - out_samples;
-    decimate = float(pointToRemove) / float(out_samples);
-    int i = start;
-    removed = 0;
-    accumulated = 0.0;
-    while (true) {
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][0] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][1] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][2] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][3] - minGyro) / rangeOfGyro;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][4] - minGyro) / rangeOfGyro;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][5] - minGyro) / rangeOfGyro;
-      accumulated += decimate;
-      while (accumulated >= 1) {
-        i += 1;
-        removed++;
-        accumulated -= 1;
-      }
-      i += 1;
-      if (i >= end) {
-        break;
-      }
-    }
-    if (removed < pointToRemove) {
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][0] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][1] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][2] - minAccl) / rangeOfAccl;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][3] - minGyro) / rangeOfGyro;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][4] - minGyro) / rangeOfGyro;
-      tflInputTensor->data.f[tensorIndex++] =
-          (samples[i][5] - minGyro) / rangeOfGyro;
+  for (int i = no; i < out_samples; i++) {
+    for (int j = 0; j < 9; j++) {
+      tflInputTensor->data.f[tensorIndex++] = 0;
     }
   }
 
