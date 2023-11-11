@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import glob
 import random
+import math
 
 file_path = "../capture_bno085/data/*.dat"
 file_index = 0
@@ -11,31 +12,18 @@ file_index = 0
 out_samples = 150
 
 
-def min_max_scaling(column, min_val, max_val):
-    scaled_column = (column - min_val) / (max_val - min_val)
-    return scaled_column
+#                  i            j            k            r           aX           aY           aZ           gX           gY           gZ           rx           ry           rz
+# min      -0.791140    -0.725280    -0.999940     0.000000   -21.003910   -27.644530   -15.917970   -12.785160    -6.890620    -8.861330    -1.218855    -1.171420    -2.541700
+# max       0.528630     0.721860     0.999820     0.999940    27.953120     6.628910    24.125000    10.705080     9.562500     8.347660     1.711840     1.518310     1.513890
 
+accl_min = -30.0
+accl_max = 30.0
+gyro_min = -15.0
+gyro_max = 15.0
+roto_min = -3.0
+roto_max = 2.0
 
-def save_out(out, filename):
-    min_a = min(out["aX"].min(), out["aY"].min(), out["aZ"].min())
-    max_a = max(out["aX"].max(), out["aY"].max(), out["aZ"].max())
-    min_g = min(out["gX"].min(), out["gY"].min(), out["gZ"].min())
-    max_g = max(out["gX"].max(), out["gY"].max(), out["gZ"].max())
-
-    print("Range of accel: ", min_a, "-", max_a, ", Range of gyro: ", min_g, "-", max_g)
-    if out.shape[0] != out_samples:
-        print("fix me, expect ", out_samples, "samples, but got ", out.shape[0])
-        exit(1)
-    # out = out[['aX','aY','aZ','gX', 'gY', 'gZ']]
-    out = out.drop("lineno", axis=1)
-    for col in ["aX", "aY", "aZ"]:
-        out[col] = min_max_scaling(out[col], min_a, max_a)
-    for col in ["gX", "gY", "gZ"]:
-        out[col] = min_max_scaling(out[col], min_a, max_a)
-    out.to_csv(filename, index=False, float_format="%.4f")
-
-
-columns = ["i", "j", "k", "r", "aX", "aY", "aZ", "gX", "gY", "gZ", "rx", "ry", "rx"]
+columns = ["i", "j", "k", "r", "aX", "aY", "aZ", "gX", "gY", "gZ", "rx", "ry", "rz"]
 mindf = pd.DataFrame(columns=columns)
 maxdf = pd.DataFrame(columns=columns)
 
@@ -51,7 +39,7 @@ for datafile in datafiles:
     if (len(df) ==0) :
         continue
     # print (df.shape)
-    df["rx"] = df["rx"] - df["rx"][0]
+    df["rx"] = (df["rx"] - df["rx"][0]).apply(lambda x: np.where(x > math.pi, x - math.pi*2, np.where(x < -math.pi, x + math.pi*2, x)))
     df["ry"] = df["ry"] - df["ry"][0]
     df["rz"] = df["rz"] - df["rz"][0]
 
@@ -68,26 +56,6 @@ for datafile in datafiles:
     if n > 0:
         # too many samples, drop them
         df.drop(df.tail(n).index, inplace=True)
-    if n < 0:
-        # too less samples
-        zeros_data = {
-            "i": [0] * -n,
-            "j": [0] * -n,
-            "k": [0] * -n,
-            "r": [0] * -n,
-            "aX": [0] * -n,
-            "aY": [0] * -n,
-            "aZ": [0] * -n,
-            "gX": [0] * -n,
-            "gY": [0] * -n,
-            "gZ": [0] * -n,
-            "rx": [0] * -n,
-            "ry": [0] * -n,
-            "rz": [0] * -n,
-        }
-        zeros_df = pd.DataFrame(zeros_data)
-
-        df = pd.concat([df, zeros_df], ignore_index=True)
 
     # print(df.min())
     mi = pd.DataFrame(df.min()).T
@@ -97,8 +65,47 @@ for datafile in datafiles:
     mindf = pd.concat([mindf, mi], ignore_index=True)
     maxdf = pd.concat([maxdf, ma], ignore_index=True)
 
+    # Add 0 to the end. This shall be done after get mindf/maxdf
+    if n < 0:
+        # too less samples
+        zeros_data = {
+            "i": [0] * -n,
+            "j": [0] * -n,
+            "k": [0] * -n,
+            "r": [0] * -n,
+            "aX": [accl_min] * -n,
+            "aY": [accl_min] * -n,
+            "aZ": [accl_min] * -n,
+            "gX": [gyro_min] * -n,
+            "gY": [gyro_min] * -n,
+            "gZ": [gyro_min] * -n,
+            "rx": [roto_min] * -n,
+            "ry": [roto_min] * -n,
+            "rz": [roto_min] * -n,
+        }
+        zeros_df = pd.DataFrame(zeros_data)
+
+        df = pd.concat([df, zeros_df], ignore_index=True)
+        
     saveto = "processed_" + datafile[18:]
     df.drop(["i", "j", "k","r"], axis=1, inplace=True)
+
+    df['aX'] = (df['aX'] - accl_min) / (accl_max - accl_min)
+    df['aY'] = (df['aY'] - accl_min) / (accl_max - accl_min)
+    df['aZ'] = (df['aZ'] - accl_min) / (accl_max - accl_min)
+    df['gX'] = (df['gX'] - gyro_min) / (gyro_max - gyro_min)
+    df['gY'] = (df['gY'] - gyro_min) / (gyro_max - gyro_min)
+    df['gZ'] = (df['gZ'] - gyro_min) / (gyro_max - gyro_min)
+    df['rx'] = (df['rx'] - roto_min) / (roto_max - roto_min)
+    df['ry'] = (df['ry'] - roto_min) / (roto_max - roto_min)
+    df['rz'] = (df['rz'] - roto_min) / (roto_max - roto_min)
+
     df.to_csv(saveto, index=False, float_format="%.5f")
 
     pass
+
+print(mindf.describe())
+print(maxdf.describe())
+
+
+pass
