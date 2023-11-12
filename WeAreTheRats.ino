@@ -133,7 +133,7 @@ TfLiteTensor *tflOutputTensor = nullptr;
 
 // Create a static memory buffer for TFLM, the size may need to
 // be adjusted based on the model you are using
-constexpr int tensorArenaSize = 170 * 1024;
+constexpr int tensorArenaSize = 190 * 1024;
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 #endif
 
@@ -474,7 +474,7 @@ void loop() {
   }
 
   // Not enough samples, restart
-  if (samplesRead < 60) {
+  if (samplesRead < 45) {
     Serial.print("not enough samples, ");
     Serial.println(samplesRead);
     samplesRead = -1;
@@ -489,6 +489,12 @@ void loop() {
 
   Serial.print("tensor ");
   Serial.println(tensorIndex);
+
+  // drop the last 5 points
+  if (tensorIndex < out_samples * 9) {
+    tensorIndex -= 5*9;
+  }
+
   for (int i = tensorIndex; i < out_samples * 9; i++) {
     tflInputTensor->data.f[i] = 0;
   }
