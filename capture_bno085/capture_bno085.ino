@@ -381,3 +381,5 @@ void configGpio() {
   digitalWrite(LED_BLUE, LIGHT_OFF);
   digitalWrite(LED_GREEN, LIGHT_OFF);
 }
+
+// {'a': 212, 'b': 324, 'c': 180, 'd': 204, 'e': 238, 'f': 266, 'g': 263, 'h': 293, 'i': 287, 'j': 293, 'k': 247, 'l': 232, 'm': 255, 'n': 332, 'o': 350, 'p': 267, 'q': 268, 'r': 257, 's': 220, 't': 310, 'u': 287, 'v': 247, 'w': 236, 'x': 255, 'y': 269, 'z': 249}
