@@ -133,7 +133,7 @@ TfLiteTensor *tflOutputTensor = nullptr;
 
 // Create a static memory buffer for TFLM, the size may need to
 // be adjusted based on the model you are using
-constexpr int tensorArenaSize = 190 * 1024;
+constexpr int tensorArenaSize = 170 * 1024;
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 #endif
 
@@ -424,6 +424,7 @@ void loop() {
       if (samplesRead == -1) {
         if (abs(accl[0]) + abs(accl[1]) + abs(accl[2]) > 1) {
           // Serial.println("wait idle");
+          Serial.print("<");
           continue;
         }
         digitalWrite(LED_BLUE, LIGHT_ON);
@@ -435,6 +436,7 @@ void loop() {
       if (samplesRead == 0) {
         if (abs(accl[0]) + abs(accl[1]) + abs(accl[2]) < 4) {
           // Serial.println("wait move");
+          Serial.print(">");
           continue;
         }
         tensorIndex = 0;
@@ -985,25 +987,3 @@ void initAndStartBLE() {
   // Set up and start advertising
   startAdv();
 }
-
-// void dumpTensors() {
-//   for (int i = 0; i < tensorIndex;) {
-//     Serial.print(tflInputTensor->data.f[i++]);
-//     Serial.print(", ");
-//     Serial.print(tflInputTensor->data.f[i++]);
-//     Serial.print(", ");
-//     Serial.print(tflInputTensor->data.f[i++]);
-//     Serial.print(", ");
-//     Serial.print(tflInputTensor->data.f[i++]);
-//     Serial.print(", ");
-//     Serial.print(tflInputTensor->data.f[i++]);
-//     Serial.print(", ");
-//     Serial.println(tflInputTensor->data.f[i++]);
-//   }
-// }
-// void loadTest() {
-
-//   for (int i = 0; i < numSamples * 6; i++) {
-//     tflInputTensor->data.f[i] = tt[i];
-//   }
-// }
