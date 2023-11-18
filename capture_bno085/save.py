@@ -10,7 +10,7 @@ file_index = 0
 num_samples=150
 if len(sys.argv) == 3:
     # print(sys.argv[1],sys.argv[2] )
-    file_path = "./data/" + sys.argv[1]
+    file_path = "./data_small_1/" + sys.argv[1]
     file_index = int(sys.argv[2])
 else:
     print ("wrong args")

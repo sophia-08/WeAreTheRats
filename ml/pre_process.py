@@ -6,7 +6,7 @@ import glob
 import random
 import math
 
-file_path = "../capture_bno085/data/*.dat"
+file_path = "../capture_bno085/data_small_1/*.dat"
 file_index = 0
 
 out_samples = 150
@@ -38,6 +38,8 @@ print("total files", len(datafiles))
 for datafile in datafiles:
     out = []
     print("process ", datafile)
+    pos = datafile.rfind("/")
+    letter_label = datafile[pos+1]
     df = pd.read_csv(datafile)
     df.drop(["lineno", "accurate", "time"], axis=1, inplace=True)
     df.drop(df.tail(5).index, inplace=True)
@@ -92,9 +94,9 @@ for datafile in datafiles:
 
         df = pd.concat([df, zeros_df], ignore_index=True)
 
-    saveto = "processed_" + datafile[18:]
+    saveto = "processed_" + datafile[datafile.rfind("/", 0, datafile.rfind("/")-1)+1:]
     df.drop(["i", "j", "k","r"], axis=1, inplace=True)
-    file_counts[datafile[23]] = file_counts[datafile[23]] + 1
+    file_counts[letter_label] = file_counts[letter_label] + 1
 
     df['aX'] = (df['aX'] - accl_min) / (accl_max - accl_min)
     df['aY'] = (df['aY'] - accl_min) / (accl_max - accl_min)
