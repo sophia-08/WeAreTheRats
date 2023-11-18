@@ -30,7 +30,7 @@
 *.exe
 *.out
 *.app
-processed_data/
+processed_data*/
 content/
 testdata/
 my_saved_model/
