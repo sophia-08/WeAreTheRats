@@ -270,7 +270,7 @@ void loop() {
       
       // wait for hand to move
       if (samplesRead == 0) {
-        if (abs(accl[0]) + abs(accl[1]) + abs(accl[2]) < 4) {
+        if (abs(accl[0]) + abs(accl[1]) + abs(accl[2]) < 2) {
           // Serial.println("wait move");
           continue;
         }
