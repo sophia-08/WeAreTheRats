@@ -6,7 +6,7 @@ import glob
 import random
 import math
 
-file_path = "../capture_bno085/data_small_1/*.dat"
+file_path = "../capture_bno085/data_s1/*.dat"
 file_index = 0
 
 out_samples = 150
