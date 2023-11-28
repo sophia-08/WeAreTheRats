@@ -151,13 +151,13 @@ void setup() {
   configGpio();
   Serial.begin(115200);
   int i = 0;
-  while (!Serial) {
-    digitalWrite(LED_RED, LIGHT_ON);
-    delay(10);
-    // if (++i > 1000) {
-    //   break;
-    // }
-  }
+  // while (!Serial) {
+  //   digitalWrite(LED_RED, LIGHT_ON);
+  //   delay(10);
+  //   // if (++i > 1000) {
+  //   //   break;
+  //   // }
+  // }
   digitalWrite(LED_RED, LIGHT_OFF);
 
 #ifdef TSFLOW
