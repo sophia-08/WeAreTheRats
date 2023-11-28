@@ -32,34 +32,34 @@ input_details
 # In[ ]:
 
 
-t1 = pd.read_csv("processed_data/a_10.dat")
-input_data = np.array(t1.values.ravel(), dtype=np.float32)
-# Prepare input data for prediction (replace this with your data)
-# input_data = ...  # Prepare your input data as a NumPy array
-input_shape = input_details[0]['shape']  # Get the expected input shape
-input_data = input_data.reshape(input_shape)
-# Set the input tensor
-interpreter.set_tensor(input_details[0]['index'], input_data)
+# t1 = pd.read_csv("processed_data/a_10.dat")
+# input_data = np.array(t1.values.ravel(), dtype=np.float32)
+# # Prepare input data for prediction (replace this with your data)
+# # input_data = ...  # Prepare your input data as a NumPy array
+# input_shape = input_details[0]['shape']  # Get the expected input shape
+# input_data = input_data.reshape(input_shape)
+# # Set the input tensor
+# interpreter.set_tensor(input_details[0]['index'], input_data)
 
-# Run inference
-interpreter.invoke()
+# # Run inference
+# interpreter.invoke()
 
-# Get the output tensor
-output_data = interpreter.get_tensor(output_details[0]['index'])
+# # Get the output tensor
+# output_data = interpreter.get_tensor(output_details[0]['index'])
 
-# The output_data now contains the model's predictions
-# print("Predictions:", output_data)
-# Format and print the output_data with 2 decimal places
-# Round the values to 2 decimal places and convert to strings
-formatted_output_data = np.round(output_data, 2).astype(str)
+# # The output_data now contains the model's predictions
+# # print("Predictions:", output_data)
+# # Format and print the output_data with 2 decimal places
+# # Round the values to 2 decimal places and convert to strings
+# formatted_output_data = np.round(output_data, 2).astype(str)
 
-print("Predictions with 2 decimal places:", formatted_output_data)
+# print("Predictions with 2 decimal places:", formatted_output_data)
 
 
 # In[ ]:
 
 
-file_path = "processed_data/*"
+file_path = "processed_data_small_1/*"
 
 datafiles = glob.glob(file_path)
 # datafiles.sort()
@@ -96,13 +96,13 @@ for datafile in datafiles:
     for i in range(len(GESTURES)) :
         if output_data[0][i] > 0.5:
             ch = GESTURES[i]
-    if ch == datafile[15]:
+    if ch == datafile[datafile.rfind("/")+1]:
         # print ("correct")
         count_correct += 1
         pass
     else:
         count_incorrect += 1
-        print ("incorrect ",  datafile[15] , " => ", ch)
+        print ("incorrect ",  datafile[datafile.rfind("/")+1] , " => ", ch)
         formatted_array = [f"{element:.2f}" for element in output_data[0]]
         print(formatted_array)
 
