@@ -5,6 +5,7 @@
 // #define IMU_USE_RESET
 #define IMU_USE_INT
 // #include "LSM6DS3.h"
+#define FEATURE_INERTIA_SCROLL
 
 #ifdef BNO085
 #include "Adafruit_BNO08x.h"
@@ -44,6 +45,14 @@ int tensorIndex = 0;
 int deviceMode;
 BLEDis bledis;
 BLEHidAdafruit blehid;
+
+#ifdef FEATURE_INERTIA_SCROLL
+bool inertiaScroll = false;
+#define INERTIA_SCROLL_DOWN 0
+#define INERTIA_SCROLL_UP 1
+bool inertiaScrollDirection = INERTIA_SCROLL_DOWN;
+int inertiaScrollLastTimeStamp;
+#endif
 
 #ifdef TOM
 // Central uart client
@@ -242,6 +251,21 @@ void loop() {
   }
   scanNavigateButtons();
   scanClickButtons();
+#ifdef FEATURE_INERTIA_SCROLL
+
+  if (inertiaScroll) {
+    if (millis() - inertiaScrollLastTimeStamp > 200) {
+      inertiaScrollLastTimeStamp = millis();
+
+      if (inertiaScrollDirection == INERTIA_SCROLL_DOWN) {
+        blehid.mouseScroll(3);
+      } else {
+        blehid.mouseScroll(-3);
+      }
+      Serial.println("scroll");
+    };
+  }
+#endif
   // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
   // For air writing, when a character is recoganized, only KEY_DOWN event is
   // sent. so I need generate a KEY_UP event. needSendKeyRelease is used for the
@@ -485,7 +509,7 @@ void loop() {
     startedChar = false;
     digitalWrite(LED_RED, LIGHT_ON);
     delay(500);
-    digitalWrite(LED_RED, LIGHT_OFF);    
+    digitalWrite(LED_RED, LIGHT_OFF);
     return;
   }
 
@@ -494,7 +518,7 @@ void loop() {
 
   // drop the last 5 points
   if (tensorIndex < out_samples * 9) {
-    tensorIndex -= 5*9;
+    tensorIndex -= 5 * 9;
   }
 
   for (int i = tensorIndex; i < out_samples * 9; i++) {
@@ -528,9 +552,9 @@ void loop() {
     }
     Serial.println(ch);
     if (ch == '.') {
-          digitalWrite(LED_RED, LIGHT_ON);
-    delay(500);
-    digitalWrite(LED_RED, LIGHT_OFF);   
+      digitalWrite(LED_RED, LIGHT_ON);
+      delay(500);
+      digitalWrite(LED_RED, LIGHT_OFF);
     }
 
     // Send KEY_DOWN
@@ -734,6 +758,15 @@ void scanOneNavigateButton(uint8_t keyIndex) {
 
   // high -> low
   if (state == LOW) {
+
+#ifdef FEATURE_INERTIA_SCROLL
+    if (inertiaScroll) {
+      inertiaScroll = false;
+      Serial.println("end inertia scroll");
+      return;
+    }
+#endif
+
     // If the button was pressed again within threshold, it's a double click
     if (time1 - navigateButtonLastDownTime[keyIndex] < DOUBLE_CLICK_INTERVAL) {
       doubleClick = true;
@@ -770,9 +803,21 @@ void scanOneNavigateButton(uint8_t keyIndex) {
           break;
         case KEYPAD_LEFT:
         case KEYPAD_RIGHT:
+#ifdef FEATURE_INERTIA_SCROLL
+          inertiaScroll = true;
+          inertiaScrollLastTimeStamp = millis();
+          Serial.println("start inertia scroll");
+          if (navigateButtons[keyIndex] == KEYPAD_LEFT) {
+            inertiaScrollDirection = INERTIA_SCROLL_DOWN;
+          } else {
+            inertiaScrollDirection = INERTIA_SCROLL_UP;
+          }
+
+#else
           blehid.mouseButtonPress(navigateButtonDoubleClickMouseCode[keyIndex]);
           Serial.print("mouse db ");
           Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
+#endif
         }
 
       } else {
