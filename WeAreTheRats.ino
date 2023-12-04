@@ -29,6 +29,7 @@
 #include "model.h"
 #endif
 #include "system.h"
+void setBdDAAndName(unsigned char byte3, char *name);
 
 const float accelerationThreshold = 2.5; // threshold of significant in G's
 
@@ -45,6 +46,9 @@ int tensorIndex = 0;
 int deviceMode;
 BLEDis bledis;
 BLEHidAdafruit blehid;
+
+int deviceId = 0;
+unsigned addrByte3;
 
 #ifdef FEATURE_INERTIA_SCROLL
 bool inertiaScroll = false;
@@ -689,22 +693,33 @@ void scanOneClickButton(uint8_t keyIndex) {
   default:
     if (deviceMode == DEVICE_MOUSE_MODE) {
       if (state == LOW) {
-        blehid.mouseButtonPress(clickButtonCode[keyIndex]);
-        Serial.println("button down");
+        if (keyIndex == 1) {
+          // hack the backspace button for device switching
+          setDeviceId();
+        } else {
+          blehid.mouseButtonPress(clickButtonCode[keyIndex]);
+          Serial.println("mouse button down");
+        }
       } else {
         blehid.mouseButtonRelease();
-        Serial.println("button up");
+        Serial.println("mouse button up");
       }
     } else {
       if (state == LOW) {
         uint8_t keycodes[6] = {HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE,
                                HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE};
-        keycodes[0] = clickButtonKeyboardCode[keyIndex];
-        blehid.keyboardReport(0, keycodes);
-        Serial.println("button down");
+        if (keyIndex == 1) {
+          // hack the backspace button for device switching
+          setDeviceId();
+        } else {
+          keycodes[0] = clickButtonKeyboardCode[keyIndex];
+          blehid.keyboardReport(0, keycodes);
+          Serial.println("key button down");
+        }
+
       } else {
         blehid.keyRelease();
-        Serial.println("button up");
+        Serial.println("key button up");
       }
     }
   }
@@ -955,6 +970,7 @@ void loadTFLiteModel() {
 #endif
 
 void startAdv(void) {
+  Bluefruit.Advertising.clearData();
   // Advertising packet
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
   Bluefruit.Advertising.addTxPower();
@@ -997,18 +1013,22 @@ void initAndStartBLE() {
 #else
   Bluefruit.begin();
 #endif
+  // Bluefruit.setAddr(&addr);
   // HID Device can have a min connection interval of 9*1.25 = 11.25 ms
   Bluefruit.Periph.setConnInterval(9, 16);
   // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
 
   Bluefruit.setTxPower(4); // Check bluefruit.h for supported values
-  Bluefruit.setName("WeAreTheRats");
+  Bluefruit.setName("Rat0");
 
   // Configure and Start Device Information Service
-  bledis.setManufacturer("Adafruit Industries");
-  bledis.setModel("Bluefruit Feather 52");
+  bledis.setManufacturer("Ergo");
+  bledis.setModel("Ergo");
   bledis.begin();
   blehid.begin();
+  unsigned char addr[6];
+  Bluefruit.getAddr(addr);
+  addrByte3 = addr[3];
 
 #ifdef TOM
   // Init BLE Central Uart Serivce
@@ -1031,4 +1051,58 @@ void initAndStartBLE() {
 #endif
   // Set up and start advertising
   startAdv();
+}
+
+void printBDA() {
+  ble_gap_addr_t addr = Bluefruit.getAddr();
+  Serial.print("BDA type: ");
+  Serial.print(addr.addr_type);
+  for (int i = 0; i < 6; i++) {
+    Serial.print(" ");
+    Serial.print(addr.addr[i]);
+  }
+  Serial.println("");
+}
+
+void setBdDAAndName(unsigned char byte3, char *name) {
+  /**
+Set the local Bluetooth identity address.
+
+The local Bluetooth identity address is the address that identifies this
+device to other peers. The address type must be either @ref
+BLE_GAP_ADDR_TYPE_PUBLIC or @ref BLE_GAP_ADDR_TYPE_RANDOM_STATIC.
+Note
+The identity address cannot be changed while advertising, scanning or creating a
+connection. This address will be distributed to the peer during bonding. If the
+address changes, the address stored in the peer device will not be valid and the
+ability to reconnect using the old address will be lost. By default the
+SoftDevice will set an address of type BLE_GAP_ADDR_TYPE_RANDOM_STATIC upon
+being enabled. The address is a random number populated during the IC
+manufacturing process and remains unchanged for the lifetime of each IC.
+   *
+   */
+  Serial.print("before: ");
+  printBDA();
+  ble_gap_addr_t addr = Bluefruit.getAddr();
+
+  Bluefruit.disconnect(Bluefruit.connHandle());
+  Bluefruit.Advertising.stop();
+  addr.addr[3] = byte3;
+  Bluefruit.setAddr(&addr);
+  startAdv();
+  Bluefruit.setName(name);
+  Serial.println(name);
+
+  Serial.print("after: ");
+  printBDA();
+}
+
+void setDeviceId() {
+  if (deviceId == 0) {
+    deviceId = 1;
+    setBdDAAndName((unsigned char)(addrByte3 + 0x32), (char *)"Rat1");
+  } else {
+    deviceId = 0;
+    setBdDAAndName(addrByte3, (char *)"Rat0");
+  }
 }
