@@ -1,10 +1,10 @@
 #pragma once
 
-int initIMU();
-int readIMUAndUpdateXYAngle();
-void setReports();
-int readIMUNoWait();
-int saveData();
+int imuInit(int deviceMode);
+int imuReadAndUpdateXYAngle();
+void imuConfigure(int deviceMode);
+int imuReadNoWait();
+int imuSaveData(int samplesRead);
 
 #define accl_min -30.0
 #define accl_max 30.0
@@ -18,6 +18,6 @@ typedef struct euler_t {
   float pitch;
   float roll;
 } euler;
-void displayData() ;
-float sumAbsolateAcclOfAllAxis();
+void displayData();
+float imuSumOfAbsolateAcclOfAllAxis();
 bool imuDataReady();

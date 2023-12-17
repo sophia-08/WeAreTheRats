@@ -81,6 +81,7 @@ const char *GESTURES = "abcdefghijklmnopqrstuvwxyz";
 //     0x93, 0xF3, 0xA3, 0xB5, 0x01, 0x00, 0x40, 0x6E
 // };
 void setup() {
+  deviceMode = DEVICE_MOUSE_MODE;
   configGpio();
   Serial.begin(115200);
   int i = 0;
@@ -99,11 +100,9 @@ void setup() {
 
   initAndStartBLE();
 
-  initIMU();
+  imuInit(deviceMode);
 
   // calibrateIMU(250, 250);
-
-  deviceMode = DEVICE_MOUSE_MODE;
 
   // nrf_gpio_cfg_sense_input(g_ADigitalPinMap[IMU_INT],
   //                        NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
@@ -159,7 +158,7 @@ void loop() {
     return;
   }
 
-  readIMUAndUpdateXYAngle();
+  imuReadAndUpdateXYAngle();
 
   if (deviceMode == DEVICE_MOUSE_MODE) {
     processMouse();
@@ -282,11 +281,11 @@ void scanOneClickButton(uint8_t keyIndex) {
   switch (clickButtons[keyIndex]) {
   case MOUSE_ACTIVATE:
     deviceMode = DEVICE_MOUSE_MODE;
-    setReports();
+    imuConfigure(deviceMode);
     break;
   case KEYPAD_ACTIVATE:
     deviceMode = DEVICE_KEYBOARD_MODE;
-    setReports();
+    imuConfigure(deviceMode);
     break;
   default:
     if (deviceMode == DEVICE_MOUSE_MODE) {
@@ -781,8 +780,6 @@ void processMouse() {
 
 void processKeyboard() {
 
-  /*****  Below is for Keyboard  ******/
-#if 1
   // Device in Keyboard mode
 
   // Capture has not started, ignore until user activate keypad
@@ -811,7 +808,7 @@ void processKeyboard() {
   for (int i = 0; i < 20;) {
     while (!imuDataReady()) {
     }
-    readIMUNoWait();
+    imuReadNoWait();
     if (newData) {
       i++;
       newData = false;
@@ -841,7 +838,7 @@ void processKeyboard() {
     // so do nothing in case of IMU_INT high
     while (!imuDataReady()) {
     }
-    readIMUNoWait();
+    imuReadNoWait();
 
     if (newData) {
       uint32_t now = micros();
@@ -849,7 +846,7 @@ void processKeyboard() {
 
       // Wait for hand to rest
       if (samplesRead == -1) {
-        if (sumAbsolateAcclOfAllAxis() > 1) {
+        if (imuSumOfAbsolateAcclOfAllAxis() > 1) {
           // Serial.println("wait idle");
           Serial.print("<");
           continue;
@@ -861,7 +858,7 @@ void processKeyboard() {
 
       // wait for hand to move
       if (samplesRead == 0) {
-        if (sumAbsolateAcclOfAllAxis() < 2) {
+        if (imuSumOfAbsolateAcclOfAllAxis() < 2) {
           // Serial.println("wait move");
           Serial.print(">");
           continue;
@@ -870,7 +867,7 @@ void processKeyboard() {
       }
 
       // Capture samples until keyboard_activation is release.
-      saveData();
+      imuSaveData(samplesRead);
 
       samplesRead++;
     }
@@ -940,6 +937,5 @@ void processKeyboard() {
     // Send KEY_UP at next loop
     needSendKeyRelease = true;
   }
-#endif
 #endif
 }
