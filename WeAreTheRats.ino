@@ -1,7 +1,8 @@
-// #define TOM
 
-#define TSFLOW
-#define FEATURE_INERTIA_SCROLL
+
+#include "local_constants.h"
+
+#include "battery.h"
 #include <bluefruit.h>
 // #include <MadgwickAHRS.h>  // Madgwick 1.2.0 by Arduino
 #include "imu.h"
@@ -14,8 +15,6 @@
 #include <tensorflow/lite/schema/schema_generated.h>
 #endif
 
-#include "battery.h"
-#include "local_constants.h"
 #ifdef TSFLOW
 #include "model.h"
 #endif
