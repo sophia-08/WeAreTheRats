@@ -1,10 +1,9 @@
 
-#define BNO085
-// #define IMU_USE_RESET
-#define BNO08X_RESET -1
 
-#define IMU_USE_INT
 // #include "LSM6DS3.h"
+#include "local_constants.h"
+
+#include "system.h"
 
 #ifdef BNO085
 #include "Adafruit_BNO08x.h"
@@ -17,9 +16,6 @@
 #include <tensorflow/lite/schema/schema_generated.h>
 extern TfLiteTensor *tflInputTensor;
 extern int tensorIndex;
-
-#include "local_constants.h"
-#include "system.h"
 
 extern float xAngle, yAngle;
 
