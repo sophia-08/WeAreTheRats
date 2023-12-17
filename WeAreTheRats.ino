@@ -1,20 +1,10 @@
 // #define TOM
 
 #define TSFLOW
-#define BNO085
-// #define IMU_USE_RESET
-#define IMU_USE_INT
-// #include "LSM6DS3.h"
 #define FEATURE_INERTIA_SCROLL
-
-#ifdef BNO085
-#include "Adafruit_BNO08x.h"
-#endif
-// #include <Adafruit_Sensor.h>
-#include <Wire.h>
-
 #include <bluefruit.h>
 // #include <MadgwickAHRS.h>  // Madgwick 1.2.0 by Arduino
+#include "imu.h"
 
 #ifdef TSFLOW
 #include <TensorFlowLite.h>
@@ -23,6 +13,8 @@
 #include <tensorflow/lite/micro/micro_interpreter.h>
 #include <tensorflow/lite/schema/schema_generated.h>
 #endif
+// void quaternionToEuler(float qi, float qj, float qk, float qr, euler *ypr,
+//                        bool degrees = false);
 #include "battery.h"
 #include "local_constants.h"
 #ifdef TSFLOW
@@ -31,17 +23,11 @@
 #include "system.h"
 void setBdDAAndName(unsigned char byte3, char *name);
 
-const float accelerationThreshold = 2.5; // threshold of significant in G's
+// const float accelerationThreshold = 2.5; // threshold of significant in G's
 
 int samplesRead = 0;
 #define out_samples 150
 int tensorIndex = 0;
-#define accl_min -30.0
-#define accl_max 30.0
-#define gyro_min -15.0
-#define gyro_max 15.0
-#define roto_min -3.0
-#define roto_max 2.0
 
 int deviceMode;
 BLEDis bledis;
@@ -63,72 +49,12 @@ int inertiaScrollLastTimeStamp;
 BLEClientUart clientUart;
 #endif
 
-#ifdef BNO085
-// New data available.  currently for keyboard, new data available every 10ms;
-// for mouse, every 20ms
-bool newData = false;
-
-// Rotation Vector. i, j, k, real
-float rtVector[4];
-
-// Linear acceleration, x, y, z
-float accl[3];
-
-// gyro, x, y, z
-float gyro[3];
-
-// calibration status
-int calStatus;
-
-#define BNO08X_RESET -1
-struct euler_t {
-  float yaw;
-  float pitch;
-  float roll;
-} ypr, ypr0;
-
-Adafruit_BNO08x bno08x(BNO08X_RESET);
-sh2_SensorValue_t sensorValue;
-// sh2_SensorId_t reportType = SH2_ROTATION_VECTOR; // SH2_ARVR_STABILIZED_RV;
-// long reportIntervalUs = 20000;
-void setReports() {
-  int dataRate;
-  if (deviceMode == DEVICE_MOUSE_MODE) {
-    dataRate = 20 * 1000;
-  } else {
-    dataRate = 10 * 1000;
-  }
-
-  if (!bno08x.enableReport(SH2_ROTATION_VECTOR, dataRate)) {
-    Serial.println("Could not enable rotation vector");
-  }
-  if (!bno08x.enableReport(SH2_LINEAR_ACCELERATION, dataRate)) {
-    Serial.println("Could not enable linear acceleration");
-  }
-  if (!bno08x.enableReport(SH2_GYROSCOPE_CALIBRATED, dataRate)) {
-    Serial.println("Could not enable gyroscope");
-  }
-}
-
-void quaternionToEuler(float qi, float qj, float qk, float qr, euler_t *ypr,
-                       bool degrees = false) {
-
-  float sqr = sq(qr);
-  float sqi = sq(qi);
-  float sqj = sq(qj);
-  float sqk = sq(qk);
-
-  ypr->yaw = atan2(2.0 * (qi * qj + qk * qr), (sqi - sqj - sqk + sqr));
-  ypr->pitch = asin(-2.0 * (qi * qk - qj * qr) / (sqi + sqj + sqk + sqr));
-  ypr->roll = atan2(2.0 * (qj * qk + qi * qr), (-sqi - sqj + sqk + sqr));
-
-  if (degrees) {
-    ypr->yaw *= RAD_TO_DEG;
-    ypr->pitch *= RAD_TO_DEG;
-    ypr->roll *= RAD_TO_DEG;
-  }
-}
-#endif
+extern bool newData;
+// extern float rtVector[4];
+// extern float accl[3];
+// extern float gyro[3];
+// extern int calStatus;
+// extern euler ypr, ypr0;
 
 #ifdef TSFLOW
 // global variables used for TensorFlow Lite (Micro)
@@ -179,19 +105,7 @@ void setup() {
 
   initAndStartBLE();
 
-#ifdef BNO085
-  // Try to initialize!
-  if (!bno08x.begin_I2C()) {
-    // if (!bno08x.begin_UART(&Serial1)) {  // Requires a device with > 300 byte
-    // UART buffer! if (!bno08x.begin_SPI(BNO08X_CS, BNO08X_INT)) {
-    Serial.println("Failed to find BNO08x chip");
-    systemHaltWithledPattern(LED_RED, 3);
-  }
-  Serial.println("BNO08x Found!");
-
-  setReports();
-  delay(100);
-#endif
+  initIMU();
 
   // calibrateIMU(250, 250);
 
@@ -215,18 +129,7 @@ int ledCount;
 bool needSendKeyRelease = false;
 float xAngle, yAngle, lastXAngle, lastYAngle;
 
-#define pi 3.14159265358979323846
-float calRotation(float x, float x0) {
-  float tmp1;
-  tmp1 = x - x0;
-  if (tmp1 > pi) {
-    tmp1 -= pi * 2;
-  }
-  if (tmp1 < -pi) {
-    tmp1 += pi * 2;
-  }
-  return tmp1;
-}
+
 
 void loop() {
 
@@ -280,51 +183,10 @@ void loop() {
     blehid.keyRelease();
   }
 
-#ifdef BNO085
-  // BNO085 pull IMU_INT LOW when data is ready
-  // so do nothing in case of IMU_INT high
-#ifdef IMU_USE_INT
-  if (digitalRead(IMU_INT) == HIGH) {
+  if (readIMUAndUpdateXYAngle() == 1) {
+    // if no new data, just return;
     return;
-    // systemSleep();
-  }
-#endif
-  static uint32_t last = 0;
-  long now = micros();
-  if (bno08x.getSensorEvent(&sensorValue)) {
-  }
-
-  if (newData) {
-    uint32_t now = micros();
-    newData = false;
-    // Serial.print(now - last);
-    // Serial.print("\t");
-    // last = now;
-    // Serial.print(calStatus);
-    // Serial.print("\t");
-    // // This is accuracy in the range of 0 to 3
-    // int i;
-    // for (i = 0; i < 4; i++) {
-    //   Serial.print("\t");
-    //   Serial.print(rtVector[i]);
-    // }
-    // for (i = 0; i < 3; i++) {
-    //   Serial.print("\t");
-    //   Serial.print(accl[i]);
-    // }
-    // for (i = 0; i < 3; i++) {
-    //   Serial.print("\t");
-    //   Serial.print(gyro[i]);
-    // }
-    // Serial.println("");
-
-    quaternionToEuler(rtVector[0], rtVector[1], rtVector[2], rtVector[3], &ypr,
-                      true);
-    xAngle = -ypr.yaw;
-    yAngle = ypr.roll;
-  }
-
-#endif
+  };
 
   if (deviceMode == DEVICE_MOUSE_MODE) {
     if (count == report_freq - 1) {
@@ -379,7 +241,7 @@ void loop() {
   }
 
   /*****  Below is for Keyboard  ******/
-
+#if 1
   // Device in Keyboard mode
 
   // Capture has not started, ignore until user activate keypad
@@ -408,8 +270,7 @@ void loop() {
   for (int i = 0; i < 20;) {
     while (digitalRead(IMU_INT) == HIGH) {
     }
-    if (bno08x.getSensorEvent(&sensorValue)) {
-    }
+    readIMUNoWait();
     if (newData) {
       i++;
       newData = false;
@@ -441,8 +302,7 @@ void loop() {
     while (digitalRead(IMU_INT) == HIGH) {
     }
 #endif
-    if (bno08x.getSensorEvent(&sensorValue)) {
-    }
+    readIMUNoWait();
 
     if (newData) {
       uint32_t now = micros();
@@ -450,7 +310,7 @@ void loop() {
 
       // Wait for hand to rest
       if (samplesRead == -1) {
-        if (abs(accl[0]) + abs(accl[1]) + abs(accl[2]) > 1) {
+        if (sumAbsolateAcclOfAllAxis() > 1) {
           // Serial.println("wait idle");
           Serial.print("<");
           continue;
@@ -462,7 +322,7 @@ void loop() {
 
       // wait for hand to move
       if (samplesRead == 0) {
-        if (abs(accl[0]) + abs(accl[1]) + abs(accl[2]) < 2) {
+        if (sumAbsolateAcclOfAllAxis() < 2) {
           // Serial.println("wait move");
           Serial.print(">");
           continue;
@@ -471,33 +331,7 @@ void loop() {
       }
 
       // Capture samples until keyboard_activation is release.
-      quaternionToEuler(rtVector[0], rtVector[1], rtVector[2], rtVector[3],
-                        &ypr, false);
-
-      if (samplesRead == 0) {
-        ypr0 = ypr;
-      }
-
-      tflInputTensor->data.f[tensorIndex++] =
-          (accl[0] - accl_min) / (accl_max - accl_min);
-      tflInputTensor->data.f[tensorIndex++] =
-          (accl[1] - accl_min) / (accl_max - accl_min);
-      tflInputTensor->data.f[tensorIndex++] =
-          (accl[2] - accl_min) / (accl_max - accl_min);
-      tflInputTensor->data.f[tensorIndex++] =
-          (gyro[0] - gyro_min) / (gyro_max - gyro_min);
-      tflInputTensor->data.f[tensorIndex++] =
-          (gyro[1] - gyro_min) / (gyro_max - gyro_min);
-      tflInputTensor->data.f[tensorIndex++] =
-          (gyro[2] - gyro_min) / (gyro_max - gyro_min);
-
-      tflInputTensor->data.f[tensorIndex++] =
-          (calRotation(ypr.yaw, ypr0.yaw) - roto_min) / (roto_max - roto_min);
-      tflInputTensor->data.f[tensorIndex++] =
-          (calRotation(ypr.pitch, ypr0.pitch) - roto_min) /
-          (roto_max - roto_min);
-      tflInputTensor->data.f[tensorIndex++] =
-          (calRotation(ypr.roll, ypr0.roll) - roto_min) / (roto_max - roto_min);
+      saveData();
 
       samplesRead++;
     }
@@ -567,6 +401,7 @@ void loop() {
     // Send KEY_UP at next loop
     needSendKeyRelease = true;
   }
+#endif
 #endif
 }
 
