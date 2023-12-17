@@ -110,12 +110,12 @@ int readIMUAndUpdateXYAngle() {
 
   // BNO085 pull IMU_INT LOW when data is ready
   // so do nothing in case of IMU_INT high
-#ifdef IMU_USE_INT
-  if (digitalRead(IMU_INT) == HIGH) {
-    return 1;
-    // systemSleep();
-  }
-#endif
+// #ifdef IMU_USE_INT
+//   if (digitalRead(IMU_INT) == HIGH) {
+//     return 1;
+//     // systemSleep();
+//   }
+// #endif
   static uint32_t last = 0;
   long now = micros();
 
