@@ -20,9 +20,8 @@ extern int tensorIndex;
 
 #include "local_constants.h"
 #include "system.h"
-extern int deviceMode;
-extern float xAngle, yAngle, lastXAngle, lastYAngle;
-extern int samplesRead;
+
+extern float xAngle, yAngle;
 
 // New data available. external set to true in adafruit_bno08x.cpp
 // sensorHandler() Currently for keyboard, new data available every 10ms; for
@@ -52,7 +51,7 @@ sh2_SensorValue_t sensorValue;
 // sh2_SensorId_t reportType = SH2_ROTATION_VECTOR; // SH2_ARVR_STABILIZED_RV;
 // long reportIntervalUs = 20000;
 
-void setReports() {
+void imuConfigure(int deviceMode) {
   int dataRate;
   if (deviceMode == DEVICE_MOUSE_MODE) {
     dataRate = 20 * 1000;
@@ -90,7 +89,7 @@ void quaternionToEuler(float qi, float qj, float qk, float qr, euler *ypr,
   }
 }
 
-int initIMU() {
+int imuInit(int deviceMode) {
 
   if (!bno08x.begin_I2C()) {
     Serial.println("Failed to find BNO08x chip");
@@ -98,28 +97,28 @@ int initIMU() {
   }
   Serial.println("BNO08x Found!");
 
-  setReports();
+  imuConfigure(deviceMode);
   delay(100);
 
   return 0;
 }
 
-int readIMUNoWait() { return bno08x.getSensorEvent(&sensorValue); }
+int imuReadNoWait() { return bno08x.getSensorEvent(&sensorValue); }
 
-int readIMUAndUpdateXYAngle() {
+int imuReadAndUpdateXYAngle() {
 
   // BNO085 pull IMU_INT LOW when data is ready
   // so do nothing in case of IMU_INT high
-// #ifdef IMU_USE_INT
-//   if (digitalRead(IMU_INT) == HIGH) {
-//     return 1;
-//     // systemSleep();
-//   }
-// #endif
+  // #ifdef IMU_USE_INT
+  //   if (digitalRead(IMU_INT) == HIGH) {
+  //     return 1;
+  //     // systemSleep();
+  //   }
+  // #endif
   static uint32_t last = 0;
   long now = micros();
 
-  readIMUNoWait();
+  imuReadNoWait();
   if (newData) {
     newData = false;
     displayData();
@@ -145,7 +144,7 @@ float calRotation(float x, float x0) {
   return tmp1;
 }
 
-int saveData() {
+int imuSaveData(int samplesRead) {
   quaternionToEuler(rtVector[0], rtVector[1], rtVector[2], rtVector[3], &ypr,
                     false);
 
@@ -199,13 +198,14 @@ void displayData() {
   // Serial.println("");
 }
 
-float sumAbsolateAcclOfAllAxis() {
-    return abs(accl[0]) + abs(accl[1]) + abs(accl[2]);
+float imuSumOfAbsolateAcclOfAllAxis() {
+  return abs(accl[0]) + abs(accl[1]) + abs(accl[2]);
 }
 
 bool imuDataReady() {
-    // BNO085 pull IMU_INT LOW when data is ready
-    if (digitalRead(IMU_INT) == LOW) return true;
-    return false;
+  // BNO085 pull IMU_INT LOW when data is ready
+  if (digitalRead(IMU_INT) == LOW)
+    return true;
+  return false;
 }
 #endif
