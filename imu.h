@@ -20,3 +20,4 @@ typedef struct euler_t {
 } euler;
 void displayData() ;
 float sumAbsolateAcclOfAllAxis();
+bool imuDataReady();

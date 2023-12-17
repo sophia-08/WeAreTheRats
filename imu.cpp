@@ -202,4 +202,10 @@ void displayData() {
 float sumAbsolateAcclOfAllAxis() {
     return abs(accl[0]) + abs(accl[1]) + abs(accl[2]);
 }
+
+bool imuDataReady() {
+    // BNO085 pull IMU_INT LOW when data is ready
+    if (digitalRead(IMU_INT) == LOW) return true;
+    return false;
+}
 #endif

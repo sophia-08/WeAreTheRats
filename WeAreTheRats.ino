@@ -129,8 +129,6 @@ int ledCount;
 bool needSendKeyRelease = false;
 float xAngle, yAngle, lastXAngle, lastYAngle;
 
-
-
 void loop() {
 
   ledCount++;
@@ -268,7 +266,7 @@ void loop() {
   // Loop to read 20 samples, at 100Hz, takes 200ms
   // This is better than delay, clear up data in IMU.
   for (int i = 0; i < 20;) {
-    while (digitalRead(IMU_INT) == HIGH) {
+    while (!imuDataReady()) {
     }
     readIMUNoWait();
     if (newData) {
@@ -296,12 +294,10 @@ void loop() {
       break;
     }
 
-// BNO085 pull IMU_INT LOW when data is ready
-// so do nothing in case of IMU_INT high
-#ifdef IMU_USE_INT
-    while (digitalRead(IMU_INT) == HIGH) {
+    // BNO085 pull IMU_INT LOW when data is ready
+    // so do nothing in case of IMU_INT high
+    while (!imuDataReady()) {
     }
-#endif
     readIMUNoWait();
 
     if (newData) {
@@ -751,9 +747,7 @@ void configGpio() {
   digitalWrite(IMU_RESET, HIGH);
 #endif
 
-#ifdef IMU_USE_INT
   pinMode(IMU_INT, INPUT_PULLUP);
-#endif
 
   pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
   pinMode(MOUSE_RIGHT, INPUT_PULLUP);
