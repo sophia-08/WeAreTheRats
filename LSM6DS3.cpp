@@ -365,7 +365,7 @@ LSM6DS3::LSM6DS3(uint8_t busType, uint8_t inputArg)
   settings.gyroFifoEnabled = 1;    // Set to include gyro in FIFO
   settings.gyroFifoDecimation = 1; // set 1 for on /1
 
-  settings.accelEnabled = 1;
+  settings.accelEnabled = 0;
   settings.accelODROff = 1;
   settings.accelRange = 4;        // Max G force readable.  Can be: 2, 4, 8, 16
   settings.accelSampleRate = 416; // Hz.  Can be: 13, 26, 52, 104, 208, 416,
@@ -550,6 +550,10 @@ status_t LSM6DS3::begin() {
   }
   // Write the byte
   writeRegister(LSM6DS3_ACC_GYRO_CTRL2_G, dataToWrite);
+
+  writeRegister(
+      LSM6DS3_ACC_GYRO_INT1_CTRL,
+      0x02); // DATA READY ON PIN1, bit0:  xl data ready, bit1: gyro data ready
 
   // Return WHO AM I reg  //Not no mo!
   uint8_t result;
@@ -837,11 +841,13 @@ void LSM6DS3::fifoEnd(void) {
   // turn off the fifo
   writeRegister(LSM6DS3_ACC_GYRO_FIFO_STATUS1, 0x00); // Disable
 }
-uint8_t data1[32];
+uint8_t data1[128];
 uint8_t *LSM6DS3::dumpRegisters(void) {
   // turn off the fifo
 
-  readRegisterRegion(data1, LSM6DS3_ACC_GYRO_FIFO_CTRL1, 5);
-  readRegisterRegion(&data1[5], LSM6DS3_ACC_GYRO_CTRL1_XL, 10);
+  // readRegisterRegion(data1, LSM6DS3_ACC_GYRO_FIFO_CTRL1, 5);
+  // readRegisterRegion(&data1[5], LSM6DS3_ACC_GYRO_CTRL1_XL, 10);
+
+  readRegisterRegion(data1, 0, 0x60);
   return data1;
 }
