@@ -13,8 +13,7 @@
 #include <tensorflow/lite/micro/micro_interpreter.h>
 #include <tensorflow/lite/schema/schema_generated.h>
 #endif
-// void quaternionToEuler(float qi, float qj, float qk, float qr, euler *ypr,
-//                        bool degrees = false);
+
 #include "battery.h"
 #include "local_constants.h"
 #ifdef TSFLOW
@@ -50,11 +49,6 @@ BLEClientUart clientUart;
 #endif
 
 extern bool newData;
-// extern float rtVector[4];
-// extern float accl[3];
-// extern float gyro[3];
-// extern int calStatus;
-// extern euler ypr, ypr0;
 
 #ifdef TSFLOW
 // global variables used for TensorFlow Lite (Micro)
@@ -131,33 +125,11 @@ float xAngle, yAngle, lastXAngle, lastYAngle;
 
 void loop() {
 
-  ledCount++;
-  // pluse the green led to indicate system alive.
-  if (ledCount % 1000 < 30) {
-    if (deviceMode == DEVICE_MOUSE_MODE) {
-      digitalWrite(LED_GREEN, LIGHT_ON);
-      digitalWrite(LED_BLUE, LIGHT_OFF);
-    } else {
-      digitalWrite(LED_BLUE, LIGHT_ON);
-      digitalWrite(LED_GREEN, LIGHT_OFF);
-    }
-
-  } else {
-    if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
-      digitalWrite(LED_GREEN, LIGHT_ON);
-    } else {
-      digitalWrite(LED_GREEN, LIGHT_OFF);
-    }
-    if (digitalRead(KEYPAD_ACTIVATE) == HIGH) {
-      digitalWrite(LED_BLUE, LIGHT_ON);
-    } else {
-      digitalWrite(LED_BLUE, LIGHT_OFF);
-    }
-  }
+  leds();
   scanNavigateButtons();
   scanClickButtons();
-#ifdef FEATURE_INERTIA_SCROLL
 
+#ifdef FEATURE_INERTIA_SCROLL
   if (inertiaScroll) {
     if (millis() - inertiaScrollLastTimeStamp > 200) {
       inertiaScrollLastTimeStamp = millis();
@@ -171,6 +143,7 @@ void loop() {
     };
   }
 #endif
+
   // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
   // For air writing, when a character is recoganized, only KEY_DOWN event is
   // sent. so I need generate a KEY_UP event. needSendKeyRelease is used for the
@@ -181,224 +154,18 @@ void loop() {
     blehid.keyRelease();
   }
 
-  if (readIMUAndUpdateXYAngle() == 1) {
-    // if no new data, just return;
+  // if no new data, just return;
+  if (!imuDataReady()) {
     return;
-  };
+  }
+
+  readIMUAndUpdateXYAngle();
 
   if (deviceMode == DEVICE_MOUSE_MODE) {
-    if (count == report_freq - 1) {
-      lastXAngle = xAngle;
-      lastYAngle = yAngle;
-    }
-    count++;
-    int32_t x;
-    int32_t y;
-    // digitalWrite(DEBUG_3, HIGH);
-
-    // We do not want to overload the BLE link.
-    // so here we send 1 report every (report_freq * 10ms) = 30ms
-    if (count % report_freq == 0) {
-      x = (xAngle - lastXAngle) * SENSITIVITY_X;
-
-      // xAngle go back to 0 after pass 360 degrees. so here we need add the
-      // offsets.
-      if (x < -180 * SENSITIVITY_X) {
-        x += 360 * SENSITIVITY_X;
-      }
-
-      y = (yAngle - lastYAngle) * SENSITIVITY_Y;
-
-      // get rid of movement due to noise.
-      if (abs(x) > 8 || abs(y) > 8) {
-        // if (abs(accelX) + abs(accelY) + abs(accelZ) > 1.5) {
-        // mousePosition(x, y);
-        // if (abs(x) < 10) x = 0;
-        // if (abs(y) < 10) y = 0;
-        // Serial.print(x);
-        // Serial.print(",");
-        // Serial.print(-y);
-        // Serial.print(orientationData.orientation.pitch);
-        // // Serial.print(",");
-        // Serial.print(",  ");
-        // Serial.print(orientationData.orientation.roll);
-        // Serial.print(",");
-        // Serial.println(orientationData.orientation.pitch);
-        // Serial.print(",");
-
-        if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
-          blehid.mouseMove(x, -y);
-        }
-        lastXAngle = xAngle;
-        lastYAngle = yAngle;
-      }
-    }
-    // digitalWrite(DEBUG_3, LOW);
-
-    return;
+    processMouse();
+  } else {
+    processKeyboard();
   }
-
-  /*****  Below is for Keyboard  ******/
-#if 1
-  // Device in Keyboard mode
-
-  // Capture has not started, ignore until user activate keypad
-  if (!startedChar) {
-    if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
-      samplesRead = -1;
-      return;
-    } else {
-      // User activate keypad, check whether 2s passed since last capture
-      // int currentTime = millis();
-      // if (currentTime < t1 + 2000) {
-      //   return;
-      // }
-      // t1 = currentTime;
-      startedChar = true;
-      samplesRead = -1;
-    }
-  }
-
-  // User finger is on keyboard_activation pad
-  // To begin, wait 200ms
-  // delay(200);
-
-  // Loop to read 20 samples, at 100Hz, takes 200ms
-  // This is better than delay, clear up data in IMU.
-  for (int i = 0; i < 20;) {
-    while (!imuDataReady()) {
-    }
-    readIMUNoWait();
-    if (newData) {
-      i++;
-      newData = false;
-    }
-  }
-
-  // Keep sampling until user release the ACTIVATE button
-  while (true) {
-
-    // User deactivated keypad
-    if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
-      startedChar = false;
-      inference_started = true;
-      break;
-    }
-
-    if (samplesRead >= out_samples) {
-      // Wait for user release the button
-      while (digitalRead(KEYPAD_ACTIVATE) == HIGH)
-        ;
-      startedChar = false;
-      inference_started = true;
-      break;
-    }
-
-    // BNO085 pull IMU_INT LOW when data is ready
-    // so do nothing in case of IMU_INT high
-    while (!imuDataReady()) {
-    }
-    readIMUNoWait();
-
-    if (newData) {
-      uint32_t now = micros();
-      newData = false;
-
-      // Wait for hand to rest
-      if (samplesRead == -1) {
-        if (sumAbsolateAcclOfAllAxis() > 1) {
-          // Serial.println("wait idle");
-          Serial.print("<");
-          continue;
-        }
-        digitalWrite(LED_BLUE, LIGHT_ON);
-        samplesRead = 0;
-        continue;
-      }
-
-      // wait for hand to move
-      if (samplesRead == 0) {
-        if (sumAbsolateAcclOfAllAxis() < 2) {
-          // Serial.println("wait move");
-          Serial.print(">");
-          continue;
-        }
-        tensorIndex = 0;
-      }
-
-      // Capture samples until keyboard_activation is release.
-      saveData();
-
-      samplesRead++;
-    }
-  }
-
-  // Not enough samples, restart
-  if (samplesRead < 45) {
-    Serial.print("not enough samples, ");
-    Serial.println(samplesRead);
-    samplesRead = -1;
-    tensorIndex = 0;
-    inference_started = false;
-    startedChar = false;
-    digitalWrite(LED_RED, LIGHT_ON);
-    delay(500);
-    digitalWrite(LED_RED, LIGHT_OFF);
-    return;
-  }
-
-  Serial.print("tensor ");
-  Serial.println(tensorIndex);
-
-  // drop the last 5 points
-  if (tensorIndex < out_samples * 9) {
-    tensorIndex -= 5 * 9;
-  }
-
-  for (int i = tensorIndex; i < out_samples * 9; i++) {
-    tflInputTensor->data.f[i] = 0;
-  }
-
-#ifdef TSFLOW
-  if (inference_started) {
-    inference_started = false;
-
-    // Invoke ML inference
-    TfLiteStatus invokeStatus = tflInterpreter->Invoke();
-    if (invokeStatus != kTfLiteOk) {
-      Serial.println("Invoke failed!");
-    }
-
-    // Loop through the output tensor values from the model
-    // for (int i = 0; i < NUM_GESTURES; i++) {
-    //   Serial.print(GESTURES[i]);
-    //   Serial.print(": ");
-    //   Serial.println(tflOutputTensor->data.f[i], 6);
-    // }
-    // Serial.println();
-
-    char ch = '.';
-    for (int i = 0; i < NUM_GESTURES; i++) {
-      if (tflOutputTensor->data.f[i] > 0.5) {
-        ch = GESTURES[i];
-        break;
-      };
-    }
-    Serial.println(ch);
-    if (ch == '.') {
-      digitalWrite(LED_RED, LIGHT_ON);
-      delay(500);
-      digitalWrite(LED_RED, LIGHT_OFF);
-    }
-
-    // Send KEY_DOWN
-    blehid.keyPress(ch);
-
-    // Send KEY_UP at next loop
-    needSendKeyRelease = true;
-  }
-#endif
-#endif
 }
 
 #ifdef TOM
@@ -934,4 +701,245 @@ void setDeviceId() {
     deviceId = 0;
     setBdDAAndName(addrByte3, (char *)"Rat0");
   }
+}
+
+void leds() {
+  ledCount++;
+  // pluse the green led to indicate system alive.
+  if (ledCount % 1000 < 30) {
+    if (deviceMode == DEVICE_MOUSE_MODE) {
+      digitalWrite(LED_GREEN, LIGHT_ON);
+      digitalWrite(LED_BLUE, LIGHT_OFF);
+    } else {
+      digitalWrite(LED_BLUE, LIGHT_ON);
+      digitalWrite(LED_GREEN, LIGHT_OFF);
+    }
+
+  } else {
+    if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
+      digitalWrite(LED_GREEN, LIGHT_ON);
+    } else {
+      digitalWrite(LED_GREEN, LIGHT_OFF);
+    }
+    if (digitalRead(KEYPAD_ACTIVATE) == HIGH) {
+      digitalWrite(LED_BLUE, LIGHT_ON);
+    } else {
+      digitalWrite(LED_BLUE, LIGHT_OFF);
+    }
+  }
+}
+
+void processMouse() {
+  if (count == report_freq - 1) {
+    lastXAngle = xAngle;
+    lastYAngle = yAngle;
+  }
+  count++;
+  int32_t x;
+  int32_t y;
+  // digitalWrite(DEBUG_3, HIGH);
+
+  // We do not want to overload the BLE link.
+  // so here we send 1 report every (report_freq * 10ms) = 30ms
+  if (count % report_freq == 0) {
+    x = (xAngle - lastXAngle) * SENSITIVITY_X;
+
+    // xAngle go back to 0 after pass 360 degrees. so here we need add the
+    // offsets.
+    if (x < -180 * SENSITIVITY_X) {
+      x += 360 * SENSITIVITY_X;
+    }
+
+    y = (yAngle - lastYAngle) * SENSITIVITY_Y;
+
+    // get rid of movement due to noise.
+    if (abs(x) > 8 || abs(y) > 8) {
+      // if (abs(accelX) + abs(accelY) + abs(accelZ) > 1.5) {
+      // mousePosition(x, y);
+      // if (abs(x) < 10) x = 0;
+      // if (abs(y) < 10) y = 0;
+      // Serial.print(x);
+      // Serial.print(",");
+      // Serial.print(-y);
+      // Serial.print(orientationData.orientation.pitch);
+      // // Serial.print(",");
+      // Serial.print(",  ");
+      // Serial.print(orientationData.orientation.roll);
+      // Serial.print(",");
+      // Serial.println(orientationData.orientation.pitch);
+      // Serial.print(",");
+
+      if (digitalRead(MOUSE_ACTIVATE) == HIGH) {
+        blehid.mouseMove(x, -y);
+      }
+      lastXAngle = xAngle;
+      lastYAngle = yAngle;
+    }
+  }
+  // digitalWrite(DEBUG_3, LOW);
+}
+
+void processKeyboard() {
+
+  /*****  Below is for Keyboard  ******/
+#if 1
+  // Device in Keyboard mode
+
+  // Capture has not started, ignore until user activate keypad
+  if (!startedChar) {
+    if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
+      samplesRead = -1;
+      return;
+    } else {
+      // User activate keypad, check whether 2s passed since last capture
+      // int currentTime = millis();
+      // if (currentTime < t1 + 2000) {
+      //   return;
+      // }
+      // t1 = currentTime;
+      startedChar = true;
+      samplesRead = -1;
+    }
+  }
+
+  // User finger is on keyboard_activation pad
+  // To begin, wait 200ms
+  // delay(200);
+
+  // Loop to read 20 samples, at 100Hz, takes 200ms
+  // This is better than delay, clear up data in IMU.
+  for (int i = 0; i < 20;) {
+    while (!imuDataReady()) {
+    }
+    readIMUNoWait();
+    if (newData) {
+      i++;
+      newData = false;
+    }
+  }
+
+  // Keep sampling until user release the ACTIVATE button
+  while (true) {
+
+    // User deactivated keypad
+    if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
+      startedChar = false;
+      inference_started = true;
+      break;
+    }
+
+    if (samplesRead >= out_samples) {
+      // Wait for user release the button
+      while (digitalRead(KEYPAD_ACTIVATE) == HIGH)
+        ;
+      startedChar = false;
+      inference_started = true;
+      break;
+    }
+
+    // BNO085 pull IMU_INT LOW when data is ready
+    // so do nothing in case of IMU_INT high
+    while (!imuDataReady()) {
+    }
+    readIMUNoWait();
+
+    if (newData) {
+      uint32_t now = micros();
+      newData = false;
+
+      // Wait for hand to rest
+      if (samplesRead == -1) {
+        if (sumAbsolateAcclOfAllAxis() > 1) {
+          // Serial.println("wait idle");
+          Serial.print("<");
+          continue;
+        }
+        digitalWrite(LED_BLUE, LIGHT_ON);
+        samplesRead = 0;
+        continue;
+      }
+
+      // wait for hand to move
+      if (samplesRead == 0) {
+        if (sumAbsolateAcclOfAllAxis() < 2) {
+          // Serial.println("wait move");
+          Serial.print(">");
+          continue;
+        }
+        tensorIndex = 0;
+      }
+
+      // Capture samples until keyboard_activation is release.
+      saveData();
+
+      samplesRead++;
+    }
+  }
+
+  // Not enough samples, restart
+  if (samplesRead < 45) {
+    Serial.print("not enough samples, ");
+    Serial.println(samplesRead);
+    samplesRead = -1;
+    tensorIndex = 0;
+    inference_started = false;
+    startedChar = false;
+    digitalWrite(LED_RED, LIGHT_ON);
+    delay(500);
+    digitalWrite(LED_RED, LIGHT_OFF);
+    return;
+  }
+
+  Serial.print("tensor ");
+  Serial.println(tensorIndex);
+
+  // drop the last 5 points
+  if (tensorIndex < out_samples * 9) {
+    tensorIndex -= 5 * 9;
+  }
+
+  for (int i = tensorIndex; i < out_samples * 9; i++) {
+    tflInputTensor->data.f[i] = 0;
+  }
+
+#ifdef TSFLOW
+  if (inference_started) {
+    inference_started = false;
+
+    // Invoke ML inference
+    TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+    if (invokeStatus != kTfLiteOk) {
+      Serial.println("Invoke failed!");
+    }
+
+    // Loop through the output tensor values from the model
+    // for (int i = 0; i < NUM_GESTURES; i++) {
+    //   Serial.print(GESTURES[i]);
+    //   Serial.print(": ");
+    //   Serial.println(tflOutputTensor->data.f[i], 6);
+    // }
+    // Serial.println();
+
+    char ch = '.';
+    for (int i = 0; i < NUM_GESTURES; i++) {
+      if (tflOutputTensor->data.f[i] > 0.5) {
+        ch = GESTURES[i];
+        break;
+      };
+    }
+    Serial.println(ch);
+    if (ch == '.') {
+      digitalWrite(LED_RED, LIGHT_ON);
+      delay(500);
+      digitalWrite(LED_RED, LIGHT_OFF);
+    }
+
+    // Send KEY_DOWN
+    blehid.keyPress(ch);
+
+    // Send KEY_UP at next loop
+    needSendKeyRelease = true;
+  }
+#endif
+#endif
 }
