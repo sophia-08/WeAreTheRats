@@ -21,3 +21,6 @@ typedef struct euler_t {
 void displayData();
 float imuSumOfAbsolateAcclOfAllAxis();
 bool imuDataReady();
+void imuStartSave(bool start);
+bool imuPreprocessData();
+void imuDisplayPixelArray();

@@ -221,6 +221,12 @@ void printOrientation();
 float gDrift[3], Orientation[3];
 float g[3];
 
+bool bWrite;
+float writeTrajectory[2000][2];
+int writeIndex;
+char buf[32][32];
+int bufSize;
+
 int imuInit(int deviceMode) {
   // set 6ds int1 as input
   pinMode(PIN_LSM6DS3TR_C_INT1, INPUT);
@@ -239,7 +245,17 @@ int imuReadAndUpdateXYAngle() {
   // printOrientation();
 
   xAngle = -Orientation[2];
-  yAngle = -Orientation[0];
+  yAngle = Orientation[0];
+
+    if (bWrite) {
+      writeTrajectory[writeIndex][0] = xAngle;
+      writeTrajectory[writeIndex][1] = yAngle;
+      writeIndex++;
+      if (writeIndex>1999) {
+        writeIndex = 1999;
+      }
+    }
+
   return 0;
 }
 void imuConfigure(int deviceMode) { return; }
@@ -343,4 +359,101 @@ void printOrientation() {
   Serial.println("");
 }
 
+void imuStartSave(bool start) {
+  if (start) {
+    bWrite = true;
+    writeIndex = 0;
+  }else{
+    bWrite = false;
+  }
+  
+}
+
+bool imuPreprocessData(){
+Serial.print("index ");
+Serial.println(writeIndex);
+
+  if (writeIndex < 200) {
+    return false;
+  }
+
+  float xmin = 1e9, ymin = 1e9;
+  float xmax = -1e9, ymax = -1e9;
+#define TRIM_LEFT 30
+#define TRIM_RIGH 30
+  for (int i = TRIM_LEFT; i < writeIndex - TRIM_RIGH; i++) {
+    if (writeTrajectory[i][0] < xmin) {
+      xmin = writeTrajectory[i][0];
+    };
+    if (writeTrajectory[i][0] > xmax) {
+      xmax = writeTrajectory[i][0];
+    };
+    if (writeTrajectory[i][1] < ymin) {
+      ymin = writeTrajectory[i][1];
+    };
+    if (writeTrajectory[i][1] > ymax) {
+      ymax = writeTrajectory[i][1];
+    };
+  }
+  bufSize = 32 * 32;
+  memset(buf, 0, bufSize);
+
+  float xrange = xmax - xmin;
+  float yrange = ymax - ymin;
+  float mrange = 20;
+
+  if (xrange < mrange)
+    xrange = mrange;
+  if (yrange < mrange)
+    yrange = mrange;
+
+  for (int i = TRIM_LEFT; i < writeIndex - TRIM_RIGH; i++) {
+    int x = int((writeTrajectory[i][0] - xmin) / xrange * 31) % 32;
+    int y = int((writeTrajectory[i][1] - ymin) / yrange * 31) % 32;
+    buf[y][x] = 1;
+  }
+  return true;
+}
+
+// void dump(unsigned char *buf, int size) {
+//   unsigned char *p = buf;
+//   int rows = size / 32;
+//   int remains = size % 32;
+//   int i, j;
+//   for (i = 0; i < rows; i++) {
+//     Serial.print(i);
+//     for (j = 0; j < 32; j++) {
+//       Serial.print(",");
+//       Serial.print(*p++, HEX);
+//     }
+//     Serial.println("");
+//   }
+//   if (remains) {
+//     Serial.print(i);
+//     for (j = 0; j < remains; j++) {
+//       Serial.print(",");
+//       Serial.print(*p++, HEX);
+//     }
+//     Serial.println("");
+//   }
+// }
+void dump(unsigned char *buf, int size) {
+  unsigned char *p = buf;
+  int rows = size / 32;
+  int remains = size % 32;
+  int i, j;
+  for (i = 0; i < rows; i++) {
+    for (j = 0; j < 32; j++) {
+      if (*p++ == 0) {
+        Serial.print(" ");
+      }else{
+        Serial.print(".");
+      }
+    }
+    Serial.println("");
+  }
+}
+void imuDisplayPixelArray() {
+  dump((unsigned char *)buf, 32*32);
+}
 #endif
