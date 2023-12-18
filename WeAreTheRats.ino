@@ -862,10 +862,11 @@ void processKeyboard() {
     }
 
     // Send KEY_DOWN
-    blehid.keyPress(ch);
-
-    // Send KEY_UP at next loop
-    needSendKeyRelease = true;
+    if (ch != '.') {
+      blehid.keyPress(ch);
+      // Send KEY_UP at next loop
+      needSendKeyRelease = true;
+    }
   }
 #endif
 }
