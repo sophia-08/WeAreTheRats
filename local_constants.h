@@ -24,8 +24,8 @@
 // #define DEBUG_3 D3
 
 #define SMOOTHING_RATIO 0.8
-#define SENSITIVITY_X 30
-#define SENSITIVITY_Y 35
+#define SENSITIVITY_X 45
+#define SENSITIVITY_Y 50
 #define DEBOUNCE_DELAY 5 // ms
 
 #define DEVICE_MOUSE_MODE 0
