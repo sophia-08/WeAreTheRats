@@ -733,6 +733,7 @@ void processKeyboard() {
   // To begin, wait 200ms
   // delay(200);
 
+#ifdef BNO085
   // Loop to read 20 samples, at 100Hz, takes 200ms
   // This is better than delay, clear up data in IMU.
   for (int i = 0; i < 20;) {
@@ -744,7 +745,7 @@ void processKeyboard() {
       newData = false;
     }
   }
-
+#endif
   // Keep sampling until user release the ACTIVATE button
   while (true) {
 
@@ -770,6 +771,7 @@ void processKeyboard() {
     }
     imuReadNoWait();
 
+#ifdef BNO085
     if (newData) {
       uint32_t now = micros();
       newData = false;
@@ -801,7 +803,9 @@ void processKeyboard() {
 
       samplesRead++;
     }
+#endif
   }
+
 
   // Not enough samples, restart
   if (samplesRead < 45) {

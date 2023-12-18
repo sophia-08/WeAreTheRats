@@ -31,7 +31,8 @@
 #define DEVICE_MOUSE_MODE 0
 #define DEVICE_KEYBOARD_MODE 1
 
-#define BNO085
+// #define BNO085
+#define LSM6DS3
 // #define IMU_USE_RESET
 #define BNO08X_RESET -1
 

@@ -205,3 +205,17 @@ bool imuDataReady() {
   return false;
 }
 #endif
+
+#ifdef LSM6DS3
+
+int imuInit(int deviceMode) {return 0;} 
+int imuReadAndUpdateXYAngle() {return 0;}
+void imuConfigure(int deviceMode) {return;}
+int imuReadNoWait() {return 0;};
+int imuSaveData(int samplesRead) {return 0;}
+
+
+void displayData() {return;}
+float imuSumOfAbsolateAcclOfAllAxis() {return 0;}
+bool imuDataReady() {return false;}
+#endif
