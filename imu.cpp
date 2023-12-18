@@ -206,16 +206,141 @@ bool imuDataReady() {
 }
 #endif
 
-#ifdef LSM6DS3
+#ifdef IMU_LSM6DS3
 
-int imuInit(int deviceMode) {return 0;} 
-int imuReadAndUpdateXYAngle() {return 0;}
-void imuConfigure(int deviceMode) {return;}
-int imuReadNoWait() {return 0;};
-int imuSaveData(int samplesRead) {return 0;}
+#include "LSM6DS3.h"
+#include <Wire.h>
+#include <bluefruit.h>
 
+LSM6DS3 myIMU(I2C_MODE, 0x6A);
+extern float xAngle, yAngle;
+void calibrateIMU(int delayMillis, int tries);
+void doCalculations();
+bool readIMU();
+void printOrientation();
+float gDrift[3], Orientation[3];
+float g[3];
 
-void displayData() {return;}
-float imuSumOfAbsolateAcclOfAllAxis() {return 0;}
-bool imuDataReady() {return false;}
+int imuInit(int deviceMode) {
+  // set 6ds int1 as input
+  pinMode(PIN_LSM6DS3TR_C_INT1, INPUT);
+
+  if (myIMU.begin() != 0) {
+    Serial.println("IMU error");
+    systemHaltWithledPattern(LED_RED, 3);
+  }
+
+  calibrateIMU(100, 1000);
+  return 0;
+}
+int imuReadAndUpdateXYAngle() {
+  readIMU();
+  doCalculations();
+  // printOrientation();
+
+  xAngle = -Orientation[2];
+  yAngle = -Orientation[0];
+  return 0;
+}
+void imuConfigure(int deviceMode) { return; }
+int imuReadNoWait() { return 0; };
+int imuSaveData(int samplesRead) { return 0; }
+
+void displayData() { return; }
+float imuSumOfAbsolateAcclOfAllAxis() { return 0; }
+bool imuDataReady() {
+  // PIN_LSM6DS3TR_C_INT1 go high when IMU data is ready, and stay high until
+  // data is readen
+  if (digitalRead(PIN_LSM6DS3TR_C_INT1)) {
+    return true;
+  } else
+    return false;
+}
+
+/*
+  the gyro's x,y,z values drift by a steady amount. if we measure this when
+  arduino is still we can correct the drift when doing real measurements later
+*/
+void calibrateIMU(int delayMillis, int tries) {
+  // 0.88580,-1.40338,-1.19635
+  gDrift[0] = 0.88892;
+  gDrift[1] = -1.41071;
+  gDrift[2] = -1.19446;
+  return;
+
+  int calibrationCount = 0;
+  int i;
+
+  delay(delayMillis); // to avoid shakes after pressing reset button
+
+  float sum[3] = {0, 0, 0};
+  // int startTime = millis();
+  while (calibrationCount < tries) {
+
+    if (digitalRead(PIN_LSM6DS3TR_C_INT1)) {
+      readIMU();
+      sum[0] += g[0];
+      sum[1] += g[1];
+      sum[2] += g[2];
+      calibrationCount++;
+    }
+  }
+
+  gDrift[0] = sum[0] / tries;
+  gDrift[1] = sum[1] / tries;
+  gDrift[2] = sum[2] / tries;
+
+  for (i = 0; i < 3; i++) {
+
+    Serial.print(gDrift[i], 5);
+    Serial.print(",");
+  }
+  Serial.println("");
+}
+
+bool readIMU() {
+
+  // At 400k clock, read register one by one
+  //  read 3 registers, took total 467us
+  //  read 6 registers, took total 927us
+  //  imu data ready every 2.32ms
+  // use readRegisterRegion
+  // took 403us at i2c 400khz clock, 1.49ms at 100khz clock
+
+  uint8_t data[12];
+  myIMU.readRegisterRegion(data, 0x22, 6);
+  int16_t *p = (int16_t *)data;
+  g[0] = *p * 2000.0 / 32768.0;
+  p++;
+  g[1] = *p * 2000.0 / 32768.0;
+  p++;
+  g[2] = *p * 2000.0 / 32768.0;
+  //   p++;
+  //   a[0] = *p * 4.0 / 32768.0;
+  //   p++;
+  //   a[1] = *p * 4.0 / 32768.0;
+  //   p++;
+  //   a[2] = *p * 4.0 / 32768.0;
+  //   p++;
+
+  return true;
+}
+
+void doCalculations() {
+
+  float freq = 416.0;
+  for (int i = 0; i < 3; i++) {
+    Orientation[i] += (g[i] - gDrift[i]) / freq;
+  }
+}
+
+void printOrientation() {
+  for (int i = 0; i < 3; i++) {
+
+    Serial.print(Orientation[i], 1);
+    Serial.print(",");
+  }
+  Serial.println("");
+}
+
 #endif

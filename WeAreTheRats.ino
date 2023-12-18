@@ -109,7 +109,7 @@ void setup() {
 }
 
 int count = 0;
-#define report_freq 1
+
 bool inference_started = false;
 
 #define PRECISION 4
@@ -673,11 +673,14 @@ void processMouse() {
   if (count % report_freq == 0) {
     x = (xAngle - lastXAngle) * SENSITIVITY_X;
 
+
+    #ifdef BNO085
     // xAngle go back to 0 after pass 360 degrees. so here we need add the
     // offsets.
     if (x < -180 * SENSITIVITY_X) {
       x += 360 * SENSITIVITY_X;
     }
+    #endif
 
     y = (yAngle - lastYAngle) * SENSITIVITY_Y;
 
