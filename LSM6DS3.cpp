@@ -370,8 +370,8 @@ LSM6DS3::LSM6DS3(uint8_t busType, uint8_t inputArg)
   settings.accelRange = 4;        // Max G force readable.  Can be: 2, 4, 8, 16
   settings.accelSampleRate = 416; // Hz.  Can be: 13, 26, 52, 104, 208, 416,
                                   // 833, 1660, 3330, 6660, 13330
-  settings.accelBandWidth = 100;    // Hz.  Can be: 50, 100, 200, 400;
-  settings.accelFifoEnabled = 1;    // Set to include accelerometer in the FIFO
+  settings.accelBandWidth = 100;  // Hz.  Can be: 50, 100, 200, 400;
+  settings.accelFifoEnabled = 1;  // Set to include accelerometer in the FIFO
   settings.accelFifoDecimation = 1; // set 1 for on /1
 
   settings.tempEnabled = 0;
