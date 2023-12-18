@@ -658,6 +658,7 @@ void leds() {
   }
 }
 
+#define MOUSE_JITTER 1
 void processMouse() {
   if (count == report_freq - 1) {
     lastXAngle = xAngle;
@@ -685,7 +686,7 @@ void processMouse() {
     y = (yAngle - lastYAngle) * SENSITIVITY_Y;
 
     // get rid of movement due to noise.
-    if (abs(x) > 8 || abs(y) > 8) {
+    if (abs(x) > MOUSE_JITTER || abs(y) > MOUSE_JITTER) {
       // if (abs(accelX) + abs(accelY) + abs(accelZ) > 1.5) {
       // mousePosition(x, y);
       // if (abs(x) < 10) x = 0;
