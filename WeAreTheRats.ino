@@ -63,7 +63,7 @@ TfLiteTensor *tflOutputTensor = nullptr;
 
 // Create a static memory buffer for TFLM, the size may need to
 // be adjusted based on the model you are using
-constexpr int tensorArenaSize = 180 * 1024;
+constexpr int tensorArenaSize = 160 * 1024;
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 #endif
 
@@ -188,7 +188,7 @@ uint32_t skipScroll;
 
 uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
                           KEYPAD_ACTIVATE};
-uint8_t clickButtonLastState[] = {HIGH, HIGH, HIGH, HIGH};
+uint8_t clickButtonLastState[] = {HIGH, HIGH, LOW, LOW};
 uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0};
 uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0};
 
@@ -210,10 +210,14 @@ void scanOneClickButton(uint8_t keyIndex) {
 
   switch (clickButtons[keyIndex]) {
   case MOUSE_ACTIVATE:
+    // Serial.println("switch to mouse");
     deviceMode = DEVICE_MOUSE_MODE;
+
+    // todo only reconfig when these is a real mode change. needed for bno085
     imuConfigure(deviceMode);
     break;
   case KEYPAD_ACTIVATE:
+    // Serial.println("switch to keyboard");
     deviceMode = DEVICE_KEYBOARD_MODE;
     imuConfigure(deviceMode);
     break;
@@ -674,14 +678,13 @@ void processMouse() {
   if (count % report_freq == 0) {
     x = (xAngle - lastXAngle) * SENSITIVITY_X;
 
-
-    #ifdef BNO085
+#ifdef BNO085
     // xAngle go back to 0 after pass 360 degrees. so here we need add the
     // offsets.
     if (x < -180 * SENSITIVITY_X) {
       x += 360 * SENSITIVITY_X;
     }
-    #endif
+#endif
 
     y = (yAngle - lastYAngle) * SENSITIVITY_Y;
 
@@ -711,7 +714,7 @@ void processMouse() {
   }
   // digitalWrite(DEBUG_3, LOW);
 }
-
+extern char buf[32][32];
 void processKeyboard() {
 
   // Device in Keyboard mode
@@ -736,7 +739,6 @@ void processKeyboard() {
   // User finger is on keyboard_activation pad
   // To begin, wait 200ms
   // delay(200);
-
 
   // Loop to read 20 samples, at 100Hz, takes 200ms
   // This is better than delay, clear up data in IMU.
@@ -775,7 +777,6 @@ void processKeyboard() {
     }
     imuReadNoWait();
 
-
     if (newData) {
       uint32_t now = micros();
       newData = false;
@@ -807,12 +808,11 @@ void processKeyboard() {
 
       samplesRead++;
     }
-
   }
 #endif
 
 #ifdef IMU_LSM6DS3
-// Capture has not started, ignore until user activate keypad
+  // Capture has not started, ignore until user activate keypad
   if (!startedChar) {
     if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
       return;
@@ -824,25 +824,21 @@ void processKeyboard() {
   }
 
   if (startedChar) {
-      // User deactivated keypad
+    // User deactivated keypad
     if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
-        imuStartSave(false);
-        startedChar = false;
-        if (imuPreprocessData()) {
-          inference_started = true;
-          imuDisplayPixelArray();
-          
-        };
-    }    
+      imuStartSave(false);
+      startedChar = false;
+      if (imuPreprocessData()) {
+        inference_started = true;
+        imuDisplayPixelArray();
+      };
+    }
   }
 
-  if (inference_started) {
-    inference_started = false;
-  }
-
-  return;
+  // return;
 #endif
 
+#if 0
   // Not enough samples, restart
   if (samplesRead < 45) {
     Serial.print("not enough samples, ");
@@ -868,10 +864,17 @@ void processKeyboard() {
   for (int i = tensorIndex; i < out_samples * 9; i++) {
     tflInputTensor->data.f[i] = 0;
   }
+#endif
 
 #ifdef TSFLOW
   if (inference_started) {
     inference_started = false;
+    tensorIndex = 0;
+    for (int i = 0; i < 32; i++) {
+      for (int j = 0; j < 32; j++) {
+        tflInputTensor->data.f[tensorIndex++] = buf[i][j];
+      }
+    }
 
     // Invoke ML inference
     TfLiteStatus invokeStatus = tflInterpreter->Invoke();
