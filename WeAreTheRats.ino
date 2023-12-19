@@ -809,36 +809,7 @@ void processKeyboard() {
       samplesRead++;
     }
   }
-#endif
 
-#ifdef IMU_LSM6DS3
-  // Capture has not started, ignore until user activate keypad
-  if (!startedChar) {
-    if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
-      return;
-    } else {
-      // User finger on the pad
-      startedChar = true;
-      imuStartSave(true);
-    }
-  }
-
-  if (startedChar) {
-    // User deactivated keypad
-    if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
-      imuStartSave(false);
-      startedChar = false;
-      if (imuPreprocessData()) {
-        inference_started = true;
-        imuDisplayPixelArray();
-      };
-    }
-  }
-
-  // return;
-#endif
-
-#if 0
   // Not enough samples, restart
   if (samplesRead < 45) {
     Serial.print("not enough samples, ");
@@ -866,15 +837,46 @@ void processKeyboard() {
   }
 #endif
 
+
+#ifdef IMU_LSM6DS3
+  // Capture has not started, ignore until user activate keypad
+  if (!startedChar) {
+    if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
+      return;
+    } else {
+      // User finger on the pad
+      startedChar = true;
+      imuStartSave(true);
+    }
+  }
+
+  if (startedChar) {
+    // User deactivated keypad
+    if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
+      imuStartSave(false);
+      startedChar = false;
+      if (imuPreprocessData()) {
+        inference_started = true;
+        imuDisplayPixelArray();
+
+        tensorIndex = 0;
+        for (int i = 0; i < 32; i++) {
+          for (int j = 0; j < 32; j++) {
+            tflInputTensor->data.f[tensorIndex++] = buf[i][j];
+          }
+        }
+
+      };
+    }
+  }
+
+  // return;
+#endif
+
+
 #ifdef TSFLOW
   if (inference_started) {
     inference_started = false;
-    tensorIndex = 0;
-    for (int i = 0; i < 32; i++) {
-      for (int j = 0; j < 32; j++) {
-        tflInputTensor->data.f[tensorIndex++] = buf[i][j];
-      }
-    }
 
     // Invoke ML inference
     TfLiteStatus invokeStatus = tflInterpreter->Invoke();
