@@ -34,6 +34,7 @@
 // #define BNO085
 #ifdef BNO085
 #define report_freq 1
+#define BNO08X_RESET -1
 #endif
 
 #define IMU_LSM6DS3
@@ -43,7 +44,6 @@
 
 
 // #define IMU_USE_RESET
-#define BNO08X_RESET -1
 
 // #define IMU_USE_INT
 // #define TOM
