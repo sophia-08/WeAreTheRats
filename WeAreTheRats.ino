@@ -224,13 +224,13 @@ void scanOneClickButton(uint8_t keyIndex) {
   default:
     if (deviceMode == DEVICE_MOUSE_MODE) {
       if (state == LOW) {
-        if (keyIndex == 1) {
-          // hack the backspace button for device switching
-          setDeviceId();
-        } else {
+        // if (keyIndex == 1) {
+        //   // hack the backspace button for device switching
+        //   setDeviceId();
+        // } else {
           blehid.mouseButtonPress(clickButtonCode[keyIndex]);
           Serial.println("mouse button down");
-        }
+        // }
       } else {
         blehid.mouseButtonRelease();
         Serial.println("mouse button up");
@@ -239,14 +239,14 @@ void scanOneClickButton(uint8_t keyIndex) {
       if (state == LOW) {
         uint8_t keycodes[6] = {HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE,
                                HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE};
-        if (keyIndex == 1) {
-          // hack the backspace button for device switching
-          setDeviceId();
-        } else {
+        // if (keyIndex == 1) {
+        //   // hack the backspace button for device switching
+        //   setDeviceId();
+        // } else {
           keycodes[0] = clickButtonKeyboardCode[keyIndex];
           blehid.keyboardReport(0, keycodes);
           Serial.println("key button down");
-        }
+        // }
 
       } else {
         blehid.keyRelease();
