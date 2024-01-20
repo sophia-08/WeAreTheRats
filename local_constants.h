@@ -1,16 +1,28 @@
 #pragma once
 
-#define MOUSE_LEFT D9
-#define MOUSE_RIGHT D8
-#define MOUSE_ACTIVATE D6
+#define PIMORONI_TRACKBALL
+// #define SEVEN_KEY_PAD
+// #define PIMORONI_TRACKBALL_INT D0
+#define MINUTE_MOVEMENT 5
 #define IMU_RESET D0
 #define IMU_INT D0
-#define KEYPAD_ACTIVATE D10
+
+#ifdef PIMORONI_TRACKBALL
+#define MOUSE_RIGHT D3
+#endif
+
+#ifdef SEVEN_KEY_PAD
+#define MOUSE_LEFT D9
+#define MOUSE_RIGHT D8
 #define KEYPAD_CENTER D10
-#define KEYPAD_UP D7
+#define KEYPAD_UP D7 
 #define KEYPAD_RIGHT D3
 #define KEYPAD_DOWN D2
 #define KEYPAD_LEFT D1
+#endif
+
+#define MOUSE_ACTIVATE D6
+#define KEYPAD_ACTIVATE D10
 
 
 // #define LED_CHARGER 23

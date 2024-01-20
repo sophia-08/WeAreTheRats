@@ -122,8 +122,10 @@ float xAngle, yAngle, lastXAngle, lastYAngle;
 void loop() {
 
   leds();
+#ifdef SEVEN_KEY_PAD
   scanNavigateButtons();
   scanClickButtons();
+#endif
 
 #ifdef FEATURE_INERTIA_SCROLL
   if (inertiaScroll) {
@@ -164,44 +166,47 @@ void loop() {
   }
 }
 
+#ifdef SEVEN_KEY_PAD
 #define DOUBLE_CLICK_INTERVAL 300
 #define MOUSE_STEPS_PER_CLICK 5
 int lastUpTime, lastDownTime, lastKey;
-uint8_t navigateButtons[4] = {KEYPAD_LEFT, KEYPAD_RIGHT, KEYPAD_UP,
-                              KEYPAD_DOWN};
-uint8_t navigateButtonLastState[4] = {HIGH, HIGH, HIGH, HIGH};
-uint8_t navigateButtonInDoubleClickMode[4] = {0, 0, 0, 0};
+uint8_t navigateButtons[4] = { KEYPAD_LEFT, KEYPAD_RIGHT, KEYPAD_UP,
+                               KEYPAD_DOWN };
+uint8_t navigateButtonLastState[4] = { HIGH, HIGH, HIGH, HIGH };
+uint8_t navigateButtonInDoubleClickMode[4] = { 0, 0, 0, 0 };
 uint8_t navigateButtonSingleClickKeyboardCode[4] = {
-    HID_KEY_ARROW_LEFT, HID_KEY_ARROW_RIGHT, HID_KEY_ARROW_UP,
-    HID_KEY_ARROW_DOWN};
+  HID_KEY_ARROW_LEFT, HID_KEY_ARROW_RIGHT, HID_KEY_ARROW_UP,
+  HID_KEY_ARROW_DOWN
+};
 uint8_t navigateButtonDoubleClickKeyboardCode[4] = {
-    HID_KEY_HOME, HID_KEY_END, HID_KEY_PAGE_UP, HID_KEY_PAGE_DOWN};
+  HID_KEY_HOME, HID_KEY_END, HID_KEY_PAGE_UP, HID_KEY_PAGE_DOWN
+};
 
-int8_t navigateButtonSingleClickMouseCode[4][2] = {{-MOUSE_STEPS_PER_CLICK, 0},
-                                                   {MOUSE_STEPS_PER_CLICK, 0},
-                                                   {0, -MOUSE_STEPS_PER_CLICK},
-                                                   {0, MOUSE_STEPS_PER_CLICK}};
-int8_t navigateButtonDoubleClickMouseCode[4] = {MOUSE_BUTTON_BACKWARD,
-                                                MOUSE_BUTTON_FORWARD, -1, 1};
+int8_t navigateButtonSingleClickMouseCode[4][2] = { { -MOUSE_STEPS_PER_CLICK, 0 },
+                                                    { MOUSE_STEPS_PER_CLICK, 0 },
+                                                    { 0, -MOUSE_STEPS_PER_CLICK },
+                                                    { 0, MOUSE_STEPS_PER_CLICK } };
+int8_t navigateButtonDoubleClickMouseCode[4] = { MOUSE_BUTTON_BACKWARD,
+                                                 MOUSE_BUTTON_FORWARD, -1, 1 };
 uint32_t navigateButtonLastDownTime[4];
 uint32_t skipScroll;
 
-uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
-                          KEYPAD_ACTIVATE};
-uint8_t clickButtonLastState[] = {HIGH, HIGH, LOW, LOW};
-uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0};
-uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0};
+uint8_t clickButtons[] = { MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
+                           KEYPAD_ACTIVATE };
+uint8_t clickButtonLastState[] = { HIGH, HIGH, LOW, LOW };
+uint8_t clickButtonCode[] = { MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0 };
+uint8_t clickButtonKeyboardCode[] = { HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0 };
 
 void scanOneClickButton(uint8_t keyIndex) {
 
   uint8_t state = digitalRead(clickButtons[keyIndex]);
-  if (state == clickButtonLastState[keyIndex]) { // no change
+  if (state == clickButtonLastState[keyIndex]) {  // no change
     return;
   }
 
   delay(3);
   state = digitalRead(clickButtons[keyIndex]);
-  if (state == clickButtonLastState[keyIndex]) { // no change
+  if (state == clickButtonLastState[keyIndex]) {  // no change
     return;
   }
 
@@ -209,50 +214,50 @@ void scanOneClickButton(uint8_t keyIndex) {
   clickButtonLastState[keyIndex] = state;
 
   switch (clickButtons[keyIndex]) {
-  case MOUSE_ACTIVATE:
-    // Serial.println("switch to mouse");
-    deviceMode = DEVICE_MOUSE_MODE;
+    case MOUSE_ACTIVATE:
+      // Serial.println("switch to mouse");
+      deviceMode = DEVICE_MOUSE_MODE;
 
-    // todo only reconfig when these is a real mode change. needed for bno085
-    imuConfigure(deviceMode);
-    break;
-  case KEYPAD_ACTIVATE:
-    // Serial.println("switch to keyboard");
-    deviceMode = DEVICE_KEYBOARD_MODE;
-    imuConfigure(deviceMode);
-    break;
-  default:
-    if (deviceMode == DEVICE_MOUSE_MODE) {
-      if (state == LOW) {
-        // if (keyIndex == 1) {
-        //   // hack the backspace button for device switching
-        //   setDeviceId();
-        // } else {
+      // todo only reconfig when these is a real mode change. needed for bno085
+      imuConfigure(deviceMode);
+      break;
+    case KEYPAD_ACTIVATE:
+      // Serial.println("switch to keyboard");
+      deviceMode = DEVICE_KEYBOARD_MODE;
+      imuConfigure(deviceMode);
+      break;
+    default:
+      if (deviceMode == DEVICE_MOUSE_MODE) {
+        if (state == LOW) {
+          // if (keyIndex == 1) {
+          //   // hack the backspace button for device switching
+          //   setDeviceId();
+          // } else {
           blehid.mouseButtonPress(clickButtonCode[keyIndex]);
           Serial.println("mouse button down");
-        // }
+          // }
+        } else {
+          blehid.mouseButtonRelease();
+          Serial.println("mouse button up");
+        }
       } else {
-        blehid.mouseButtonRelease();
-        Serial.println("mouse button up");
-      }
-    } else {
-      if (state == LOW) {
-        uint8_t keycodes[6] = {HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE,
-                               HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE};
-        // if (keyIndex == 1) {
-        //   // hack the backspace button for device switching
-        //   setDeviceId();
-        // } else {
+        if (state == LOW) {
+          uint8_t keycodes[6] = { HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE,
+                                  HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE };
+          // if (keyIndex == 1) {
+          //   // hack the backspace button for device switching
+          //   setDeviceId();
+          // } else {
           keycodes[0] = clickButtonKeyboardCode[keyIndex];
           blehid.keyboardReport(0, keycodes);
           Serial.println("key button down");
-        // }
+          // }
 
-      } else {
-        blehid.keyRelease();
-        Serial.println("key button up");
+        } else {
+          blehid.keyRelease();
+          Serial.println("key button up");
+        }
       }
-    }
   }
 }
 
@@ -267,7 +272,7 @@ void scanClickButtons() {
 void scanOneNavigateButton(uint8_t keyIndex) {
   // detect edge
   uint8_t state = digitalRead(navigateButtons[keyIndex]);
-  if (state == navigateButtonLastState[keyIndex]) { // no change
+  if (state == navigateButtonLastState[keyIndex]) {  // no change
 
     // For mouse, when the button is pressed and held,  we need continue send
     // mouseMove() event. This need be done without wait.
@@ -294,7 +299,7 @@ void scanOneNavigateButton(uint8_t keyIndex) {
 
   delay(1);
   state = digitalRead(navigateButtons[keyIndex]);
-  if (state == navigateButtonLastState[keyIndex]) { // only noise
+  if (state == navigateButtonLastState[keyIndex]) {  // only noise
     return;
   }
 
@@ -318,15 +323,14 @@ void scanOneNavigateButton(uint8_t keyIndex) {
       doubleClick = true;
 
       // For Mouse. save the double click flag, used for repeat events.
-      if (navigateButtons[keyIndex] == KEYPAD_UP ||
-          navigateButtons[keyIndex] == KEYPAD_DOWN) {
+      if (navigateButtons[keyIndex] == KEYPAD_UP || navigateButtons[keyIndex] == KEYPAD_DOWN) {
         navigateButtonInDoubleClickMode[keyIndex] = true;
       }
     }
     if (deviceMode == DEVICE_KEYBOARD_MODE) {
       // keyboard mode
-      uint8_t keycodes[6] = {HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE,
-                             HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE};
+      uint8_t keycodes[6] = { HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE,
+                              HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE };
       if (doubleClick) {
         keycodes[0] = navigateButtonDoubleClickKeyboardCode[keyIndex];
       } else {
@@ -340,29 +344,29 @@ void scanOneNavigateButton(uint8_t keyIndex) {
       // mouse mode
       if (doubleClick) {
         switch (navigateButtons[keyIndex]) {
-        case KEYPAD_UP:
-        case KEYPAD_DOWN:
-          Serial.print("mouse scroll: ");
-          Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
-          blehid.mouseScroll(navigateButtonDoubleClickMouseCode[keyIndex]);
-          skipScroll = 0;
-          break;
-        case KEYPAD_LEFT:
-        case KEYPAD_RIGHT:
+          case KEYPAD_UP:
+          case KEYPAD_DOWN:
+            Serial.print("mouse scroll: ");
+            Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
+            blehid.mouseScroll(navigateButtonDoubleClickMouseCode[keyIndex]);
+            skipScroll = 0;
+            break;
+          case KEYPAD_LEFT:
+          case KEYPAD_RIGHT:
 #ifdef FEATURE_INERTIA_SCROLL
-          inertiaScroll = true;
-          inertiaScrollLastTimeStamp = millis();
-          Serial.println("start inertia scroll");
-          if (navigateButtons[keyIndex] == KEYPAD_LEFT) {
-            inertiaScrollDirection = INERTIA_SCROLL_DOWN;
-          } else {
-            inertiaScrollDirection = INERTIA_SCROLL_UP;
-          }
+            inertiaScroll = true;
+            inertiaScrollLastTimeStamp = millis();
+            Serial.println("start inertia scroll");
+            if (navigateButtons[keyIndex] == KEYPAD_LEFT) {
+              inertiaScrollDirection = INERTIA_SCROLL_DOWN;
+            } else {
+              inertiaScrollDirection = INERTIA_SCROLL_UP;
+            }
 
 #else
-          blehid.mouseButtonPress(navigateButtonDoubleClickMouseCode[keyIndex]);
-          Serial.print("mouse db ");
-          Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
+            blehid.mouseButtonPress(navigateButtonDoubleClickMouseCode[keyIndex]);
+            Serial.print("mouse db ");
+            Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
 #endif
         }
 
@@ -390,12 +394,12 @@ void scanOneNavigateButton(uint8_t keyIndex) {
       // mouse mode
       if (doubleClick) {
         switch (navigateButtons[keyIndex]) {
-        case KEYPAD_LEFT:
-        case KEYPAD_RIGHT:
-          blehid.mouseButtonRelease();
-          break;
-        default:
-          break;
+          case KEYPAD_LEFT:
+          case KEYPAD_RIGHT:
+            blehid.mouseButtonRelease();
+            break;
+          default:
+            break;
         }
       }
     }
@@ -407,6 +411,8 @@ void scanNavigateButtons() {
     scanOneNavigateButton(i);
   }
 }
+
+#endif
 
 void configGpio() {
   // enable battery measuring.
@@ -449,8 +455,14 @@ void configGpio() {
 
   pinMode(IMU_INT, INPUT_PULLUP);
 
-  pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
   pinMode(MOUSE_RIGHT, INPUT_PULLUP);
+  pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
+  pinMode(KEYPAD_ACTIVATE, INPUT_PULLUP);
+  digitalWrite(KEYPAD_ACTIVATE, HIGH);
+  digitalWrite(MOUSE_ACTIVATE, HIGH);
+  digitalWrite(MOUSE_RIGHT, HIGH);
+
+#ifdef SEVEN_KEY_PAD
   pinMode(MOUSE_LEFT, INPUT_PULLUP);
   pinMode(KEYPAD_LEFT, INPUT_PULLUP);
   pinMode(KEYPAD_RIGHT, INPUT_PULLUP);
@@ -458,14 +470,13 @@ void configGpio() {
   pinMode(KEYPAD_UP, INPUT_PULLUP);
   pinMode(KEYPAD_DOWN, INPUT_PULLUP);
 
-  digitalWrite(MOUSE_ACTIVATE, HIGH);
-  digitalWrite(MOUSE_RIGHT, HIGH);
   digitalWrite(MOUSE_LEFT, HIGH);
   digitalWrite(KEYPAD_LEFT, HIGH);
   digitalWrite(KEYPAD_RIGHT, HIGH);
   digitalWrite(KEYPAD_CENTER, HIGH);
   digitalWrite(KEYPAD_UP, HIGH);
   digitalWrite(KEYPAD_DOWN, HIGH);
+#endif
 
   digitalWrite(LED_RED, LIGHT_OFF);
   digitalWrite(LED_BLUE, LIGHT_OFF);
@@ -483,8 +494,8 @@ void loadTFLiteModel() {
 
   // Create an interpreter to run the model
   tflInterpreter =
-      new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena,
-                                   tensorArenaSize, &tflErrorReporter);
+    new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena,
+                                 tensorArenaSize, &tflErrorReporter);
 
   // Allocate memory for the model's input and output tensors
   if (tflInterpreter->AllocateTensors() != kTfLiteOk) {
@@ -522,9 +533,9 @@ void startAdv(void) {
    * https://developer.apple.com/library/content/qa/qa1931/_index.html
    */
   Bluefruit.Advertising.restartOnDisconnect(true);
-  Bluefruit.Advertising.setInterval(32, 244); // in unit of 0.625 ms
-  Bluefruit.Advertising.setFastTimeout(30);   // number of seconds in fast mode
-  Bluefruit.Advertising.start(0); // 0 = Don't stop advertising after n seconds
+  Bluefruit.Advertising.setInterval(32, 244);  // in unit of 0.625 ms
+  Bluefruit.Advertising.setFastTimeout(30);    // number of seconds in fast mode
+  Bluefruit.Advertising.start(0);              // 0 = Don't stop advertising after n seconds
 }
 void initAndStartBLE() {
 
@@ -547,7 +558,7 @@ void initAndStartBLE() {
   Bluefruit.Periph.setConnInterval(9, 16);
   // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
 
-  Bluefruit.setTxPower(4); // Check bluefruit.h for supported values
+  Bluefruit.setTxPower(4);  // Check bluefruit.h for supported values
   Bluefruit.setName("Rat0");
 
   // Configure and Start Device Information Service
@@ -573,10 +584,10 @@ void initAndStartBLE() {
    */
   Bluefruit.Scanner.setRxCallback(scan_callback);
   Bluefruit.Scanner.restartOnDisconnect(true);
-  Bluefruit.Scanner.setInterval(160, 5); // in unit of 0.625 ms
+  Bluefruit.Scanner.setInterval(160, 5);  // in unit of 0.625 ms
   Bluefruit.Scanner.filterUuid(BLEUART_UUID_SERVICE);
   Bluefruit.Scanner.useActiveScan(false);
-  Bluefruit.Scanner.start(0); // 0 = Don't stop scanning after n seconds
+  Bluefruit.Scanner.start(0);  // 0 = Don't stop scanning after n seconds
 #endif
   // Set up and start advertising
   startAdv();
@@ -865,7 +876,6 @@ void processKeyboard() {
             tflInputTensor->data.f[tensorIndex++] = buf[i][j];
           }
         }
-
       };
     }
   }
