@@ -123,6 +123,7 @@ int t1 = 0;
 int ledCount;
 bool needSendKeyRelease = false;
 float xAngle, yAngle, lastXAngle, lastYAngle;
+int xArrow=0, yArrow=0;
 
 void loop() {
 
@@ -130,8 +131,8 @@ void loop() {
 
 #ifdef SEVEN_KEY_PAD
   scanNavigateButtons();
-
 #endif
+
   scanClickButtons();
 
 #ifdef FEATURE_INERTIA_SCROLL
@@ -154,26 +155,73 @@ void loop() {
     // https://github.com/pimoroni/pimoroni-pico/issues/357 if
     // (digitalRead(PIMORONI_TRACKBALL_INT) == LOW) {
     int x, y;
-    y = (trackball.right() - trackball.left()) * MINUTE_MOVEMENT;
-    x = (-trackball.down() + trackball.up()) * MINUTE_MOVEMENT;
-    if (x != 0 || y != 0) {
-      Serial.print(x);
-      Serial.print(",");
-      Serial.println(y);
-      blehid.mouseMove(x, y);
-    }
-    if (trackball.click()) {
-      blehid.mouseButtonPress(MOUSE_BUTTON_LEFT);
-      Serial.println("do");
-    }
-    if (trackball.release()) {
+    if (deviceMode == DEVICE_MOUSE_MODE) {
+      y = (trackball.right() - trackball.left()) * MINUTE_MOVEMENT;
+      x = (-trackball.down() + trackball.up()) * MINUTE_MOVEMENT;
+      if (x != 0 || y != 0) {
+        Serial.print(x);
+        Serial.print(",");
+        Serial.println(y);
+        blehid.mouseMove(x, y);
+      }
+      if (trackball.click()) {
+        blehid.mouseButtonPress(MOUSE_BUTTON_LEFT);
+        Serial.println("do");
+      }
+      if (trackball.release()) {
 
-      blehid.mouseButtonRelease();
+        blehid.mouseButtonRelease();
 
-      Serial.println("re");
+        Serial.println("re");
+      }
+    } else {
+      y = (trackball.right() - trackball.left()) ;
+      x = (-trackball.down() + trackball.up()) ;
+      xArrow += x;
+      yArrow += y;
+
+      // keyboard mode
+      uint8_t keycodes[6] = {HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE,
+                             HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE};
+
+      bool keyPressed = false;
+      #define TRACKBALL_ARROW_KEY_SENSIVITY 5
+
+      if (yArrow < -TRACKBALL_ARROW_KEY_SENSIVITY) {
+        keycodes[0] = HID_KEY_ARROW_UP;
+        keyPressed = true;
+        yArrow += TRACKBALL_ARROW_KEY_SENSIVITY;
+      } else if (yArrow > TRACKBALL_ARROW_KEY_SENSIVITY) {
+        keycodes[0] = HID_KEY_ARROW_DOWN;
+        keyPressed = true;
+        yArrow -= TRACKBALL_ARROW_KEY_SENSIVITY;
+      }
+
+      if (keyPressed) {
+        blehid.keyboardReport(0, keycodes);
+        delay(1);
+        blehid.keyRelease();
+      }
+
+      keyPressed = false;
+
+      if (xArrow < -TRACKBALL_ARROW_KEY_SENSIVITY) {
+        keycodes[0] = HID_KEY_ARROW_LEFT;
+        keyPressed = true;
+        xArrow += TRACKBALL_ARROW_KEY_SENSIVITY;
+      } else if (xArrow > TRACKBALL_ARROW_KEY_SENSIVITY) {
+        keycodes[0] = HID_KEY_ARROW_RIGHT;
+        keyPressed = true;
+        xArrow -= TRACKBALL_ARROW_KEY_SENSIVITY;
+      }
+
+      if (keyPressed) {
+        blehid.keyboardReport(0, keycodes);
+        delay(1);
+        blehid.keyRelease();
+      }
     }
   }
-
 
   // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
   // For air writing, when a character is recoganized, only KEY_DOWN event is
@@ -198,7 +246,6 @@ void loop() {
     processKeyboard();
   }
 }
-
 
 uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
                           KEYPAD_ACTIVATE};
@@ -278,7 +325,6 @@ void scanClickButtons() {
   }
 }
 
-
 #ifdef SEVEN_KEY_PAD
 #define DOUBLE_CLICK_INTERVAL 300
 #define MOUSE_STEPS_PER_CLICK 5
@@ -301,7 +347,6 @@ int8_t navigateButtonDoubleClickMouseCode[4] = {MOUSE_BUTTON_BACKWARD,
                                                 MOUSE_BUTTON_FORWARD, -1, 1};
 uint32_t navigateButtonLastDownTime[4];
 uint32_t skipScroll;
-
 
 void scanOneNavigateButton(uint8_t keyIndex) {
   // detect edge
