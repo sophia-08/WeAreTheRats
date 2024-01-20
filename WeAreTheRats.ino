@@ -172,9 +172,9 @@ void loop() {
       y = (trackball.right() - trackball.left()) * MINUTE_MOVEMENT;
       x = (-trackball.down() + trackball.up()) * MINUTE_MOVEMENT;
       if (x != 0 || y != 0) {
-        Serial.print(x);
-        Serial.print(",");
-        Serial.println(y);
+        // Serial.print(x);
+        // Serial.print(",");
+        // Serial.println(y);
         blehid.mouseMove(x, y);
       }
       if (trackball.click()) {
