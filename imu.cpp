@@ -243,10 +243,13 @@ int imuReadAndUpdateXYAngle() {
   readIMU();
   doCalculations();
   // printOrientation();
-
+#ifdef PIMORONI_TRACKBALL
+      xAngle = Orientation[0];
+    yAngle = -Orientation[2];
+#else
   xAngle = -Orientation[2];
   yAngle = Orientation[0];
-
+#endif
     if (bWrite) {
       writeTrajectory[writeIndex][0] = xAngle;
       writeTrajectory[writeIndex][1] = yAngle;
