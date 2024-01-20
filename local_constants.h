@@ -9,6 +9,7 @@
 
 #ifdef PIMORONI_TRACKBALL
 #define MOUSE_RIGHT D3
+#define MOUSE_LEFT 255
 #endif
 
 #ifdef SEVEN_KEY_PAD

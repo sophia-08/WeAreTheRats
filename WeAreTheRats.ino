@@ -130,8 +130,9 @@ void loop() {
 
 #ifdef SEVEN_KEY_PAD
   scanNavigateButtons();
-  scanClickButtons();
+
 #endif
+  scanClickButtons();
 
 #ifdef FEATURE_INERTIA_SCROLL
   if (inertiaScroll) {
@@ -147,6 +148,32 @@ void loop() {
     };
   }
 #endif
+
+  if (trackball.changed()) {
+    // Bug of the hardware, int keep low.
+    // https://github.com/pimoroni/pimoroni-pico/issues/357 if
+    // (digitalRead(PIMORONI_TRACKBALL_INT) == LOW) {
+    int x, y;
+    y = (trackball.right() - trackball.left()) * MINUTE_MOVEMENT;
+    x = (-trackball.down() + trackball.up()) * MINUTE_MOVEMENT;
+    if (x != 0 || y != 0) {
+      Serial.print(x);
+      Serial.print(",");
+      Serial.println(y);
+      blehid.mouseMove(x, y);
+    }
+    if (trackball.click()) {
+      blehid.mouseButtonPress(MOUSE_BUTTON_LEFT);
+      Serial.println("do");
+    }
+    if (trackball.release()) {
+
+      blehid.mouseButtonRelease();
+
+      Serial.println("re");
+    }
+  }
+
 
   // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
   // For air writing, when a character is recoganized, only KEY_DOWN event is
@@ -172,28 +199,6 @@ void loop() {
   }
 }
 
-#ifdef SEVEN_KEY_PAD
-#define DOUBLE_CLICK_INTERVAL 300
-#define MOUSE_STEPS_PER_CLICK 5
-int lastUpTime, lastDownTime, lastKey;
-uint8_t navigateButtons[4] = {KEYPAD_LEFT, KEYPAD_RIGHT, KEYPAD_UP,
-                              KEYPAD_DOWN};
-uint8_t navigateButtonLastState[4] = {HIGH, HIGH, HIGH, HIGH};
-uint8_t navigateButtonInDoubleClickMode[4] = {0, 0, 0, 0};
-uint8_t navigateButtonSingleClickKeyboardCode[4] = {
-    HID_KEY_ARROW_LEFT, HID_KEY_ARROW_RIGHT, HID_KEY_ARROW_UP,
-    HID_KEY_ARROW_DOWN};
-uint8_t navigateButtonDoubleClickKeyboardCode[4] = {
-    HID_KEY_HOME, HID_KEY_END, HID_KEY_PAGE_UP, HID_KEY_PAGE_DOWN};
-
-int8_t navigateButtonSingleClickMouseCode[4][2] = {{-MOUSE_STEPS_PER_CLICK, 0},
-                                                   {MOUSE_STEPS_PER_CLICK, 0},
-                                                   {0, -MOUSE_STEPS_PER_CLICK},
-                                                   {0, MOUSE_STEPS_PER_CLICK}};
-int8_t navigateButtonDoubleClickMouseCode[4] = {MOUSE_BUTTON_BACKWARD,
-                                                MOUSE_BUTTON_FORWARD, -1, 1};
-uint32_t navigateButtonLastDownTime[4];
-uint32_t skipScroll;
 
 uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
                           KEYPAD_ACTIVATE};
@@ -268,10 +273,35 @@ void scanOneClickButton(uint8_t keyIndex) {
 void scanClickButtons() {
 
   // Only mouse left and right click
-  for (int i = 0; i < 4; i++) {
+  for (int i = 1; i < 4; i++) {
     scanOneClickButton(i);
   }
 }
+
+
+#ifdef SEVEN_KEY_PAD
+#define DOUBLE_CLICK_INTERVAL 300
+#define MOUSE_STEPS_PER_CLICK 5
+int lastUpTime, lastDownTime, lastKey;
+uint8_t navigateButtons[4] = {KEYPAD_LEFT, KEYPAD_RIGHT, KEYPAD_UP,
+                              KEYPAD_DOWN};
+uint8_t navigateButtonLastState[4] = {HIGH, HIGH, HIGH, HIGH};
+uint8_t navigateButtonInDoubleClickMode[4] = {0, 0, 0, 0};
+uint8_t navigateButtonSingleClickKeyboardCode[4] = {
+    HID_KEY_ARROW_LEFT, HID_KEY_ARROW_RIGHT, HID_KEY_ARROW_UP,
+    HID_KEY_ARROW_DOWN};
+uint8_t navigateButtonDoubleClickKeyboardCode[4] = {
+    HID_KEY_HOME, HID_KEY_END, HID_KEY_PAGE_UP, HID_KEY_PAGE_DOWN};
+
+int8_t navigateButtonSingleClickMouseCode[4][2] = {{-MOUSE_STEPS_PER_CLICK, 0},
+                                                   {MOUSE_STEPS_PER_CLICK, 0},
+                                                   {0, -MOUSE_STEPS_PER_CLICK},
+                                                   {0, MOUSE_STEPS_PER_CLICK}};
+int8_t navigateButtonDoubleClickMouseCode[4] = {MOUSE_BUTTON_BACKWARD,
+                                                MOUSE_BUTTON_FORWARD, -1, 1};
+uint32_t navigateButtonLastDownTime[4];
+uint32_t skipScroll;
+
 
 void scanOneNavigateButton(uint8_t keyIndex) {
   // detect edge
