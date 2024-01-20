@@ -110,6 +110,19 @@ void setup() {
   // attachInterrupt(IMU_INT, myinthandler, FALLING); // RISING
 #ifdef PIMORONI_TRACKBALL
   trackball.begin();
+  for (int i = 0; i < 1; i++) {
+    trackball.setRed(240);
+    trackball.setBlue(0);
+    delay(100);
+    trackball.setRed(0);
+    trackball.setGreen(240);
+    delay(100);
+    trackball.setGreen(0);
+    trackball.setBlue(240);
+    delay(100);
+  }
+  trackball.setBlue(0);
+  trackball.setGreen(60);
 #endif
 }
 
@@ -123,7 +136,7 @@ int t1 = 0;
 int ledCount;
 bool needSendKeyRelease = false;
 float xAngle, yAngle, lastXAngle, lastYAngle;
-int xArrow=0, yArrow=0;
+int xArrow = 0, yArrow = 0;
 
 void loop() {
 
@@ -169,14 +182,12 @@ void loop() {
         Serial.println("do");
       }
       if (trackball.release()) {
-
         blehid.mouseButtonRelease();
-
         Serial.println("re");
       }
     } else {
-      y = (trackball.right() - trackball.left()) ;
-      x = (-trackball.down() + trackball.up()) ;
+      y = (trackball.right() - trackball.left());
+      x = (-trackball.down() + trackball.up());
       xArrow += x;
       yArrow += y;
 
@@ -184,9 +195,8 @@ void loop() {
       uint8_t keycodes[6] = {HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE,
                              HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE};
 
+      // scroll up/down
       bool keyPressed = false;
-      #define TRACKBALL_ARROW_KEY_SENSIVITY 5
-
       if (yArrow < -TRACKBALL_ARROW_KEY_SENSIVITY) {
         keycodes[0] = HID_KEY_ARROW_UP;
         keyPressed = true;
@@ -203,8 +213,8 @@ void loop() {
         blehid.keyRelease();
       }
 
+      // scroll left/right
       keyPressed = false;
-
       if (xArrow < -TRACKBALL_ARROW_KEY_SENSIVITY) {
         keycodes[0] = HID_KEY_ARROW_LEFT;
         keyPressed = true;
@@ -219,6 +229,17 @@ void loop() {
         blehid.keyboardReport(0, keycodes);
         delay(1);
         blehid.keyRelease();
+      }
+
+      // central button is pressed
+      if (trackball.click()) {
+        keycodes[0] = HID_KEY_ENTER;
+        blehid.keyboardReport(0, keycodes);
+      }
+      // central button is released
+      if (trackball.release()) {
+        keycodes[0] = HID_KEY_NONE;
+        blehid.keyboardReport(0, keycodes);
       }
     }
   }
@@ -248,10 +269,10 @@ void loop() {
 }
 
 uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
-                          KEYPAD_ACTIVATE};
-uint8_t clickButtonLastState[] = {HIGH, HIGH, LOW, LOW};
-uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0};
-uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0};
+                          KEYPAD_ACTIVATE, DEVICE_SELECT};
+uint8_t clickButtonLastState[] = {HIGH, HIGH, LOW, LOW, HIGH};
+uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0, 0};
+uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0, 0};
 
 void scanOneClickButton(uint8_t keyIndex) {
 
@@ -276,11 +297,20 @@ void scanOneClickButton(uint8_t keyIndex) {
 
     // todo only reconfig when these is a real mode change. needed for bno085
     imuConfigure(deviceMode);
+    trackball.setGreen(60);
+    trackball.setBlue(0);
     break;
   case KEYPAD_ACTIVATE:
     // Serial.println("switch to keyboard");
     deviceMode = DEVICE_KEYBOARD_MODE;
     imuConfigure(deviceMode);
+    trackball.setGreen(0);
+    trackball.setBlue(80);
+    break;
+  case DEVICE_SELECT:
+    if (state == LOW) {
+      setDeviceId();
+    }
     break;
   default:
     if (deviceMode == DEVICE_MOUSE_MODE) {
@@ -320,7 +350,7 @@ void scanOneClickButton(uint8_t keyIndex) {
 void scanClickButtons() {
 
   // Only mouse left and right click
-  for (int i = 1; i < 4; i++) {
+  for (int i = 1; i < 5; i++) {
     scanOneClickButton(i);
   }
 }
@@ -542,6 +572,9 @@ void configGpio() {
   digitalWrite(MOUSE_ACTIVATE, HIGH);
   digitalWrite(MOUSE_RIGHT, HIGH);
 
+  pinMode(DEVICE_SELECT, INPUT_PULLUP);
+  digitalWrite(DEVICE_SELECT, HIGH);
+
 #ifdef SEVEN_KEY_PAD
   pinMode(MOUSE_LEFT, INPUT_PULLUP);
   pinMode(KEYPAD_LEFT, INPUT_PULLUP);
@@ -721,16 +754,31 @@ void setDeviceId() {
   if (deviceId == 0) {
     deviceId = 1;
     setBdDAAndName((unsigned char)(addrByte3 + 0x32), (char *)"Rat1");
+
+    // flash white twice
+    trackball.setWhite(240);
+    delay(10);
+    trackball.setWhite(0);
+    delay(200);
+    trackball.setWhite(240);
+    delay(10);
+    trackball.setWhite(0);
+
   } else {
     deviceId = 0;
     setBdDAAndName(addrByte3, (char *)"Rat0");
+
+    // flash white once
+    trackball.setWhite(240);
+    delay(10);
+    trackball.setWhite(0);
   }
 }
 
 void leds() {
   ledCount++;
   // pluse the green led to indicate system alive.
-  if (ledCount % 1000 < 30) {
+  if (ledCount % 10000 < 30) {
     if (deviceMode == DEVICE_MOUSE_MODE) {
       digitalWrite(LED_GREEN, LIGHT_ON);
       digitalWrite(LED_BLUE, LIGHT_OFF);
@@ -754,17 +802,17 @@ void leds() {
 
 #ifdef PIMORONI_TRACKBALL
 
-  if (ledCount % 1000 == 0) {
-    if (deviceMode == DEVICE_MOUSE_MODE) {
-      trackball.setGreen(100);
-    } else {
-      trackball.setBlue(100);
-    }
-  }
-  if (ledCount % 1000 == 100) {
-    trackball.setGreen(0);
-    trackball.setBlue(0);
-  }
+  // if (ledCount % 5000 == 0) {
+  //   if (deviceId == 0) {
+  //     trackball.setGreen(200);
+  //   } else {
+  //     trackball.setBlue(200);
+  //   }
+  // }
+  // if (ledCount % 5000 == 100) {
+  //   trackball.setGreen(0);
+  //   trackball.setBlue(0);
+  // }
 #endif
 }
 
