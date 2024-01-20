@@ -35,7 +35,7 @@ techsupport@sparkfun.com.
 #include "Wire.h"
 
 #ifdef TARGET_SEEED_XIAO_NRF52840_SENSE
-#define Wire Wire1
+#define I2CPORT Wire1
 #endif
 //****************************************************************************//
 //
@@ -80,7 +80,7 @@ status_t LSM6DS3Core::beginCore(void) {
   switch (commInterface) {
 
   case I2C_MODE:
-    Wire.begin();
+    I2CPORT.begin();
     break;
 
   case SPI_MODE:
@@ -164,16 +164,16 @@ status_t LSM6DS3Core::readRegisterRegion(uint8_t *outputPointer, uint8_t offset,
   switch (commInterface) {
 
   case I2C_MODE:
-    Wire.beginTransmission(I2CAddress);
-    Wire.write(offset);
-    if (Wire.endTransmission() != 0) {
+    I2CPORT.beginTransmission(I2CAddress);
+    I2CPORT.write(offset);
+    if (I2CPORT.endTransmission() != 0) {
       returnError = IMU_HW_ERROR;
     } else { // OK, all worked, keep going
       // request 6 bytes from slave device
-      Wire.requestFrom(I2CAddress, length);
-      while ((Wire.available()) &&
+      I2CPORT.requestFrom(I2CAddress, length);
+      while ((I2CPORT.available()) &&
              (i < length)) { // slave may send less than requested
-        c = Wire.read();     // receive a byte as character
+        c = I2CPORT.read();     // receive a byte as character
         *outputPointer = c;
         outputPointer++;
         i++;
@@ -231,14 +231,14 @@ status_t LSM6DS3Core::readRegister(uint8_t *outputPointer, uint8_t offset) {
   switch (commInterface) {
 
   case I2C_MODE:
-    Wire.beginTransmission(I2CAddress);
-    Wire.write(offset);
-    if (Wire.endTransmission() != 0) {
+    I2CPORT.beginTransmission(I2CAddress);
+    I2CPORT.write(offset);
+    if (I2CPORT.endTransmission() != 0) {
       returnError = IMU_HW_ERROR;
     }
-    Wire.requestFrom(I2CAddress, numBytes);
-    while (Wire.available()) { // slave may send less than requested
-      result = Wire.read();    // receive a byte as a proper uint8_t
+    I2CPORT.requestFrom(I2CAddress, numBytes);
+    while (I2CPORT.available()) { // slave may send less than requested
+      result = I2CPORT.read();    // receive a byte as a proper uint8_t
     }
     break;
 
@@ -302,10 +302,10 @@ status_t LSM6DS3Core::writeRegister(uint8_t offset, uint8_t dataToWrite) {
   switch (commInterface) {
   case I2C_MODE:
     // Write the byte
-    Wire.beginTransmission(I2CAddress);
-    Wire.write(offset);
-    Wire.write(dataToWrite);
-    if (Wire.endTransmission() != 0) {
+    I2CPORT.beginTransmission(I2CAddress);
+    I2CPORT.write(offset);
+    I2CPORT.write(dataToWrite);
+    if (I2CPORT.endTransmission() != 0) {
       returnError = IMU_HW_ERROR;
     }
     break;
