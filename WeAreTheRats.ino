@@ -164,6 +164,7 @@ void loop() {
   }
 #endif
 
+#ifdef PIMORONI_TRACKBALL
   if (trackball.changed()) {
     // Bug of the hardware, int keep low.
     // https://github.com/pimoroni/pimoroni-pico/issues/357 if
@@ -248,6 +249,7 @@ void loop() {
       }
     }
   }
+#endif
 
   // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
   // For air writing, when a character is recoganized, only KEY_DOWN event is
@@ -276,7 +278,11 @@ void loop() {
 uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
                           KEYPAD_ACTIVATE, DEVICE_SELECT};
 uint8_t clickButtonLastState[] = {HIGH, HIGH, LOW, LOW, HIGH};
+#ifdef PIMORONI_TRACKBALL
 uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_LEFT, 0, 0, 0};
+#else
+uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0, 0};
+#endif
 uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0, 0};
 
 void scanOneClickButton(uint8_t keyIndex) {
@@ -309,15 +315,19 @@ void scanOneClickButton(uint8_t keyIndex) {
 
     // todo only reconfig when these is a real mode change. needed for bno085
     imuConfigure(deviceMode);
+#ifdef  PIMORONI_TRACKBALL    
     trackball.setGreen(60);
     trackball.setBlue(0);
+    #endif
     break;
   case KEYPAD_ACTIVATE:
     // Serial.println("switch to keyboard");
     deviceMode = DEVICE_KEYBOARD_MODE;
     imuConfigure(deviceMode);
+    #ifdef  PIMORONI_TRACKBALL 
     trackball.setGreen(0);
     trackball.setBlue(80);
+    #endif
     break;
   case DEVICE_SELECT:
     if (state == LOW) {
@@ -366,9 +376,17 @@ void scanOneClickButton(uint8_t keyIndex) {
 void scanClickButtons() {
 
   // Only mouse left and right click
+#ifdef PIMORONI_TRACKBALL
   for (int i = 1; i < 5; i++) {
     scanOneClickButton(i);
   }
+#endif
+
+#ifdef SEVEN_KEY_PAD
+  for (int i = 0; i < 4; i++) {
+    scanOneClickButton(i);
+  }
+#endif
 }
 
 #ifdef SEVEN_KEY_PAD
@@ -579,7 +597,9 @@ void configGpio() {
   digitalWrite(IMU_RESET, HIGH);
 #endif
 
+#ifdef IMU_USE_INT
   pinMode(IMU_INT, INPUT_PULLUP);
+#endif
 
   pinMode(MOUSE_RIGHT, INPUT_PULLUP);
   pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
@@ -771,6 +791,7 @@ void setDeviceId() {
     deviceId = 1;
     setBdDAAndName((unsigned char)(addrByte3 + 0x32), (char *)"Rat1");
 
+#ifdef PIMORONI_TRACKBALL
     // flash white twice
     trackball.setWhite(240);
     delay(10);
@@ -779,15 +800,16 @@ void setDeviceId() {
     trackball.setWhite(240);
     delay(10);
     trackball.setWhite(0);
-
+#endif
   } else {
     deviceId = 0;
     setBdDAAndName(addrByte3, (char *)"Rat0");
-
+#ifdef PIMORONI_TRACKBALL
     // flash white once
     trackball.setWhite(240);
     delay(10);
     trackball.setWhite(0);
+#endif
   }
 }
 
@@ -1018,7 +1040,7 @@ void processKeyboard() {
       imuStartSave(true);
     }
   }
-
+#ifdef TSFLOW
   if (startedChar) {
     // User deactivated keypad
     if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
@@ -1035,50 +1057,51 @@ void processKeyboard() {
           }
         }
       };
+      }
     }
-  }
+#endif 
 
-  // return;
+    // return;
 #endif
 
 #ifdef TSFLOW
-  if (inference_started) {
-    inference_started = false;
+    if (inference_started) {
+      inference_started = false;
 
-    // Invoke ML inference
-    TfLiteStatus invokeStatus = tflInterpreter->Invoke();
-    if (invokeStatus != kTfLiteOk) {
-      Serial.println("Invoke failed!");
-    }
+      // Invoke ML inference
+      TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+      if (invokeStatus != kTfLiteOk) {
+        Serial.println("Invoke failed!");
+      }
 
-    // Loop through the output tensor values from the model
-    // for (int i = 0; i < NUM_GESTURES; i++) {
-    //   Serial.print(GESTURES[i]);
-    //   Serial.print(": ");
-    //   Serial.println(tflOutputTensor->data.f[i], 6);
-    // }
-    // Serial.println();
+      // Loop through the output tensor values from the model
+      // for (int i = 0; i < NUM_GESTURES; i++) {
+      //   Serial.print(GESTURES[i]);
+      //   Serial.print(": ");
+      //   Serial.println(tflOutputTensor->data.f[i], 6);
+      // }
+      // Serial.println();
 
-    char ch = '.';
-    for (int i = 0; i < NUM_GESTURES; i++) {
-      if (tflOutputTensor->data.f[i] > 0.5) {
-        ch = GESTURES[i];
-        break;
-      };
-    }
-    Serial.println(ch);
-    if (ch == '.') {
-      digitalWrite(LED_RED, LIGHT_ON);
-      delay(500);
-      digitalWrite(LED_RED, LIGHT_OFF);
-    }
+      char ch = '.';
+      for (int i = 0; i < NUM_GESTURES; i++) {
+        if (tflOutputTensor->data.f[i] > 0.5) {
+          ch = GESTURES[i];
+          break;
+        };
+      }
+      Serial.println(ch);
+      if (ch == '.') {
+        digitalWrite(LED_RED, LIGHT_ON);
+        delay(500);
+        digitalWrite(LED_RED, LIGHT_OFF);
+      }
 
-    // Send KEY_DOWN
-    if (ch != '.') {
-      blehid.keyPress(ch);
-      // Send KEY_UP at next loop
-      needSendKeyRelease = true;
+      // Send KEY_DOWN
+      if (ch != '.') {
+        blehid.keyPress(ch);
+        // Send KEY_UP at next loop
+        needSendKeyRelease = true;
+      }
     }
-  }
 #endif
-}
+  }

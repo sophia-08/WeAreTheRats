@@ -4,14 +4,14 @@
 // #define SEVEN_KEY_PAD
 // #define PIMORONI_TRACKBALL_INT D0
 #define MINUTE_MOVEMENT 5
-#define IMU_RESET D0
-#define IMU_INT D0
+
 
 #ifdef PIMORONI_TRACKBALL
 #define MOUSE_RIGHT D3
 #define MOUSE_LEFT 255
 #define DEVICE_SELECT D2
 #endif
+
 
 #ifdef SEVEN_KEY_PAD
 #define MOUSE_LEFT D9
@@ -21,6 +21,7 @@
 #define KEYPAD_RIGHT D3
 #define KEYPAD_DOWN D2
 #define KEYPAD_LEFT D1
+#define DEVICE_SELECT 255
 #endif
 
 #define MOUSE_ACTIVATE D6
@@ -61,6 +62,13 @@
 // #define IMU_USE_RESET
 
 // #define IMU_USE_INT
+#ifdef IMU_USE_RESET
+#define IMU_RESET D0
+#endif
+
+#ifdef IMU_USE_INT
+#define IMU_INT D0
+#endif
 // #define TOM
 
 #define TSFLOW
