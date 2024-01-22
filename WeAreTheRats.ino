@@ -26,6 +26,7 @@ void setBdDAAndName(unsigned char byte3, char *name);
 int samplesRead = 0;
 #define out_samples 150
 int tensorIndex = 0;
+bool noModeSwitch = false;
 
 int deviceMode;
 BLEDis bledis;
@@ -180,10 +181,12 @@ void loop() {
       if (trackball.click()) {
         blehid.mouseButtonPress(MOUSE_BUTTON_RIGHT);
         Serial.println("do");
+        noModeSwitch = true;
       }
       if (trackball.release()) {
         blehid.mouseButtonRelease();
         Serial.println("re");
+        noModeSwitch = false;
       }
     } else {
       y = (trackball.right() - trackball.left());
@@ -235,11 +238,13 @@ void loop() {
       if (trackball.click()) {
         keycodes[0] = HID_KEY_ENTER;
         blehid.keyboardReport(0, keycodes);
+        noModeSwitch = true;
       }
       // central button is released
       if (trackball.release()) {
         keycodes[0] = HID_KEY_NONE;
         blehid.keyboardReport(0, keycodes);
+        noModeSwitch = false;
       }
     }
   }
@@ -276,6 +281,12 @@ uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0, 0};
 
 void scanOneClickButton(uint8_t keyIndex) {
 
+  // Do not switch mode or device in cases 1) mouse button pressed 2) keypressed
+  if (noModeSwitch && (clickButtons[keyIndex] == MOUSE_ACTIVATE ||
+                       clickButtons[keyIndex] == KEYPAD_ACTIVATE ||
+                       clickButtons[keyIndex] == DEVICE_SELECT))
+    return;
+
   uint8_t state = digitalRead(clickButtons[keyIndex]);
   if (state == clickButtonLastState[keyIndex]) { // no change
     return;
@@ -293,6 +304,7 @@ void scanOneClickButton(uint8_t keyIndex) {
   switch (clickButtons[keyIndex]) {
   case MOUSE_ACTIVATE:
     // Serial.println("switch to mouse");
+
     deviceMode = DEVICE_MOUSE_MODE;
 
     // todo only reconfig when these is a real mode change. needed for bno085
@@ -321,10 +333,12 @@ void scanOneClickButton(uint8_t keyIndex) {
         // } else {
         blehid.mouseButtonPress(clickButtonCode[keyIndex]);
         Serial.println("mouse button down");
+        noModeSwitch = true;
         // }
       } else {
         blehid.mouseButtonRelease();
         Serial.println("mouse button up");
+        noModeSwitch = false;
       }
     } else {
       if (state == LOW) {
@@ -337,11 +351,13 @@ void scanOneClickButton(uint8_t keyIndex) {
         keycodes[0] = clickButtonKeyboardCode[keyIndex];
         blehid.keyboardReport(0, keycodes);
         Serial.println("key button down");
+        noModeSwitch = true;
         // }
 
       } else {
         blehid.keyRelease();
         Serial.println("key button up");
+        noModeSwitch = false;
       }
     }
   }
