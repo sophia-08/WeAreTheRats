@@ -178,7 +178,7 @@ void loop() {
         blehid.mouseMove(x, y);
       }
       if (trackball.click()) {
-        blehid.mouseButtonPress(MOUSE_BUTTON_LEFT);
+        blehid.mouseButtonPress(MOUSE_BUTTON_RIGHT);
         Serial.println("do");
       }
       if (trackball.release()) {
@@ -271,7 +271,7 @@ void loop() {
 uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
                           KEYPAD_ACTIVATE, DEVICE_SELECT};
 uint8_t clickButtonLastState[] = {HIGH, HIGH, LOW, LOW, HIGH};
-uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0, 0};
+uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_LEFT, 0, 0, 0};
 uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0, 0};
 
 void scanOneClickButton(uint8_t keyIndex) {
@@ -759,7 +759,7 @@ void setDeviceId() {
     trackball.setWhite(240);
     delay(10);
     trackball.setWhite(0);
-    delay(200);
+    delay(500);
     trackball.setWhite(240);
     delay(10);
     trackball.setWhite(0);
