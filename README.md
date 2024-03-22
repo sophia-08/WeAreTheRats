@@ -1,4 +1,4 @@
-# Rats are the future of mouses
+# Rats are the future of mice :)
 
 capture: use bno055  
 capture_bno085: use bno085  
