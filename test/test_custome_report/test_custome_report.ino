@@ -58,20 +58,58 @@ void startAdv(void) {
   Bluefruit.Advertising.start(0);              // 0 = Don't stop advertising after n seconds
 }
 
+int count = 0;
 void loop() {
   if (Bluefruit.connected()) {
-    uint8_t customReport[64];
-    for (int i = 0; i < 64; i++) {
-      customReport[i] = i;  // Fill with incremental values as an example
+
+    count++;
+    if (count % 200000 == 0) {
+      blehid.mouseMove(1, -1);
     }
 
-    // blehid.inputReport(1, customReport, sizeof(customReport));
-    blehid.consumerReport(0x3456);
-    blehid.mouseMove(100, 200);
-    // blehid.keySequence("test");
+    if (Serial.available() > 0)  // Check if data is available
+    {
+      char input = Serial.read();  // Read the next available byte
 
-    Serial.println("Sent custom report");
+      // Echo the received data back to the serial monitor
+      Serial.print("Received: ");
+      Serial.println(input);
+
+      // Process the input
+      switch (input) {
+        case 'w':                    // Up arrow key
+          blehid.mouseMove(0, -10);  // Move mouse up
+          break;
+        case 's':                   // Down arrow key
+          blehid.mouseMove(0, 10);  // Move mouse down
+          break;
+        case 'a':                    // Left arrow key
+          blehid.mouseMove(-10, 0);  // Move mouse left
+          break;
+        case 'd':                   // Right arrow key
+          blehid.mouseMove(10, 0);  // Move mouse right
+          break;
+        case 'z':
+          blehid.consumerReport(0x3456);
+          break;
+        default:
+          // Handle invalid input
+          break;
+      }
+    }
+
+    // uint8_t customReport[64];
+    // for (int i = 0; i < 64; i++) {
+    //   customReport[i] = i;  // Fill with incremental values as an example
+    // }
+
+    // // blehid.inputReport(1, customReport, sizeof(customReport));
+    // blehid.consumerReport(0x3456);
+    // blehid.mouseMove(1, 2);
+    // // blehid.keySequence("test");
+
+    // Serial.println("Sent custom report");
   }
 
-  delay(1000 * 100);
+  // delay(1000 * 10);
 }
