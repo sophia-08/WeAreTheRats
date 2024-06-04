@@ -11,6 +11,8 @@ BLEHidAdafruit blehid;
 
 void setup() {
   Serial.begin(115200);
+  digitalWrite(LED_BLUE, LIGHT_OFF);
+
   // while ( !Serial ) delay(10);
 
   Serial.println("Bluefruit52 HID Custom Report Example");
@@ -61,9 +63,16 @@ void startAdv(void) {
 
 int count = 0;
 void loop() {
+    count++;
+  if (count % 10000 < 30) {
+      digitalWrite(LED_GREEN, LIGHT_ON);
+    } else {
+      digitalWrite(LED_GREEN, LIGHT_OFF);
+  }
+
   if (Bluefruit.connected()) {
 
-    count++;
+
     if (count % 200000 == 0) {
       blehid.mouseMove(1, -1);
     }
