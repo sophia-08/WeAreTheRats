@@ -1,4 +1,5 @@
 #include <bluefruit.h>
+#include "local_constants.h"
 
 BLEDis bledis;
 BLEHidAdafruit blehid;
