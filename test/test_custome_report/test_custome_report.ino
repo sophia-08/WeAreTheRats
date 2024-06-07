@@ -1,13 +1,13 @@
-#include <bluefruit.h>
 #include "local_constants.h"
+#include <bluefruit.h>
 
 BLEDis bledis;
 BLEHidAdafruit blehid;
 
 // Define your custom VID and PID
-#define VENDOR_ID 0x3333        // Replace with your Vendor ID
-#define PRODUCT_ID 0x5678       // Replace with your Product ID
-#define PRODUCT_VERSION 0x0100  // Product version
+#define VENDOR_ID 0x3333       // Replace with your Vendor ID
+#define PRODUCT_ID 0x5678      // Replace with your Product ID
+#define PRODUCT_VERSION 0x0100 // Product version
 
 void setup() {
   Serial.begin(115200);
@@ -27,14 +27,15 @@ void setup() {
 
   // Set PnP ID (includes VID, PID, and version)
   uint8_t pnp_id[7];
-  pnp_id[0] = 0x01;                           // Vendor ID source: 0x01 = Bluetooth SIG, 0x02 = USB Implementer's Forum
-  pnp_id[1] = (VENDOR_ID >> 8) & 0xFF;        // Vendor ID (high byte)
-  pnp_id[2] = VENDOR_ID & 0xFF;               // Vendor ID (low byte)
-  pnp_id[3] = (PRODUCT_ID >> 8) & 0xFF;       // Product ID (high byte)
-  pnp_id[4] = PRODUCT_ID & 0xFF;              // Product ID (low byte)
-  pnp_id[5] = (PRODUCT_VERSION >> 8) & 0xFF;  // Product Version (high byte)
-  pnp_id[6] = PRODUCT_VERSION & 0xFF;         // Product Version (low byte)
-  bledis.setPNPID((const char*)pnp_id, 7);
+  pnp_id[0] = 0x01; // Vendor ID source: 0x01 = Bluetooth SIG, 0x02 = USB
+                    // Implementer's Forum
+  pnp_id[1] = (VENDOR_ID >> 8) & 0xFF;       // Vendor ID (high byte)
+  pnp_id[2] = VENDOR_ID & 0xFF;              // Vendor ID (low byte)
+  pnp_id[3] = (PRODUCT_ID >> 8) & 0xFF;      // Product ID (high byte)
+  pnp_id[4] = PRODUCT_ID & 0xFF;             // Product ID (low byte)
+  pnp_id[5] = (PRODUCT_VERSION >> 8) & 0xFF; // Product Version (high byte)
+  pnp_id[6] = PRODUCT_VERSION & 0xFF;        // Product Version (low byte)
+  bledis.setPNPID((const char *)pnp_id, 7);
   bledis.begin();
 
   // BLE HID
@@ -56,30 +57,29 @@ void startAdv(void) {
   Bluefruit.Advertising.addName();
 
   Bluefruit.Advertising.restartOnDisconnect(true);
-  Bluefruit.Advertising.setInterval(32, 244);  // in unit of 0.625 ms
-  Bluefruit.Advertising.setFastTimeout(30);    // number of seconds in fast mode
-  Bluefruit.Advertising.start(0);              // 0 = Don't stop advertising after n seconds
+  Bluefruit.Advertising.setInterval(32, 244); // in unit of 0.625 ms
+  Bluefruit.Advertising.setFastTimeout(30);   // number of seconds in fast mode
+  Bluefruit.Advertising.start(0); // 0 = Don't stop advertising after n seconds
 }
 
 int count = 0;
 void loop() {
-    count++;
+  count++;
   if (count % 10000 < 30) {
-      digitalWrite(LED_GREEN, LIGHT_ON);
-    } else {
-      digitalWrite(LED_GREEN, LIGHT_OFF);
+    digitalWrite(LED_GREEN, LIGHT_ON);
+  } else {
+    digitalWrite(LED_GREEN, LIGHT_OFF);
   }
 
   if (Bluefruit.connected()) {
-
 
     if (count % 200000 == 0) {
       blehid.mouseMove(1, -1);
     }
 
-    if (Serial.available() > 0)  // Check if data is available
+    if (Serial.available() > 0) // Check if data is available
     {
-      char input = Serial.read();  // Read the next available byte
+      char input = Serial.read(); // Read the next available byte
 
       // Echo the received data back to the serial monitor
       Serial.print("Received: ");
@@ -87,24 +87,24 @@ void loop() {
 
       // Process the input
       switch (input) {
-        case 'w':                    // Up arrow key
-          blehid.mouseMove(0, -10);  // Move mouse up
-          break;
-        case 's':                   // Down arrow key
-          blehid.mouseMove(0, 10);  // Move mouse down
-          break;
-        case 'a':                    // Left arrow key
-          blehid.mouseMove(-10, 0);  // Move mouse left
-          break;
-        case 'd':                   // Right arrow key
-          blehid.mouseMove(10, 0);  // Move mouse right
-          break;
-        case 'z':
-          blehid.consumerReport(0x3456);
-          break;
-        default:
-          // Handle invalid input
-          break;
+      case 'w':                   // Up arrow key
+        blehid.mouseMove(0, -10); // Move mouse up
+        break;
+      case 's':                  // Down arrow key
+        blehid.mouseMove(0, 10); // Move mouse down
+        break;
+      case 'a':                   // Left arrow key
+        blehid.mouseMove(-10, 0); // Move mouse left
+        break;
+      case 'd':                  // Right arrow key
+        blehid.mouseMove(10, 0); // Move mouse right
+        break;
+      case 'z':
+        blehid.consumerReport(0x3456);
+        break;
+      default:
+        // Handle invalid input
+        break;
       }
     }
 
