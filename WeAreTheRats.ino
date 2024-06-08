@@ -15,6 +15,11 @@
 
 #include "pimoroniTrackball.h"
 
+// Define your custom VID and PID
+#define VENDOR_ID 0x3333       // Replace with your Vendor ID
+#define PRODUCT_ID 0x5678      // Replace with your Product ID
+#define PRODUCT_VERSION 0x0100 // Product version
+
 #ifdef TSFLOW
 #include "model.h"
 #endif
