@@ -713,6 +713,19 @@ void initAndStartBLE() {
   // Configure and Start Device Information Service
   bledis.setManufacturer("Ergo");
   bledis.setModel("Ergo");
+
+  // Set PnP ID (includes VID, PID, and version)
+  uint8_t pnp_id[7];
+  pnp_id[0] = 0x01; // Vendor ID source: 0x01 = Bluetooth SIG, 0x02 = USB
+                    // Implementer's Forum
+  pnp_id[1] = (VENDOR_ID >> 8) & 0xFF;       // Vendor ID (high byte)
+  pnp_id[2] = VENDOR_ID & 0xFF;              // Vendor ID (low byte)
+  pnp_id[3] = (PRODUCT_ID >> 8) & 0xFF;      // Product ID (high byte)
+  pnp_id[4] = PRODUCT_ID & 0xFF;             // Product ID (low byte)
+  pnp_id[5] = (PRODUCT_VERSION >> 8) & 0xFF; // Product Version (high byte)
+  pnp_id[6] = PRODUCT_VERSION & 0xFF;        // Product Version (low byte)
+  bledis.setPNPID((const char *)pnp_id, 7);
+
   bledis.begin();
   blehid.begin();
   unsigned char addr[6];
