@@ -80,11 +80,6 @@ const char *GESTURES = "abcdefghijklmnopqrstuvwxyz";
 
 #define NUM_GESTURES 26
 
-// const uint8_t BLEUART_UUID_SERVICE[] =
-// {
-//     0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0,
-//     0x93, 0xF3, 0xA3, 0xB5, 0x01, 0x00, 0x40, 0x6E
-// };
 void setup() {
   deviceMode = DEVICE_MOUSE_MODE;
   configGpio();
@@ -584,13 +579,6 @@ void configGpio() {
   // The "Serial" is always valid for an Arduino Uno, therefor that piece of
   // code does not wait. In the Leonardo, the "Serial" could be zero, if the
   // serial monitor has not been opened yet.
-
-  // while (!Serial) {
-  //   digitalWrite(LED_RED, LIGHT_ON);
-  //   delay(10);
-  //   digitalWrite(LED_RED, LIGHT_OFF);
-  //   delay(100);
-  // }
 
 #ifdef IMU_USE_RESET
   pinMode(IMU_RESET, OUTPUT);
