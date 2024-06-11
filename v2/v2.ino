@@ -40,14 +40,6 @@ BLEHidAdafruit blehid;
 int deviceId = 0;
 unsigned addrByte3;
 
-#ifdef FEATURE_INERTIA_SCROLL
-bool inertiaScroll = false;
-#define INERTIA_SCROLL_DOWN 0
-#define INERTIA_SCROLL_UP 1
-bool inertiaScrollDirection = INERTIA_SCROLL_DOWN;
-int inertiaScrollLastTimeStamp;
-#endif
-
 extern bool newData;
 
 #ifdef TSFLOW
@@ -143,21 +135,6 @@ void loop() {
 #endif
 
   scanClickButtons();
-
-#ifdef FEATURE_INERTIA_SCROLL
-  if (inertiaScroll) {
-    if (millis() - inertiaScrollLastTimeStamp > 200) {
-      inertiaScrollLastTimeStamp = millis();
-
-      if (inertiaScrollDirection == INERTIA_SCROLL_DOWN) {
-        blehid.mouseScroll(3);
-      } else {
-        blehid.mouseScroll(-3);
-      }
-      Serial.println("scroll");
-    };
-  }
-#endif
 
 #ifdef PIMORONI_TRACKBALL
   if (trackball.changed()) {
@@ -448,13 +425,6 @@ void scanOneNavigateButton(uint8_t keyIndex) {
   // high -> low
   if (state == LOW) {
 
-#ifdef FEATURE_INERTIA_SCROLL
-    if (inertiaScroll) {
-      inertiaScroll = false;
-      Serial.println("end inertia scroll");
-      return;
-    }
-#endif
 
     // If the button was pressed again within threshold, it's a double click
     if (time1 - navigateButtonLastDownTime[keyIndex] < DOUBLE_CLICK_INTERVAL) {
@@ -492,21 +462,11 @@ void scanOneNavigateButton(uint8_t keyIndex) {
           break;
         case KEYPAD_LEFT:
         case KEYPAD_RIGHT:
-#ifdef FEATURE_INERTIA_SCROLL
-          inertiaScroll = true;
-          inertiaScrollLastTimeStamp = millis();
-          Serial.println("start inertia scroll");
-          if (navigateButtons[keyIndex] == KEYPAD_LEFT) {
-            inertiaScrollDirection = INERTIA_SCROLL_DOWN;
-          } else {
-            inertiaScrollDirection = INERTIA_SCROLL_UP;
-          }
 
-#else
           blehid.mouseButtonPress(navigateButtonDoubleClickMouseCode[keyIndex]);
           Serial.print("mouse db ");
           Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
-#endif
+
         }
 
       } else {
