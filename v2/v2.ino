@@ -48,10 +48,6 @@ bool inertiaScrollDirection = INERTIA_SCROLL_DOWN;
 int inertiaScrollLastTimeStamp;
 #endif
 
-#ifdef TOM
-// Central uart client
-BLEClientUart clientUart;
-#endif
 
 extern bool newData;
 
@@ -681,20 +677,9 @@ void startAdv(void) {
 }
 void initAndStartBLE() {
 
-#ifdef TOM
-  // Initialize Bluefruit with max concurrent connections as Peripheral = 1,
-  // Central = 1. SRAM usage required by SoftDevice will increase with number
-  // of connections
-  Bluefruit.begin(1, 1);
-  Bluefruit.Central.setConnInterval(100, 200);
-  // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
 
-  // Callbacks for Central
-  Bluefruit.Central.setConnectCallback(cent_connect_callback);
-  Bluefruit.Central.setDisconnectCallback(cent_disconnect_callback);
-#else
   Bluefruit.begin();
-#endif
+
   // Bluefruit.setAddr(&addr);
   // HID Device can have a min connection interval of 9*1.25 = 11.25 ms
   Bluefruit.Periph.setConnInterval(9, 16);
@@ -725,25 +710,6 @@ void initAndStartBLE() {
   Bluefruit.getAddr(addr);
   addrByte3 = addr[3];
 
-#ifdef TOM
-  // Init BLE Central Uart Serivce
-  clientUart.begin();
-  clientUart.setRxCallback(cent_bleuart_rx_callback);
-
-  /* Start Central Scanning
-   * - Enable auto scan if disconnected
-   * - Interval = 100 ms, window = 80 ms
-   * - Filter only accept bleuart service
-   * - Don't use active scan
-   * - Start(timeout) with timeout = 0 will scan forever (until connected)
-   */
-  Bluefruit.Scanner.setRxCallback(scan_callback);
-  Bluefruit.Scanner.restartOnDisconnect(true);
-  Bluefruit.Scanner.setInterval(160, 5); // in unit of 0.625 ms
-  Bluefruit.Scanner.filterUuid(BLEUART_UUID_SERVICE);
-  Bluefruit.Scanner.useActiveScan(false);
-  Bluefruit.Scanner.start(0); // 0 = Don't stop scanning after n seconds
-#endif
   // Set up and start advertising
   startAdv();
 }
