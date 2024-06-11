@@ -425,7 +425,6 @@ void scanOneNavigateButton(uint8_t keyIndex) {
   // high -> low
   if (state == LOW) {
 
-
     // If the button was pressed again within threshold, it's a double click
     if (time1 - navigateButtonLastDownTime[keyIndex] < DOUBLE_CLICK_INTERVAL) {
       doubleClick = true;
@@ -466,7 +465,6 @@ void scanOneNavigateButton(uint8_t keyIndex) {
           blehid.mouseButtonPress(navigateButtonDoubleClickMouseCode[keyIndex]);
           Serial.print("mouse db ");
           Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
-
         }
 
       } else {
