@@ -6,9 +6,9 @@
 #define MINUTE_MOVEMENT 5
 
 #ifdef PIMORONI_TRACKBALL
-#define MOUSE_RIGHT D3
+#define MOUSE_RIGHT D10
 #define MOUSE_LEFT 255
-#define DEVICE_SELECT D2
+#define DEVICE_SELECT D9
 #endif
 
 #ifdef SEVEN_KEY_PAD
@@ -22,8 +22,8 @@
 #define DEVICE_SELECT 255
 #endif
 
-#define MOUSE_ACTIVATE D6
-#define KEYPAD_ACTIVATE D10
+#define MOUSE_ACTIVATE D8
+#define KEYPAD_ACTIVATE D3
 
 // #define LED_CHARGER 23
 #define LIGHT_ON LOW
