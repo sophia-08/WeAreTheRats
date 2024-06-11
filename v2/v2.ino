@@ -533,16 +533,6 @@ void configGpio() {
   // code does not wait. In the Leonardo, the "Serial" could be zero, if the
   // serial monitor has not been opened yet.
 
-#ifdef IMU_USE_RESET
-  pinMode(IMU_RESET, OUTPUT);
-  // Reset IMU
-  digitalWrite(IMU_RESET, HIGH);
-  delay(0.1);
-  digitalWrite(IMU_RESET, LOW);
-  delay(0.1);
-  digitalWrite(IMU_RESET, HIGH);
-#endif
-
 #ifdef IMU_USE_INT
   pinMode(IMU_INT, INPUT_PULLUP);
 #endif
