@@ -48,7 +48,6 @@ bool inertiaScrollDirection = INERTIA_SCROLL_DOWN;
 int inertiaScrollLastTimeStamp;
 #endif
 
-
 extern bool newData;
 
 #ifdef TSFLOW
@@ -676,7 +675,6 @@ void startAdv(void) {
   Bluefruit.Advertising.start(0); // 0 = Don't stop advertising after n seconds
 }
 void initAndStartBLE() {
-
 
   Bluefruit.begin();
 
