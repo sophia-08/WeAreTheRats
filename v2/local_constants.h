@@ -67,5 +67,5 @@
 #endif
 // #define TOM
 
-#define TSFLOW
+// #define TSFLOW
 // #define FEATURE_INERTIA_SCROLL
