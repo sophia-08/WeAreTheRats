@@ -788,13 +788,7 @@ void processMouse() {
   if (count % report_freq == 0) {
     x = (xAngle - lastXAngle) * SENSITIVITY_X;
 
-#ifdef BNO085
-    // xAngle go back to 0 after pass 360 degrees. so here we need add the
-    // offsets.
-    if (x < -180 * SENSITIVITY_X) {
-      x += 360 * SENSITIVITY_X;
-    }
-#endif
+
 
     y = (yAngle - lastYAngle) * SENSITIVITY_Y;
 
@@ -828,124 +822,7 @@ extern char buf[32][32];
 void processKeyboard() {
 
   // Device in Keyboard mode
-#ifdef BNO085
-  // Capture has not started, ignore until user activate keypad
-  if (!startedChar) {
-    if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
-      samplesRead = -1;
-      return;
-    } else {
-      // User activate keypad, check whether 2s passed since last capture
-      // int currentTime = millis();
-      // if (currentTime < t1 + 2000) {
-      //   return;
-      // }
-      // t1 = currentTime;
-      startedChar = true;
-      samplesRead = -1;
-    }
-  }
 
-  // User finger is on keyboard_activation pad
-  // To begin, wait 200ms
-  // delay(200);
-
-  // Loop to read 20 samples, at 100Hz, takes 200ms
-  // This is better than delay, clear up data in IMU.
-  for (int i = 0; i < 20;) {
-    while (!imuDataReady()) {
-    }
-    imuReadNoWait();
-    if (newData) {
-      i++;
-      newData = false;
-    }
-  }
-
-  // Keep sampling until user release the ACTIVATE button
-  while (true) {
-
-    // User deactivated keypad
-    if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
-      startedChar = false;
-      inference_started = true;
-      break;
-    }
-
-    if (samplesRead >= out_samples) {
-      // Wait for user release the button
-      while (digitalRead(KEYPAD_ACTIVATE) == HIGH)
-        ;
-      startedChar = false;
-      inference_started = true;
-      break;
-    }
-
-    // BNO085 pull IMU_INT LOW when data is ready
-    // so do nothing in case of IMU_INT high
-    while (!imuDataReady()) {
-    }
-    imuReadNoWait();
-
-    if (newData) {
-      uint32_t now = micros();
-      newData = false;
-
-      // Wait for hand to rest
-      if (samplesRead == -1) {
-        if (imuSumOfAbsolateAcclOfAllAxis() > 1) {
-          // Serial.println("wait idle");
-          Serial.print("<");
-          continue;
-        }
-        digitalWrite(LED_BLUE, LIGHT_ON);
-        samplesRead = 0;
-        continue;
-      }
-
-      // wait for hand to move
-      if (samplesRead == 0) {
-        if (imuSumOfAbsolateAcclOfAllAxis() < 2) {
-          // Serial.println("wait move");
-          Serial.print(">");
-          continue;
-        }
-        tensorIndex = 0;
-      }
-
-      // Capture samples until keyboard_activation is release.
-      imuSaveData(samplesRead);
-
-      samplesRead++;
-    }
-  }
-
-  // Not enough samples, restart
-  if (samplesRead < 45) {
-    Serial.print("not enough samples, ");
-    Serial.println(samplesRead);
-    samplesRead = -1;
-    tensorIndex = 0;
-    inference_started = false;
-    startedChar = false;
-    digitalWrite(LED_RED, LIGHT_ON);
-    delay(500);
-    digitalWrite(LED_RED, LIGHT_OFF);
-    return;
-  }
-
-  Serial.print("tensor ");
-  Serial.println(tensorIndex);
-
-  // drop the last 5 points
-  if (tensorIndex < out_samples * 9) {
-    tensorIndex -= 5 * 9;
-  }
-
-  for (int i = tensorIndex; i < out_samples * 9; i++) {
-    tflInputTensor->data.f[i] = 0;
-  }
-#endif
 
 #ifdef IMU_LSM6DS3
   // Capture has not started, ignore until user activate keypad
