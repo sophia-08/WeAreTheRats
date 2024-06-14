@@ -788,8 +788,6 @@ void processMouse() {
   if (count % report_freq == 0) {
     x = (xAngle - lastXAngle) * SENSITIVITY_X;
 
-
-
     y = (yAngle - lastYAngle) * SENSITIVITY_Y;
 
     // get rid of movement due to noise.
@@ -822,7 +820,6 @@ extern char buf[32][32];
 void processKeyboard() {
 
   // Device in Keyboard mode
-
 
 #ifdef IMU_LSM6DS3
   // Capture has not started, ignore until user activate keypad
