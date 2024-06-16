@@ -22,8 +22,8 @@
 #define DEVICE_SELECT 255
 #endif
 
-#define MOUSE_ACTIVATE D3
-#define KEYPAD_ACTIVATE D8
+#define MOUSE_ACTIVATE D8
+#define KEYPAD_ACTIVATE D3
 
 // #define LED_CHARGER 23
 #define LIGHT_ON LOW
