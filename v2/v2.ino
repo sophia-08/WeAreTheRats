@@ -130,7 +130,6 @@ void loop() {
 
   leds();
 
-
   scanClickButtons();
 
 #ifdef PIMORONI_TRACKBALL
