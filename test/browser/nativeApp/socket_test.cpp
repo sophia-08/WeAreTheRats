@@ -103,7 +103,7 @@ void handle_communication(int &sock) {
 
         if (fds[i].fd == STDIN_FILENO) {
           // Send data from stdin to socket
-          ssize_t bytes_sent = send(sock, &buffer[4], bytes_read-4, 0);
+          ssize_t bytes_sent = send(sock, &buffer[4], bytes_read - 4, 0);
           if (bytes_sent == -1) {
             log_message("ERROR",
                         "Failed to send data to socket. Reconnecting.");
