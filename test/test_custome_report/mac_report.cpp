@@ -25,12 +25,18 @@ public:
             printf("%02X ", report[i]);
         }
         std::cout << std::endl;
+
+        // Cast the context back to HIDDevice*
+        HIDDevice* device = static_cast<HIDDevice*>(context);
+
+        std::vector<uint8_t> out = {0x01, 0x01, 0x01};
+        device->sendReport(out);
     }
 
     void registerInputReportCallback() {
         static uint8_t report[64];  // Adjust size as needed
         IOHIDDeviceRegisterInputReportCallback(m_device, report, sizeof(report),
-                                               inputReportCallback, nullptr);
+                                               inputReportCallback, this);  // Pass 'this' as context
     }
 
 private:
