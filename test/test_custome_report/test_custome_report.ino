@@ -42,6 +42,8 @@ void setup() {
   blehid.begin();
   // Set the HID report map
   // blehid.setReportMap(desc_hid_report, sizeof(desc_hid_report));
+  // Set callback for set LED from central
+  blehid.setKeyboardLedCallback(set_keyboard_led);
 
   // Set up and start advertising
   startAdv();
@@ -122,4 +124,19 @@ void loop() {
   }
 
   // delay(1000 * 10);
+}
+
+/**
+ * Callback invoked when received Set LED from central.
+ * Must be set previously with setKeyboardLedCallback()
+ *
+ * The LED bit map is as follows: (also defined by KEYBOARD_LED_* )
+ *    Kana (4) | Compose (3) | ScrollLock (2) | CapsLock (1) | Numlock (0)
+ */
+void set_keyboard_led(uint16_t conn_handle, uint8_t led_bitmap)
+{
+  (void) conn_handle;
+  
+Serial.print("Received led: ");
+Serial.println(led_bitmap);
 }
