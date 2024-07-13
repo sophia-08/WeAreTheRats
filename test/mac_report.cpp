@@ -37,7 +37,7 @@ public:
     // Cast the context back to HIDDevice*
     HIDDevice *device = static_cast<HIDDevice *>(context);
 
-    std::vector<uint8_t> out = {0x00};
+    std::vector<uint8_t> out = {0x01};
     device->sendReport(1, out);
   }
 
