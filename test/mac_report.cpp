@@ -12,7 +12,7 @@ public:
   ~HIDDevice() { IOHIDDeviceClose(m_device, kIOHIDOptionsTypeNone); }
 
   bool sendReport(int reportID, const std::vector<uint8_t> &report) {
-    IOReturn result = IOHIDDeviceSetReport(m_device, kIOHIDReportTypeOutput, 1,
+    IOReturn result = IOHIDDeviceSetReport(m_device, kIOHIDReportTypeOutput, reportID,
                                            report.data(), report.size());
 
     if (result == kIOReturnSuccess) {
@@ -37,8 +37,35 @@ public:
     // Cast the context back to HIDDevice*
     HIDDevice *device = static_cast<HIDDevice *>(context);
 
-    std::vector<uint8_t> out = {0x01};
-    device->sendReport(1, out);
+    /*
+    Test 1: 
+
+    code:
+        int id=0;
+    for (id=0; id<4; id++) {
+    std::cerr << "send two bytes to " << id << std::endl;
+    std::vector<uint8_t> out = {0x01,0x01};
+    device->sendReport(id, out);      
+    }
+
+    host logs:
+      send two bytes to 0
+      Failed to send report. Error: Unknown error
+      send two bytes to 1
+      Report sent successfully
+      send two bytes to 2
+      Failed to send report. Error: Unknown error
+      send two bytes to 3
+      Failed to send report. Error: Unknown error
+
+    Device log:
+      Got 1 byte only, which match the second byte.  WHY?
+
+    conclusion:
+      only id 1, which is keyboard, has output report channel.
+    */
+
+
   }
 
   void registerInputReportCallback() {

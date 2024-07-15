@@ -1,5 +1,6 @@
+// #define CFG_DEBUG 1
 #include "local_constants.h"
-#include "./Bluefruit52Lib/src/bluefruit.h"
+#include <bluefruit.h>
 
 BLEDis bledis;
 BLEHidAdafruit blehid;
