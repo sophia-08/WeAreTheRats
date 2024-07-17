@@ -55,6 +55,7 @@ class BLEHidAdafruit1 : public BLEHidGeneric
     //------------- Keyboard -------------//
     // Single connection
     void setKeyboardLedCallback(kbd_led_cb_t fp);
+    void setCustomerCallback(kbd_led_cb_t fp);
 
     bool keyboardReport(hid_keyboard_report_t* report);
     bool keyboardReport(uint8_t modifier, uint8_t keycode[6]);
@@ -108,8 +109,10 @@ class BLEHidAdafruit1 : public BLEHidGeneric
   protected:
     uint8_t _mse_buttons;
     kbd_led_cb_t _kbd_led_cb;
+    kbd_led_cb_t _customer_cb;
 
     static void blehid_ada_keyboard_output_cb(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
+        static void blehid_ada_customer_output_cb(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len);
 };
 
 #endif /* BLEHIDADAFRUIT_H_ */

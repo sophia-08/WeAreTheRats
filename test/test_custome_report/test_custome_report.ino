@@ -46,6 +46,7 @@ void setup() {
   // blehid.setReportMap(desc_hid_report, sizeof(desc_hid_report));
   // Set callback for set LED from central
   blehid.setKeyboardLedCallback(set_keyboard_led);
+  blehid.setCustomerCallback(customer_cb);
 
   // Set up and start advertising
   startAdv();
@@ -140,5 +141,13 @@ void set_keyboard_led(uint16_t conn_handle, uint8_t led_bitmap)
   (void) conn_handle;
   
 Serial.print("Received led: ");
+Serial.println(led_bitmap);
+}
+
+void customer_cb(uint16_t conn_handle, uint8_t led_bitmap)
+{
+  (void) conn_handle;
+  
+Serial.print("customer_cb: ");
 Serial.println(led_bitmap);
 }

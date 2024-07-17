@@ -79,6 +79,7 @@ BLEHidAdafruit1::BLEHidAdafruit1(void)
 {
   _mse_buttons = 0;
   _kbd_led_cb = NULL;
+  _customer_cb = NULL;
 }
 
 err_t BLEHidAdafruit1::begin(void)
@@ -101,6 +102,24 @@ err_t BLEHidAdafruit1::begin(void)
 
   return ERROR_NONE;
 }
+
+void BLEHidAdafruit1::blehid_ada_customer_output_cb(uint16_t conn_hdl, BLECharacteristic* chr, uint8_t* data, uint16_t len)
+{
+    Serial.println ("BLEHidAdafruit1::blehid_ada_customer_output_cb");
+
+  BLEHidAdafruit1& svc = (BLEHidAdafruit1&) chr->parentService();
+  if ( svc._customer_cb ) svc._customer_cb(conn_hdl, data[0]);
+}
+
+void BLEHidAdafruit1::setCustomerCallback(kbd_led_cb_t fp)
+{
+  _customer_cb = fp;
+
+  // Report mode
+  this->setOutputReportCallback(REPORT_ID_CONSUMER_CONTROL, fp ? blehid_ada_customer_output_cb : NULL);
+
+}
+
 
 /*------------------------------------------------------------------*/
 /* Keyboard Multiple Connections
