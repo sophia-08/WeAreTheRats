@@ -62,7 +62,7 @@ enum
     HID_REPORT_SIZE  ( 16                                  ) ,\
     HID_INPUT        ( HID_DATA | HID_ARRAY | HID_ABSOLUTE ) ,\
     HID_USAGE      ( HID_USAGE_CONSUMER_CONTROL )              ,\
-      HID_REPORT_COUNT ( 1                                       ) ,\
+      HID_REPORT_COUNT ( 8                                       ) ,\
       HID_REPORT_SIZE  ( 8                                       ) ,\
       HID_OUTPUT       ( HID_DATA | HID_VARIABLE | HID_ABSOLUTE  ) ,\
   HID_COLLECTION_END \
@@ -86,7 +86,7 @@ err_t BLEHidAdafruit1::begin(void)
 {
   // keyboard, consumer, mouse
   uint16_t input_len [] = { sizeof(hid_keyboard_report_t), 2, sizeof(hid_mouse_report_t) };
-  uint16_t output_len[] = { 1, 1 };
+  uint16_t output_len[] = { 1, 8 };
 
   Serial.println ("BLEHidAdafruit1::begin");
 
