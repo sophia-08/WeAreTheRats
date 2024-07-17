@@ -64,7 +64,13 @@ public:
     conclusion:
       only id 1, which is keyboard, has output report channel.
     */
-
+        int id=1;
+    // for (id=0; id<4; id++) 
+    {
+    std::cerr << "send two bytes to " << id << std::endl;
+    std::vector<uint8_t> out = {0x01,0x01};
+    device->sendReport(id, out);      
+    }
 
   }
 
