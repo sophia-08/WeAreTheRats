@@ -50,12 +50,12 @@ enum
 uint8_t const hid_report_descriptor[] =
 {
   TUD_HID_REPORT_DESC_KEYBOARD( HID_REPORT_ID(REPORT_ID_KEYBOARD) ),
-  TUD_HID_REPORT_DESC_CONSUMER( HID_REPORT_ID(REPORT_ID_CONSUMER_CONTROL) ),
+  TUD_HID_REPORT_DESC_CONSUMER1( HID_REPORT_ID(REPORT_ID_CONSUMER_CONTROL) ),
   TUD_HID_REPORT_DESC_MOUSE   ( HID_REPORT_ID(REPORT_ID_MOUSE) )
 };
 
 BLEHidAdafruit1::BLEHidAdafruit1(void)
-  : BLEHidGeneric(3, 1, 0)
+  : BLEHidGeneric(3, 2, 0)
 {
   _mse_buttons = 0;
   _kbd_led_cb = NULL;
@@ -65,7 +65,9 @@ err_t BLEHidAdafruit1::begin(void)
 {
   // keyboard, consumer, mouse
   uint16_t input_len [] = { sizeof(hid_keyboard_report_t), 2, sizeof(hid_mouse_report_t) };
-  uint16_t output_len[] = { 1 };
+  uint16_t output_len[] = { 1, 1 };
+
+  Serial.println ("BLEHidAdafruit1::begin");
 
   setReportLen(input_len, output_len, NULL);
   enableKeyboard(true);

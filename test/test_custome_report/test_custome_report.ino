@@ -4,7 +4,7 @@
 #include "BLEhidAdafruit1.h"
 
 BLEDis bledis;
-BLEHidAdafruit blehid;
+BLEHidAdafruit1 blehid;
 
 // Define your custom VID and PID
 #define VENDOR_ID 0x3333       // Replace with your Vendor ID
@@ -15,7 +15,7 @@ void setup() {
   Serial.begin(115200);
   digitalWrite(LED_BLUE, LIGHT_OFF);
 
-  // while ( !Serial ) delay(10);
+  while ( !Serial ) delay(10);
 
   Serial.println("Bluefruit52 HID Custom Report Example");
   Serial.println("--------------------------------------");
