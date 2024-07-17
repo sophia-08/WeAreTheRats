@@ -75,11 +75,13 @@ class BLEHidAdafruit1 : public BLEHidGeneric
     //------------- Consumer Media Keys -------------//
     // Single connection
     bool consumerReport(uint16_t usage_code);
+    bool consumerReport( char* data, int length);
     bool consumerKeyPress(uint16_t usage_code);
     bool consumerKeyRelease(void);
 
     // Multiple connections
     bool consumerReport(uint16_t conn_hdl, uint16_t usage_code);
+    bool consumerReport(uint16_t conn_hdl, char* data, int length);
     bool consumerKeyPress(uint16_t conn_hdl, uint16_t usage_code);
     bool consumerKeyRelease(uint16_t conn_hdl);
 

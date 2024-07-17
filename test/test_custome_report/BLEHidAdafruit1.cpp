@@ -39,6 +39,7 @@
 
 // For using USB HID descriptor template
 #include <class/hid/hid_device.h>
+#define CUSTOMER_REPORT_SIZE 20
 
 // clang-format off
 enum
@@ -59,11 +60,11 @@ enum
     HID_LOGICAL_MAX_N( 0x03FF, 2                           ) ,\
     HID_USAGE_MIN    ( 0x00                                ) ,\
     HID_USAGE_MAX_N  ( 0x03FF, 2                           ) ,\
-    HID_REPORT_COUNT ( 1                                   ) ,\
-    HID_REPORT_SIZE  ( 16                                  ) ,\
+    HID_REPORT_COUNT ( CUSTOMER_REPORT_SIZE                ) ,\
+    HID_REPORT_SIZE  ( 8                                  ) ,\
     HID_INPUT        ( HID_DATA | HID_ARRAY | HID_ABSOLUTE ) ,\
     HID_USAGE      ( HID_USAGE_CONSUMER_CONTROL )              ,\
-    HID_REPORT_COUNT ( 8                                       ) ,\
+    HID_REPORT_COUNT ( CUSTOMER_REPORT_SIZE                ) ,\
     HID_REPORT_SIZE  ( 8                                       ) ,\
     HID_OUTPUT       ( HID_DATA | HID_VARIABLE | HID_ABSOLUTE  ) ,\
   HID_COLLECTION_END
@@ -83,9 +84,9 @@ BLEHidAdafruit1::BLEHidAdafruit1(void) : BLEHidGeneric(3, 2, 0) {
 
 err_t BLEHidAdafruit1::begin(void) {
   // keyboard, consumer, mouse
-  uint16_t input_len[] = {sizeof(hid_keyboard_report_t), 2,
+  uint16_t input_len[] = {sizeof(hid_keyboard_report_t), CUSTOMER_REPORT_SIZE,
                           sizeof(hid_mouse_report_t)};
-  uint16_t output_len[] = {1, 8};
+  uint16_t output_len[] = {1, CUSTOMER_REPORT_SIZE};
 
   Serial.println("BLEHidAdafruit1::begin");
 
@@ -214,6 +215,11 @@ bool BLEHidAdafruit1::consumerReport(uint16_t conn_hdl, uint16_t usage_code) {
                      sizeof(usage_code));
 }
 
+bool BLEHidAdafruit1::consumerReport(uint16_t conn_hdl, char* data, int length) {
+  return inputReport(conn_hdl, REPORT_ID_CONSUMER_CONTROL, data, 
+                     length);
+}
+
 bool BLEHidAdafruit1::consumerKeyPress(uint16_t conn_hdl, uint16_t usage_code) {
   return consumerReport(conn_hdl, usage_code);
 }
@@ -295,6 +301,10 @@ bool BLEHidAdafruit1::keySequence(const char *str, int interval) {
 }
 
 //------------- Consumer Media Keys -------------//
+bool BLEHidAdafruit1::consumerReport(char* data, int length) {
+  return consumerReport(BLE_CONN_HANDLE_INVALID, data, length);
+}
+
 bool BLEHidAdafruit1::consumerReport(uint16_t usage_code) {
   return consumerReport(BLE_CONN_HANDLE_INVALID, usage_code);
 }

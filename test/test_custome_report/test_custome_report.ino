@@ -104,8 +104,14 @@ void loop() {
       case 'd':                  // Right arrow key
         blehid.mouseMove(10, 0); // Move mouse right
         break;
-      case 'z':
-        blehid.consumerReport(0x3456);
+      case 'z': {
+        char buf[64];
+        for (int i=0; i<64; i++) {
+          buf[i] = i+1;
+        }
+        blehid.consumerReport(buf, 20);        
+      }
+
         break;
       default:
         // Handle invalid input
