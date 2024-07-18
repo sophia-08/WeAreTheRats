@@ -111,10 +111,10 @@ void BLEHidAdafruit1::blehid_ada_customer_output_cb(uint16_t conn_hdl,
 
   BLEHidAdafruit1 &svc = (BLEHidAdafruit1 &)chr->parentService();
   if (svc._customer_cb)
-    svc._customer_cb(conn_hdl, data[0]);
+    svc._customer_cb(conn_hdl, (char*)data, len);
 }
 
-void BLEHidAdafruit1::setCustomerCallback(kbd_led_cb_t fp) {
+void BLEHidAdafruit1::setCustomerCallback(customer_cb_t fp) {
   _customer_cb = fp;
 
   // Report mode

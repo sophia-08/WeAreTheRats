@@ -150,10 +150,17 @@ Serial.print("Received led: ");
 Serial.println(led_bitmap);
 }
 
-void customer_cb(uint16_t conn_handle, uint8_t led_bitmap)
+void customer_cb(uint16_t conn_handle, char* data,  uint16_t len)
 {
   (void) conn_handle;
   
 Serial.print("customer_cb: ");
-Serial.println(led_bitmap);
+Serial.println(len);
+
+for (int i=0; i<len; i++) {
+  Serial.print(data[i], HEX);
+  Serial.print(" " );
+}
+
+Serial.println(" ");
 }
