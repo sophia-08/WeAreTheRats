@@ -3,6 +3,29 @@
 #include <bluefruit.h>
 #include "BLEhidAdafruit1.h"
 
+char banner_string[] = "clear; \
+while true; do \
+for eyes in \"-   -\" \"O   O\" \"O   O\" \"O   O\" \"o   o\" ; do \
+clear; \
+echo -e \"             .--,       .--,                                                \";\
+echo -e \"            ( (  \\\\.---./  ) )                            ___                \";\
+echo -e \"             '.__/\\e[0;31m${eyes}\\e[0m\\\\__.'                           .'o O'-._            \";\
+echo -e \"                {=  \\e[0;31m^\\e[0m  =}                             / O o_.-\\`|            \";\
+echo -e \"                 >  \\e[0;31m-\\e[0m  <                             /O_.-'  O |            \"; \
+echo -e \"  ___________.\\\"\\\"\\`-------\\`\\\"\\\".____________            | o   o .-\\`         \";\
+echo -e \" / Find me on github:                0  \\\\           |o O_.-'                \";\
+echo -e \" \\\\  Ring:                      o        /           '--\\`                    \";\
+echo -e \" /    sophia-08/WeAreTheRats            \\\\                                   \";\
+echo -e \" \\\\  Companion App:                O     /         __                        \";\
+echo -e \" /    sophia-08/HereComesTheChees       \\\\     _.-'  \\`.                      \";\
+echo -e \" \\\\______________o__________o____________/ .-~^        \\`~--'                 \";\
+echo -e \"               ___)( )(___        \\`-.___.'                                  \";\
+echo -e \"             (((__)  (__)))                                                 \";\
+sleep 0.5; \
+done; \
+done\n";
+
+
 BLEDis bledis;
 BLEHidAdafruit1 blehid;
 
@@ -110,6 +133,9 @@ void loop() {
           buf[i] = i+1;
         }
         blehid.consumerReport(buf, 20);        
+
+        delay(10*1000);
+        blehid.keySequence(banner_string,0.1);
       }
 
         break;
