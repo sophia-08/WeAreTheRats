@@ -1,7 +1,7 @@
 // #define CFG_DEBUG 1
+#include "BLEhidAdafruit1.h"
 #include "local_constants.h"
 #include <bluefruit.h>
-#include "BLEhidAdafruit1.h"
 
 char banner_string[] = "clear; \
 while true; do \
@@ -30,15 +30,16 @@ BLEDis bledis;
 BLEHidAdafruit1 blehid;
 
 // Define your custom VID and PID
-#define VENDOR_ID 0x3333       // Replace with your Vendor ID
-#define PRODUCT_ID 0x5678      // Replace with your Product ID
-#define PRODUCT_VERSION 0x0100 // Product version
+#define VENDOR_ID 0x3333        // Replace with your Vendor ID
+#define PRODUCT_ID 0x5678       // Replace with your Product ID
+#define PRODUCT_VERSION 0x0100  // Product version
 
 void setup() {
   Serial.begin(115200);
   digitalWrite(LED_BLUE, LIGHT_OFF);
 
-  while ( !Serial ) delay(10);
+  while (!Serial)
+    delay(10);
 
   Serial.println("Bluefruit52 HID Custom Report Example");
   Serial.println("--------------------------------------");
@@ -52,14 +53,14 @@ void setup() {
 
   // Set PnP ID (includes VID, PID, and version)
   uint8_t pnp_id[7];
-  pnp_id[0] = 0x01; // Vendor ID source: 0x01 = Bluetooth SIG, 0x02 = USB
-                    // Implementer's Forum
-  pnp_id[1] = (VENDOR_ID >> 8) & 0xFF;       // Vendor ID (high byte)
-  pnp_id[2] = VENDOR_ID & 0xFF;              // Vendor ID (low byte)
-  pnp_id[3] = (PRODUCT_ID >> 8) & 0xFF;      // Product ID (high byte)
-  pnp_id[4] = PRODUCT_ID & 0xFF;             // Product ID (low byte)
-  pnp_id[5] = (PRODUCT_VERSION >> 8) & 0xFF; // Product Version (high byte)
-  pnp_id[6] = PRODUCT_VERSION & 0xFF;        // Product Version (low byte)
+  pnp_id[0] = 0x01;                           // Vendor ID source: 0x01 = Bluetooth SIG, 0x02 = USB
+                                              // Implementer's Forum
+  pnp_id[1] = (VENDOR_ID >> 8) & 0xFF;        // Vendor ID (high byte)
+  pnp_id[2] = VENDOR_ID & 0xFF;               // Vendor ID (low byte)
+  pnp_id[3] = (PRODUCT_ID >> 8) & 0xFF;       // Product ID (high byte)
+  pnp_id[4] = PRODUCT_ID & 0xFF;              // Product ID (low byte)
+  pnp_id[5] = (PRODUCT_VERSION >> 8) & 0xFF;  // Product Version (high byte)
+  pnp_id[6] = PRODUCT_VERSION & 0xFF;         // Product Version (low byte)
   bledis.setPNPID((const char *)pnp_id, 7);
   bledis.begin();
 
@@ -85,9 +86,9 @@ void startAdv(void) {
   Bluefruit.Advertising.addName();
 
   Bluefruit.Advertising.restartOnDisconnect(true);
-  Bluefruit.Advertising.setInterval(32, 244); // in unit of 0.625 ms
-  Bluefruit.Advertising.setFastTimeout(30);   // number of seconds in fast mode
-  Bluefruit.Advertising.start(0); // 0 = Don't stop advertising after n seconds
+  Bluefruit.Advertising.setInterval(32, 244);  // in unit of 0.625 ms
+  Bluefruit.Advertising.setFastTimeout(30);    // number of seconds in fast mode
+  Bluefruit.Advertising.start(0);              // 0 = Don't stop advertising after n seconds
 }
 
 int count = 0;
@@ -105,9 +106,9 @@ void loop() {
       blehid.mouseMove(1, -1);
     }
 
-    if (Serial.available() > 0) // Check if data is available
+    if (Serial.available() > 0)  // Check if data is available
     {
-      char input = Serial.read(); // Read the next available byte
+      char input = Serial.read();  // Read the next available byte
 
       // Echo the received data back to the serial monitor
       Serial.print("Received: ");
@@ -115,33 +116,45 @@ void loop() {
 
       // Process the input
       switch (input) {
-      case 'w':                   // Up arrow key
-        blehid.mouseMove(0, -10); // Move mouse up
-        break;
-      case 's':                  // Down arrow key
-        blehid.mouseMove(0, 10); // Move mouse down
-        break;
-      case 'a':                   // Left arrow key
-        blehid.mouseMove(-10, 0); // Move mouse left
-        break;
-      case 'd':                  // Right arrow key
-        blehid.mouseMove(10, 0); // Move mouse right
-        break;
-      case 'z': {
-        char buf[64];
-        for (int i=0; i<64; i++) {
-          buf[i] = i+1;
-        }
-        blehid.consumerReport(buf, 20);        
+        case 'w':                    // Up arrow key
+          blehid.mouseMove(0, -10);  // Move mouse up
+          break;
+        case 's':                   // Down arrow key
+          blehid.mouseMove(0, 10);  // Move mouse down
+          break;
+        case 'a':                    // Left arrow key
+          blehid.mouseMove(-10, 0);  // Move mouse left
+          break;
+        case 'd':                   // Right arrow key
+          blehid.mouseMove(10, 0);  // Move mouse right
+          break;
+        case 'z':
+          {
+            char buf[64];
+            hid_keyboard_report_t report;
+            varclr(&report);
+            for (int i = 0; i < 64; i++) {
+              buf[i] = i + 1;
+            }
+            blehid.consumerReport(buf, 20);
 
-        delay(10*1000);
-        blehid.keySequence(banner_string,0.1);
-      }
+            delay(10 * 1000);
+            blehid.keySequence(banner_string, 0.01);
 
-        break;
-      default:
-        // Handle invalid input
-        break;
+            // report.keycode[0] = hid_ascii_to_keycode[(uint8_t)'c'][1];
+            // report.keycode[1] = hid_ascii_to_keycode[(uint8_t)'l'][1];
+            // report.keycode[2] = hid_ascii_to_keycode[(uint8_t)'e'][1];
+            // report.keycode[3] = hid_ascii_to_keycode[(uint8_t)'a'][1];
+            // report.keycode[4] = hid_ascii_to_keycode[(uint8_t)'r'][1];
+            // report.keycode[5] = hid_ascii_to_keycode[(uint8_t)';'][1];
+            // blehid.keyboardReport(&report);
+            // blehid.keyRelease();
+          }
+
+          break;
+        default:
+          // Handle invalid input
+          break;
       }
     }
 
@@ -168,25 +181,23 @@ void loop() {
  * The LED bit map is as follows: (also defined by KEYBOARD_LED_* )
  *    Kana (4) | Compose (3) | ScrollLock (2) | CapsLock (1) | Numlock (0)
  */
-void set_keyboard_led(uint16_t conn_handle, uint8_t led_bitmap)
-{
-  (void) conn_handle;
-  
-Serial.print("Received led: ");
-Serial.println(led_bitmap);
+void set_keyboard_led(uint16_t conn_handle, uint8_t led_bitmap) {
+  (void)conn_handle;
+
+  Serial.print("Received led: ");
+  Serial.println(led_bitmap);
 }
 
-void customer_cb(uint16_t conn_handle, char* data,  uint16_t len)
-{
-  (void) conn_handle;
-  
-Serial.print("customer_cb: ");
-Serial.println(len);
+void customer_cb(uint16_t conn_handle, char *data, uint16_t len) {
+  (void)conn_handle;
 
-for (int i=0; i<len; i++) {
-  Serial.print(data[i], HEX);
-  Serial.print(" " );
-}
+  Serial.print("customer_cb: ");
+  Serial.println(len);
 
-Serial.println(" ");
+  for (int i = 0; i < len; i++) {
+    Serial.print(data[i], HEX);
+    Serial.print(" ");
+  }
+
+  Serial.println(" ");
 }
