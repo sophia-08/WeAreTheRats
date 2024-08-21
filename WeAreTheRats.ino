@@ -309,25 +309,29 @@ void scanOneClickButton(uint8_t keyIndex) {
 
   switch (clickButtons[keyIndex]) {
   case MOUSE_ACTIVATE:
-    // Serial.println("switch to mouse");
+    if (state == HIGH) {
+      Serial.println("switch to mouse");
 
-    deviceMode = DEVICE_MOUSE_MODE;
+      deviceMode = DEVICE_MOUSE_MODE;
 
-    // todo only reconfig when these is a real mode change. needed for bno085
-    imuConfigure(deviceMode);
-#ifdef  PIMORONI_TRACKBALL    
-    trackball.setGreen(60);
-    trackball.setBlue(0);
-    #endif
+      // todo only reconfig when these is a real mode change. needed for bno085
+      imuConfigure(deviceMode);
+#ifdef PIMORONI_TRACKBALL
+      trackball.setGreen(60);
+      trackball.setBlue(0);
+#endif
+    }
     break;
   case KEYPAD_ACTIVATE:
-    // Serial.println("switch to keyboard");
-    deviceMode = DEVICE_KEYBOARD_MODE;
-    imuConfigure(deviceMode);
-    #ifdef  PIMORONI_TRACKBALL 
-    trackball.setGreen(0);
-    trackball.setBlue(80);
-    #endif
+    if (state == HIGH) {
+      Serial.println("switch to keyboard");
+      deviceMode = DEVICE_KEYBOARD_MODE;
+      imuConfigure(deviceMode);
+#ifdef PIMORONI_TRACKBALL
+      trackball.setGreen(0);
+      trackball.setBlue(80);
+#endif
+    }
     break;
   case DEVICE_SELECT:
     if (state == LOW) {
@@ -1057,51 +1061,51 @@ void processKeyboard() {
           }
         }
       };
-      }
     }
-#endif 
+  }
+#endif
 
-    // return;
+  // return;
 #endif
 
 #ifdef TSFLOW
-    if (inference_started) {
-      inference_started = false;
+  if (inference_started) {
+    inference_started = false;
 
-      // Invoke ML inference
-      TfLiteStatus invokeStatus = tflInterpreter->Invoke();
-      if (invokeStatus != kTfLiteOk) {
-        Serial.println("Invoke failed!");
-      }
-
-      // Loop through the output tensor values from the model
-      // for (int i = 0; i < NUM_GESTURES; i++) {
-      //   Serial.print(GESTURES[i]);
-      //   Serial.print(": ");
-      //   Serial.println(tflOutputTensor->data.f[i], 6);
-      // }
-      // Serial.println();
-
-      char ch = '.';
-      for (int i = 0; i < NUM_GESTURES; i++) {
-        if (tflOutputTensor->data.f[i] > 0.5) {
-          ch = GESTURES[i];
-          break;
-        };
-      }
-      Serial.println(ch);
-      if (ch == '.') {
-        digitalWrite(LED_RED, LIGHT_ON);
-        delay(500);
-        digitalWrite(LED_RED, LIGHT_OFF);
-      }
-
-      // Send KEY_DOWN
-      if (ch != '.') {
-        blehid.keyPress(ch);
-        // Send KEY_UP at next loop
-        needSendKeyRelease = true;
-      }
+    // Invoke ML inference
+    TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+    if (invokeStatus != kTfLiteOk) {
+      Serial.println("Invoke failed!");
     }
-#endif
+
+    // Loop through the output tensor values from the model
+    // for (int i = 0; i < NUM_GESTURES; i++) {
+    //   Serial.print(GESTURES[i]);
+    //   Serial.print(": ");
+    //   Serial.println(tflOutputTensor->data.f[i], 6);
+    // }
+    // Serial.println();
+
+    char ch = '.';
+    for (int i = 0; i < NUM_GESTURES; i++) {
+      if (tflOutputTensor->data.f[i] > 0.5) {
+        ch = GESTURES[i];
+        break;
+      };
+    }
+    Serial.println(ch);
+    if (ch == '.') {
+      digitalWrite(LED_RED, LIGHT_ON);
+      delay(500);
+      digitalWrite(LED_RED, LIGHT_OFF);
+    }
+
+    // Send KEY_DOWN
+    if (ch != '.') {
+      blehid.keyPress(ch);
+      // Send KEY_UP at next loop
+      needSendKeyRelease = true;
+    }
   }
+#endif
+}
