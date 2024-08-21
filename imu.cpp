@@ -244,20 +244,20 @@ int imuReadAndUpdateXYAngle() {
   doCalculations();
   // printOrientation();
 #ifdef PIMORONI_TRACKBALL
-      xAngle = Orientation[0];
-    yAngle = -Orientation[2];
+  xAngle = Orientation[0];
+  yAngle = -Orientation[2];
 #else
   xAngle = -Orientation[2];
   yAngle = Orientation[0];
 #endif
-    if (bWrite) {
-      writeTrajectory[writeIndex][0] = xAngle;
-      writeTrajectory[writeIndex][1] = yAngle;
-      writeIndex++;
-      if (writeIndex>1999) {
-        writeIndex = 1999;
-      }
+  if (bWrite) {
+    writeTrajectory[writeIndex][0] = xAngle;
+    writeTrajectory[writeIndex][1] = yAngle;
+    writeIndex++;
+    if (writeIndex > 1999) {
+      writeIndex = 1999;
     }
+  }
 
   return 0;
 }
@@ -366,15 +366,14 @@ void imuStartSave(bool start) {
   if (start) {
     bWrite = true;
     writeIndex = 0;
-  }else{
+  } else {
     bWrite = false;
   }
-  
 }
 
-bool imuPreprocessData(){
-Serial.print("index ");
-Serial.println(writeIndex);
+bool imuPreprocessData() {
+  Serial.print("index ");
+  Serial.println(writeIndex);
 
   if (writeIndex < 200) {
     return false;
@@ -449,14 +448,12 @@ void dump(unsigned char *buf, int size) {
     for (j = 0; j < 32; j++) {
       if (*p++ == 0) {
         Serial.print(" ");
-      }else{
+      } else {
         Serial.print(".");
       }
     }
     Serial.println("");
   }
 }
-void imuDisplayPixelArray() {
-  dump((unsigned char *)buf, 32*32);
-}
+void imuDisplayPixelArray() { dump((unsigned char *)buf, 32 * 32); }
 #endif

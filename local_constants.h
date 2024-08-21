@@ -5,19 +5,17 @@
 // #define PIMORONI_TRACKBALL_INT D0
 #define MINUTE_MOVEMENT 5
 
-
 #ifdef PIMORONI_TRACKBALL
 #define MOUSE_RIGHT D3
 #define MOUSE_LEFT 255
 #define DEVICE_SELECT D2
 #endif
 
-
 #ifdef SEVEN_KEY_PAD
 #define MOUSE_LEFT D9
 #define MOUSE_RIGHT D8
 #define KEYPAD_CENTER D10
-#define KEYPAD_UP D7 
+#define KEYPAD_UP D7
 #define KEYPAD_RIGHT D3
 #define KEYPAD_DOWN D2
 #define KEYPAD_LEFT D1
@@ -26,7 +24,6 @@
 
 #define MOUSE_ACTIVATE D6
 #define KEYPAD_ACTIVATE D10
-
 
 // #define LED_CHARGER 23
 #define LIGHT_ON LOW
@@ -57,7 +54,6 @@
 #ifdef IMU_LSM6DS3
 #define report_freq 10
 #endif
-
 
 // #define IMU_USE_RESET
 

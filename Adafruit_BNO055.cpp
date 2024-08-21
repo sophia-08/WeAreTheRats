@@ -53,7 +53,6 @@ Adafruit_BNO055::Adafruit_BNO055(int32_t sensorID, uint8_t address,
   _sensorID = sensorID;
 
   i2c_dev = new Adafruit_I2CDevice(address, theWire);
-
 }
 
 /*!
@@ -112,8 +111,9 @@ bool Adafruit_BNO055::begin(adafruit_bno055_opmode_t mode) {
   setMode(OPERATION_MODE_CONFIG);
 
   /* Reset */
-  //This does not sound correct, but bno055 may go to a state output all 0s with below line of code.
-  // write8(BNO055_SYS_TRIGGER_ADDR, 0x20);
+  // This does not sound correct, but bno055 may go to a state output all 0s
+  // with below line of code.
+  //  write8(BNO055_SYS_TRIGGER_ADDR, 0x20);
   /* Delay incrased to 30ms due to power issues https://tinyurl.com/y375z699 */
   // delay(30);
   // while (read8(BNO055_CHIP_ID_ADDR) != BNO055_ID) {
