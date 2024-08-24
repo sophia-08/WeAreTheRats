@@ -173,7 +173,7 @@ status_t LSM6DS3Core::readRegisterRegion(uint8_t *outputPointer, uint8_t offset,
       I2CPORT.requestFrom(I2CAddress, length);
       while ((I2CPORT.available()) &&
              (i < length)) { // slave may send less than requested
-        c = I2CPORT.read();     // receive a byte as character
+        c = I2CPORT.read();  // receive a byte as character
         *outputPointer = c;
         outputPointer++;
         i++;
