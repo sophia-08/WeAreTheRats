@@ -3,9 +3,12 @@
  *
  *	https://github.com/ncmreynolds/pimoroniTrackball
  *
- *	Released under LGPL-2.1 see https://github.com/ncmreynolds/pimoroniTrackball/LICENSE for full license
+ *	Released under LGPL-2.1 see
+ *https://github.com/ncmreynolds/pimoroniTrackball/LICENSE for full license
  *
- *	This library implements similar functionality to https://github.com/pimoroni/trackball-python/ but in C++ for use in the Arduino IDE
+ *	This library implements similar functionality to
+ *https://github.com/pimoroni/trackball-python/ but in C++ for use in the
+ *Arduino IDE
  *
  *
  */
@@ -41,34 +44,39 @@
 #define TRACKBALL_MSK_CTRL_FREAD 0b00000100
 #define TRACKBALL_MSK_CTRL_FWRITE 0b00001000
 
-class pimoroniTrackball
-{
+class pimoroniTrackball {
 
-	public:
-		pimoroniTrackball();													//Constructor function
-		~pimoroniTrackball();													//Destructor function
-		//Setup functions
-		void begin(uint8_t address = 0x0A, TwoWire &i2cPort = Wire);			//Initialise the trackball library
-		bool isConnected();														//Check the trackball is connected
-		void setRGBW(uint8_t redBrightness, uint8_t greenBrightness, uint8_t blueBrightness, uint8_t whiteBrightness);	//Set the brightness for each of the RGB&W LEDs
-		void setRed(uint8_t redBrightness);										//Set the brightness of the red LED
-		void setGreen(uint8_t greenBrightness);									//Set the brightness of the green LED
-		void setBlue(uint8_t blueBrightness);									//Set the brightness of the blue LED
-		void setWhite(uint8_t whiteBrightness);									//Set the brightness of the white LED
-		bool changed();															//Poll the trackball to see if it's moved
-		uint8_t left();															//Amount the trackball moved left
-		uint8_t right();														//Amount the trackball moved right
-		uint8_t up();															//Amount the trackball moved up
-		uint8_t down();															//Amount the trackball moved down
-		bool click();															//Was the trackball clicked
-		bool release();															//Was the trackball released
-    void enable_interrupt();
-	protected:
-	private:
-		int _trackballAddress = 0x0A;										//I2C address for the trackball
-		TwoWire *_i2cPort = nullptr;										//Pointer to I2C port used by library
-		const uint16_t trackballDeviceId = 0xBA11;							//Device ID for the trackball
-		uint8_t _lastState[5] = {0, 0, 0, 0, 0b10000000};					//Last state of the trackball, which resets on read
+public:
+  pimoroniTrackball();  // Constructor function
+  ~pimoroniTrackball(); // Destructor function
+  // Setup functions
+  void begin(uint8_t address = 0x0A,
+             TwoWire &i2cPort = Wire); // Initialise the trackball library
+  bool isConnected();                  // Check the trackball is connected
+  void setRGBW(
+      uint8_t redBrightness, uint8_t greenBrightness, uint8_t blueBrightness,
+      uint8_t whiteBrightness); // Set the brightness for each of the RGB&W LEDs
+  void setRed(uint8_t redBrightness);     // Set the brightness of the red LED
+  void setGreen(uint8_t greenBrightness); // Set the brightness of the green LED
+  void setBlue(uint8_t blueBrightness);   // Set the brightness of the blue LED
+  void setWhite(uint8_t whiteBrightness); // Set the brightness of the white LED
+  bool changed();  // Poll the trackball to see if it's moved
+  uint8_t left();  // Amount the trackball moved left
+  uint8_t right(); // Amount the trackball moved right
+  uint8_t up();    // Amount the trackball moved up
+  uint8_t down();  // Amount the trackball moved down
+  bool click();    // Was the trackball clicked
+  bool release();  // Was the trackball released
+  void enable_interrupt();
+
+protected:
+private:
+  int _trackballAddress = 0x0A; // I2C address for the trackball
+  TwoWire *_i2cPort = nullptr;  // Pointer to I2C port used by library
+  const uint16_t trackballDeviceId = 0xBA11; // Device ID for the trackball
+  uint8_t _lastState[5] = {
+      0, 0, 0, 0,
+      0b10000000}; // Last state of the trackball, which resets on read
 };
 
 extern pimoroniTrackball trackball;

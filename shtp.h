@@ -2,7 +2,7 @@
  * Copyright 2015-18 Hillcrest Laboratories, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License and 
+ * you may not use this file except in compliance with the License and
  * any applicable agreements you may have with Hillcrest Laboratories, Inc.
  * You may obtain a copy of the License at
  *
@@ -22,8 +22,8 @@
 #ifndef SHTP_H
 #define SHTP_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "sh2_hal.h"
 
@@ -42,48 +42,47 @@
 #define TAG_APP_SPECIFIC 0x80
 
 typedef enum shtp_Event_e {
-    SHTP_TX_DISCARD = 0,
-    SHTP_SHORT_FRAGMENT = 1,
-    SHTP_TOO_LARGE_PAYLOADS = 2,
-    SHTP_BAD_RX_CHAN = 3,
-    SHTP_BAD_TX_CHAN = 4,
+  SHTP_TX_DISCARD = 0,
+  SHTP_SHORT_FRAGMENT = 1,
+  SHTP_TOO_LARGE_PAYLOADS = 2,
+  SHTP_BAD_RX_CHAN = 3,
+  SHTP_BAD_TX_CHAN = 4,
 } shtp_Event_t;
 
-typedef void shtp_Callback_t(void * cookie, uint8_t *payload, uint16_t len, uint32_t timestamp);
-typedef void shtp_AdvertCallback_t(void * cookie, uint8_t tag, uint8_t len, uint8_t *value);
+typedef void shtp_Callback_t(void *cookie, uint8_t *payload, uint16_t len,
+                             uint32_t timestamp);
+typedef void shtp_AdvertCallback_t(void *cookie, uint8_t tag, uint8_t len,
+                                   uint8_t *value);
 typedef void shtp_SendCallback_t(void *cookie);
 typedef void shtp_EventCallback_t(void *cookie, shtp_Event_t shtpEvent);
 
 // Takes HAL pointer, returns shtp ID for use in future calls.
 // HAL will be opened by this call.
-void * shtp_open(sh2_Hal_t *pHal);
+void *shtp_open(sh2_Hal_t *pHal);
 
 // Releases resources associated with this SHTP instance.
 // HAL will not be closed.
 void shtp_close(void *pShtp);
 
-// Provide the point of the callback function for reporting SHTP asynchronous events
-void shtp_setEventCallback(void *pInstance,
-                           shtp_EventCallback_t * eventCallback, 
+// Provide the point of the callback function for reporting SHTP asynchronous
+// events
+void shtp_setEventCallback(void *pInstance, shtp_EventCallback_t *eventCallback,
                            void *eventCookie);
 
 // Register a listener for an SHTP channel
-int shtp_listenChan(void *pShtp,
-                    uint16_t guid, const char * chan,
-                    shtp_Callback_t *callback, void * cookie);
+int shtp_listenChan(void *pShtp, uint16_t guid, const char *chan,
+                    shtp_Callback_t *callback, void *cookie);
 
-// Register a listener for SHTP advertisements 
-int shtp_listenAdvert(void *pShtp,
-                      uint16_t guid,
-                      shtp_AdvertCallback_t *advertCallback, void * cookie);
+// Register a listener for SHTP advertisements
+int shtp_listenAdvert(void *pShtp, uint16_t guid,
+                      shtp_AdvertCallback_t *advertCallback, void *cookie);
 
 // Look up the channel number for a particular app, channel.
-uint8_t shtp_chanNo(void *pShtp,
-                    const char * appName, const char * chanName);
+uint8_t shtp_chanNo(void *pShtp, const char *appName, const char *chanName);
 
 // Send an SHTP payload on a particular channel
-int shtp_send(void *pShtp,
-              uint8_t channel, const uint8_t *payload, uint16_t len);
+int shtp_send(void *pShtp, uint8_t channel, const uint8_t *payload,
+              uint16_t len);
 
 // Check for received data and process it.
 void shtp_service(void *pShtp);

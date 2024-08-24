@@ -126,9 +126,6 @@ bool Adafruit_BNO08x::begin_I2C(uint8_t i2c_address, TwoWire *wire,
   return _init(sensor_id);
 }
 
-
-
-
 /*!  @brief Initializer for post i2c/spi init
  *   @param sensor_id Optional unique ID for the sensor set
  *   @returns True if chip identified and initialized
@@ -391,11 +388,12 @@ static void hal_callback(void *cookie, sh2_AsyncEvent_t *pEvent) {
 uint64_t lastT;
 // Handle sensor events.
 
-extern bool newData ;
+extern bool newData;
 extern float rtVector[4];
 extern float accl[3];
 extern float gyro[3];
-extern int calStatus;;
+extern int calStatus;
+;
 
 static void sensorHandler(void *cookie, sh2_SensorEvent_t *event) {
   int rc;
@@ -409,28 +407,26 @@ static void sensorHandler(void *cookie, sh2_SensorEvent_t *event) {
   // Serial.print(", ");
   // Serial.println(event->len);
 
-
-
   rc = sh2_decodeSensorEvent(_sensor_value, event);
   if (rc != SH2_OK) {
     Serial.println("BNO08x - Error decoding sensor event");
     _sensor_value->timestamp = 0;
     return;
-  } else{
+  } else {
     switch (_sensor_value->sensorId) {
-      case SH2_ROTATION_VECTOR:
+    case SH2_ROTATION_VECTOR:
       rtVector[0] = _sensor_value->un.rotationVector.i;
       rtVector[1] = _sensor_value->un.rotationVector.j;
       rtVector[2] = _sensor_value->un.rotationVector.k;
       rtVector[3] = _sensor_value->un.rotationVector.real;
       calStatus = _sensor_value->status;
       break;
-      case SH2_LINEAR_ACCELERATION:
+    case SH2_LINEAR_ACCELERATION:
       accl[0] = _sensor_value->un.linearAcceleration.x;
       accl[1] = _sensor_value->un.linearAcceleration.y;
       accl[2] = _sensor_value->un.linearAcceleration.z;
       break;
-      case SH2_GYROSCOPE_CALIBRATED:
+    case SH2_GYROSCOPE_CALIBRATED:
       gyro[0] = _sensor_value->un.gyroscope.x;
       gyro[1] = _sensor_value->un.gyroscope.y;
       gyro[2] = _sensor_value->un.gyroscope.z;
