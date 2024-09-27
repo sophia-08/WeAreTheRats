@@ -2,7 +2,6 @@
 
 #include "battery.h"
 #include <bluefruit.h>
-// #include <MadgwickAHRS.h>  // Madgwick 1.2.0 by Arduino
 #include "imu.h"
 
 #ifdef TSFLOW
@@ -11,22 +10,16 @@
 #include <tensorflow/lite/micro/micro_error_reporter.h>
 #include <tensorflow/lite/micro/micro_interpreter.h>
 #include <tensorflow/lite/schema/schema_generated.h>
+#include "model.h"
 #endif
-
-#include "pimoroniTrackball.h"
 
 // Define your custom VID and PID
 #define VENDOR_ID 0x3333       // Replace with your Vendor ID
 #define PRODUCT_ID 0x5678      // Replace with your Product ID
 #define PRODUCT_VERSION 0x0100 // Product version
 
-#ifdef TSFLOW
-#include "model.h"
-#endif
 #include "system.h"
 void setBdDAAndName(unsigned char byte3, char *name);
-
-// const float accelerationThreshold = 2.5; // threshold of significant in G's
 
 int samplesRead = 0;
 #define out_samples 150
@@ -90,32 +83,9 @@ void setup() {
   imuInit(deviceMode);
 
   // calibrateIMU(250, 250);
-
-  // nrf_gpio_cfg_sense_input(g_ADigitalPinMap[IMU_INT],
-  //                        NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
-
-  //
-  // attachInterrupt(IMU_INT, myinthandler, FALLING); // RISING
-#ifdef PIMORONI_TRACKBALL
-  trackball.begin();
-  for (int i = 0; i < 1; i++) {
-    trackball.setRed(240);
-    trackball.setBlue(0);
-    delay(100);
-    trackball.setRed(0);
-    trackball.setGreen(240);
-    delay(100);
-    trackball.setGreen(0);
-    trackball.setBlue(240);
-    delay(100);
-  }
-  trackball.setBlue(0);
-  trackball.setGreen(60);
-#endif
 }
 
 int count = 0;
-
 bool inference_started = false;
 
 #define PRECISION 4
@@ -129,99 +99,7 @@ int xArrow = 0, yArrow = 0;
 void loop() {
 
   leds();
-
-#ifdef SEVEN_KEY_PAD
-  scanNavigateButtons();
-#endif
-
   scanClickButtons();
-
-#ifdef PIMORONI_TRACKBALL
-  if (trackball.changed()) {
-    // Bug of the hardware, int keep low.
-    // https://github.com/pimoroni/pimoroni-pico/issues/357 if
-    // (digitalRead(PIMORONI_TRACKBALL_INT) == LOW) {
-    int x, y;
-    if (deviceMode == DEVICE_MOUSE_MODE) {
-      y = (trackball.right() - trackball.left()) * MINUTE_MOVEMENT;
-      x = (-trackball.down() + trackball.up()) * MINUTE_MOVEMENT;
-      if (x != 0 || y != 0) {
-        // Serial.print(x);
-        // Serial.print(",");
-        // Serial.println(y);
-        blehid.mouseMove(x, y);
-      }
-      if (trackball.click()) {
-        blehid.mouseButtonPress(MOUSE_BUTTON_RIGHT);
-        Serial.println("do");
-        noModeSwitch = true;
-      }
-      if (trackball.release()) {
-        blehid.mouseButtonRelease();
-        Serial.println("re");
-        noModeSwitch = false;
-      }
-    } else {
-      y = (trackball.right() - trackball.left());
-      x = (-trackball.down() + trackball.up());
-      xArrow += x;
-      yArrow += y;
-
-      // keyboard mode
-      uint8_t keycodes[6] = {HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE,
-                             HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE};
-
-      // scroll up/down
-      bool keyPressed = false;
-      if (yArrow < -TRACKBALL_ARROW_KEY_SENSIVITY) {
-        keycodes[0] = HID_KEY_ARROW_UP;
-        keyPressed = true;
-        yArrow += TRACKBALL_ARROW_KEY_SENSIVITY;
-      } else if (yArrow > TRACKBALL_ARROW_KEY_SENSIVITY) {
-        keycodes[0] = HID_KEY_ARROW_DOWN;
-        keyPressed = true;
-        yArrow -= TRACKBALL_ARROW_KEY_SENSIVITY;
-      }
-
-      if (keyPressed) {
-        blehid.keyboardReport(0, keycodes);
-        delay(1);
-        blehid.keyRelease();
-      }
-
-      // scroll left/right
-      keyPressed = false;
-      if (xArrow < -TRACKBALL_ARROW_KEY_SENSIVITY) {
-        keycodes[0] = HID_KEY_ARROW_LEFT;
-        keyPressed = true;
-        xArrow += TRACKBALL_ARROW_KEY_SENSIVITY;
-      } else if (xArrow > TRACKBALL_ARROW_KEY_SENSIVITY) {
-        keycodes[0] = HID_KEY_ARROW_RIGHT;
-        keyPressed = true;
-        xArrow -= TRACKBALL_ARROW_KEY_SENSIVITY;
-      }
-
-      if (keyPressed) {
-        blehid.keyboardReport(0, keycodes);
-        delay(1);
-        blehid.keyRelease();
-      }
-
-      // central button is pressed
-      if (trackball.click()) {
-        keycodes[0] = HID_KEY_ENTER;
-        blehid.keyboardReport(0, keycodes);
-        noModeSwitch = true;
-      }
-      // central button is released
-      if (trackball.release()) {
-        keycodes[0] = HID_KEY_NONE;
-        blehid.keyboardReport(0, keycodes);
-        noModeSwitch = false;
-      }
-    }
-  }
-#endif
 
   // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
   // For air writing, when a character is recoganized, only KEY_DOWN event is
@@ -250,11 +128,9 @@ void loop() {
 uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
                           KEYPAD_ACTIVATE, DEVICE_SELECT};
 uint8_t clickButtonLastState[] = {HIGH, HIGH, LOW, LOW, HIGH};
-#ifdef PIMORONI_TRACKBALL
-uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_LEFT, 0, 0, 0};
-#else
+
 uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0, 0};
-#endif
+
 uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0, 0};
 
 void scanOneClickButton(uint8_t keyIndex) {
@@ -287,19 +163,13 @@ void scanOneClickButton(uint8_t keyIndex) {
 
     // todo only reconfig when these is a real mode change. needed for bno085
     imuConfigure(deviceMode);
-#ifdef PIMORONI_TRACKBALL
-    trackball.setGreen(60);
-    trackball.setBlue(0);
-#endif
+
     break;
   case KEYPAD_ACTIVATE:
     // Serial.println("switch to keyboard");
     deviceMode = DEVICE_KEYBOARD_MODE;
     imuConfigure(deviceMode);
-#ifdef PIMORONI_TRACKBALL
-    trackball.setGreen(0);
-    trackball.setBlue(80);
-#endif
+
     break;
   case DEVICE_SELECT:
     if (state == LOW) {
@@ -347,169 +217,13 @@ void scanOneClickButton(uint8_t keyIndex) {
 
 void scanClickButtons() {
 
-  // Only mouse left and right click
-#ifdef PIMORONI_TRACKBALL
-  for (int i = 1; i < 5; i++) {
-    scanOneClickButton(i);
-  }
-#endif
 
-#ifdef SEVEN_KEY_PAD
   for (int i = 0; i < 4; i++) {
     scanOneClickButton(i);
   }
-#endif
+
 }
 
-#ifdef SEVEN_KEY_PAD
-#define DOUBLE_CLICK_INTERVAL 300
-#define MOUSE_STEPS_PER_CLICK 5
-int lastUpTime, lastDownTime, lastKey;
-uint8_t navigateButtons[4] = {KEYPAD_LEFT, KEYPAD_RIGHT, KEYPAD_UP,
-                              KEYPAD_DOWN};
-uint8_t navigateButtonLastState[4] = {HIGH, HIGH, HIGH, HIGH};
-uint8_t navigateButtonInDoubleClickMode[4] = {0, 0, 0, 0};
-uint8_t navigateButtonSingleClickKeyboardCode[4] = {
-    HID_KEY_ARROW_LEFT, HID_KEY_ARROW_RIGHT, HID_KEY_ARROW_UP,
-    HID_KEY_ARROW_DOWN};
-uint8_t navigateButtonDoubleClickKeyboardCode[4] = {
-    HID_KEY_HOME, HID_KEY_END, HID_KEY_PAGE_UP, HID_KEY_PAGE_DOWN};
-
-int8_t navigateButtonSingleClickMouseCode[4][2] = {{-MOUSE_STEPS_PER_CLICK, 0},
-                                                   {MOUSE_STEPS_PER_CLICK, 0},
-                                                   {0, -MOUSE_STEPS_PER_CLICK},
-                                                   {0, MOUSE_STEPS_PER_CLICK}};
-int8_t navigateButtonDoubleClickMouseCode[4] = {MOUSE_BUTTON_BACKWARD,
-                                                MOUSE_BUTTON_FORWARD, -1, 1};
-uint32_t navigateButtonLastDownTime[4];
-uint32_t skipScroll;
-
-void scanOneNavigateButton(uint8_t keyIndex) {
-  // detect edge
-  uint8_t state = digitalRead(navigateButtons[keyIndex]);
-  if (state == navigateButtonLastState[keyIndex]) { // no change
-
-    // For mouse, when the button is pressed and held,  we need continue send
-    // mouseMove() event. This need be done without wait.
-    if (state == LOW && deviceMode == DEVICE_MOUSE_MODE) {
-      if (navigateButtonInDoubleClickMode[keyIndex]) {
-        // Serial.print("mouse scroll: ");
-        // Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
-        // in press and hold mode, Scroll too fast, skip every x
-        skipScroll++;
-        if (skipScroll % 6 == 0) {
-          blehid.mouseScroll(navigateButtonDoubleClickMouseCode[keyIndex]);
-        }
-      } else {
-        // Serial.print("mouse move: ");
-        // Serial.print(navigateButtonSingleClickMouseCode[keyIndex][0]);
-        // Serial.print(" ");
-        // Serial.println(navigateButtonSingleClickMouseCode[keyIndex][1]);
-        blehid.mouseMove(navigateButtonSingleClickMouseCode[keyIndex][0],
-                         navigateButtonSingleClickMouseCode[keyIndex][1]);
-      }
-    }
-    return;
-  };
-
-  delay(1);
-  state = digitalRead(navigateButtons[keyIndex]);
-  if (state == navigateButtonLastState[keyIndex]) { // only noise
-    return;
-  }
-
-  navigateButtonLastState[keyIndex] = state;
-  uint32_t time1 = millis();
-  bool doubleClick = false;
-
-  // high -> low
-  if (state == LOW) {
-
-    // If the button was pressed again within threshold, it's a double click
-    if (time1 - navigateButtonLastDownTime[keyIndex] < DOUBLE_CLICK_INTERVAL) {
-      doubleClick = true;
-
-      // For Mouse. save the double click flag, used for repeat events.
-      if (navigateButtons[keyIndex] == KEYPAD_UP ||
-          navigateButtons[keyIndex] == KEYPAD_DOWN) {
-        navigateButtonInDoubleClickMode[keyIndex] = true;
-      }
-    }
-    if (deviceMode == DEVICE_KEYBOARD_MODE) {
-      // keyboard mode
-      uint8_t keycodes[6] = {HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE,
-                             HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE};
-      if (doubleClick) {
-        keycodes[0] = navigateButtonDoubleClickKeyboardCode[keyIndex];
-      } else {
-        keycodes[0] = navigateButtonSingleClickKeyboardCode[keyIndex];
-      }
-
-      // Serial.print("key: ");
-      // Serial.println(keycodes[0]);
-      blehid.keyboardReport(0, keycodes);
-    } else {
-      // mouse mode
-      if (doubleClick) {
-        switch (navigateButtons[keyIndex]) {
-        case KEYPAD_UP:
-        case KEYPAD_DOWN:
-          Serial.print("mouse scroll: ");
-          Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
-          blehid.mouseScroll(navigateButtonDoubleClickMouseCode[keyIndex]);
-          skipScroll = 0;
-          break;
-        case KEYPAD_LEFT:
-        case KEYPAD_RIGHT:
-
-          blehid.mouseButtonPress(navigateButtonDoubleClickMouseCode[keyIndex]);
-          Serial.print("mouse db ");
-          Serial.println(navigateButtonDoubleClickMouseCode[keyIndex]);
-        }
-
-      } else {
-        // Serial.print("mouse move: ");
-        // Serial.print(navigateButtonSingleClickMouseCode[keyIndex][0]);
-        // Serial.print(" ");
-        // Serial.println(navigateButtonSingleClickMouseCode[keyIndex][1]);
-        blehid.mouseMove(navigateButtonSingleClickMouseCode[keyIndex][0],
-                         navigateButtonSingleClickMouseCode[keyIndex][1]);
-      }
-    }
-    navigateButtonLastDownTime[keyIndex] = time1;
-  } else {
-    // low -> high
-
-    // Reset double click flag.
-    navigateButtonInDoubleClickMode[keyIndex] = false;
-
-    if (deviceMode == DEVICE_KEYBOARD_MODE) {
-      // keyboard mode. sent key release event
-      // Serial.println("key released");
-      blehid.keyRelease();
-    } else {
-      // mouse mode
-      if (doubleClick) {
-        switch (navigateButtons[keyIndex]) {
-        case KEYPAD_LEFT:
-        case KEYPAD_RIGHT:
-          blehid.mouseButtonRelease();
-          break;
-        default:
-          break;
-        }
-      }
-    }
-  }
-}
-
-void scanNavigateButtons() {
-  for (int i = 0; i < 4; i++) {
-    scanOneNavigateButton(i);
-  }
-}
-
-#endif
 
 void configGpio() {
   // enable battery measuring.
@@ -546,22 +260,6 @@ void configGpio() {
 
   pinMode(DEVICE_SELECT, INPUT_PULLUP);
   digitalWrite(DEVICE_SELECT, HIGH);
-
-#ifdef SEVEN_KEY_PAD
-  pinMode(MOUSE_LEFT, INPUT_PULLUP);
-  pinMode(KEYPAD_LEFT, INPUT_PULLUP);
-  pinMode(KEYPAD_RIGHT, INPUT_PULLUP);
-  pinMode(KEYPAD_CENTER, INPUT_PULLUP);
-  pinMode(KEYPAD_UP, INPUT_PULLUP);
-  pinMode(KEYPAD_DOWN, INPUT_PULLUP);
-
-  digitalWrite(MOUSE_LEFT, HIGH);
-  digitalWrite(KEYPAD_LEFT, HIGH);
-  digitalWrite(KEYPAD_RIGHT, HIGH);
-  digitalWrite(KEYPAD_CENTER, HIGH);
-  digitalWrite(KEYPAD_UP, HIGH);
-  digitalWrite(KEYPAD_DOWN, HIGH);
-#endif
 
   digitalWrite(LED_RED, LIGHT_OFF);
   digitalWrite(LED_BLUE, LIGHT_OFF);
@@ -709,25 +407,9 @@ void setDeviceId() {
     deviceId = 1;
     setBdDAAndName((unsigned char)(addrByte3 + 0x32), (char *)"Rat1");
 
-#ifdef PIMORONI_TRACKBALL
-    // flash white twice
-    trackball.setWhite(240);
-    delay(10);
-    trackball.setWhite(0);
-    delay(500);
-    trackball.setWhite(240);
-    delay(10);
-    trackball.setWhite(0);
-#endif
   } else {
     deviceId = 0;
     setBdDAAndName(addrByte3, (char *)"Rat0");
-#ifdef PIMORONI_TRACKBALL
-    // flash white once
-    trackball.setWhite(240);
-    delay(10);
-    trackball.setWhite(0);
-#endif
   }
 }
 
@@ -755,21 +437,6 @@ void leds() {
       digitalWrite(LED_BLUE, LIGHT_OFF);
     }
   }
-
-#ifdef PIMORONI_TRACKBALL
-
-  // if (ledCount % 5000 == 0) {
-  //   if (deviceId == 0) {
-  //     trackball.setGreen(200);
-  //   } else {
-  //     trackball.setBlue(200);
-  //   }
-  // }
-  // if (ledCount % 5000 == 100) {
-  //   trackball.setGreen(0);
-  //   trackball.setBlue(0);
-  // }
-#endif
 }
 
 #define MOUSE_JITTER 1
