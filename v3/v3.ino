@@ -200,7 +200,7 @@ void scanOneClickButton(uint8_t keyIndex) {
 
 void scanClickButtons() {
 
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 5; i++) {
     scanOneClickButton(i);
   }
 }
