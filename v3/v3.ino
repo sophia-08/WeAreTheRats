@@ -131,7 +131,7 @@ uint8_t clickButtonLastState[] = {HIGH, HIGH, LOW, LOW, HIGH};
 
 uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0, 0};
 
-uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0, 0};
+// uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0, 0};
 
 void scanOneClickButton(uint8_t keyIndex) {
 
@@ -146,7 +146,7 @@ void scanOneClickButton(uint8_t keyIndex) {
     return;
   }
 
-  delay(3);
+  delay(1);
   state = digitalRead(clickButtons[keyIndex]);
   if (state == clickButtonLastState[keyIndex]) { // no change
     return;
@@ -157,7 +157,7 @@ void scanOneClickButton(uint8_t keyIndex) {
 
   switch (clickButtons[keyIndex]) {
   case MOUSE_ACTIVATE:
-    // Serial.println("switch to mouse");
+    Serial.println("switch to mouse");
 
     deviceMode = DEVICE_MOUSE_MODE;
 
@@ -166,7 +166,7 @@ void scanOneClickButton(uint8_t keyIndex) {
 
     break;
   case KEYPAD_ACTIVATE:
-    // Serial.println("switch to keyboard");
+    Serial.println("switch to keyboard");
     deviceMode = DEVICE_KEYBOARD_MODE;
     imuConfigure(deviceMode);
 
@@ -192,33 +192,14 @@ void scanOneClickButton(uint8_t keyIndex) {
         Serial.println("mouse button up");
         noModeSwitch = false;
       }
-    } else {
-      if (state == LOW) {
-        uint8_t keycodes[6] = {HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE,
-                               HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE};
-        // if (keyIndex == 1) {
-        //   // hack the backspace button for device switching
-        //   setDeviceId();
-        // } else {
-        keycodes[0] = clickButtonKeyboardCode[keyIndex];
-        blehid.keyboardReport(0, keycodes);
-        Serial.println("key button down");
-        noModeSwitch = true;
-        // }
-
-      } else {
-        blehid.keyRelease();
-        Serial.println("key button up");
-        noModeSwitch = false;
-      }
-    }
+    } 
   }
 }
 
 void scanClickButtons() {
 
 
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 3; i++) {
     scanOneClickButton(i);
   }
 
@@ -251,12 +232,14 @@ void configGpio() {
   pinMode(IMU_INT, INPUT_PULLUP);
 #endif
 
+  pinMode(MOUSE_LEFT, INPUT_PULLUP);
   pinMode(MOUSE_RIGHT, INPUT_PULLUP);
-  pinMode(MOUSE_ACTIVATE, INPUT_PULLUP);
-  pinMode(KEYPAD_ACTIVATE, INPUT_PULLUP);
+  pinMode(MOUSE_ACTIVATE, INPUT_PULLDOWN);
+  pinMode(KEYPAD_ACTIVATE, INPUT_PULLDOWN);
   digitalWrite(KEYPAD_ACTIVATE, HIGH);
   digitalWrite(MOUSE_ACTIVATE, HIGH);
   digitalWrite(MOUSE_RIGHT, HIGH);
+  digitalWrite(MOUSE_LEFT, HIGH);
 
   pinMode(DEVICE_SELECT, INPUT_PULLUP);
   digitalWrite(DEVICE_SELECT, HIGH);
