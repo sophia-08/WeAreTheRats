@@ -1,22 +1,22 @@
 #include "local_constants.h"
 
 #include "battery.h"
-#include <bluefruit.h>
 #include "imu.h"
+#include <bluefruit.h>
 
 #ifdef TSFLOW
+#include "model.h"
 #include <TensorFlowLite.h>
 #include <tensorflow/lite/micro/all_ops_resolver.h>
 #include <tensorflow/lite/micro/micro_error_reporter.h>
 #include <tensorflow/lite/micro/micro_interpreter.h>
 #include <tensorflow/lite/schema/schema_generated.h>
-#include "model.h"
 #endif
 
 // Define your custom VID and PID
-#define VENDOR_ID 0x3333       // Replace with your Vendor ID
-#define PRODUCT_ID 0x5678      // Replace with your Product ID
-#define PRODUCT_VERSION 0x0100 // Product version
+#define VENDOR_ID 0x3333        // Replace with your Vendor ID
+#define PRODUCT_ID 0x5678       // Replace with your Product ID
+#define PRODUCT_VERSION 0x0100  // Product version
 
 #include "system.h"
 void setBdDAAndName(unsigned char byte3, char *name);
@@ -125,30 +125,29 @@ void loop() {
   }
 }
 
-uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
-                          KEYPAD_ACTIVATE, DEVICE_SELECT};
-uint8_t clickButtonLastState[] = {HIGH, HIGH, LOW, LOW, HIGH};
+uint8_t clickButtons[] = { MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
+                           KEYPAD_ACTIVATE, DEVICE_SELECT };
+uint8_t clickButtonLastState[] = { HIGH, HIGH, LOW, LOW, HIGH };
 
-uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0, 0};
+uint8_t clickButtonCode[] = { MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0, 0 };
 
-// uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0, 0};
+// uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0,
+// 0};
 
 void scanOneClickButton(uint8_t keyIndex) {
 
   // Do not switch mode or device in cases 1) mouse button pressed 2) keypressed
-  if (noModeSwitch && (clickButtons[keyIndex] == MOUSE_ACTIVATE ||
-                       clickButtons[keyIndex] == KEYPAD_ACTIVATE ||
-                       clickButtons[keyIndex] == DEVICE_SELECT))
+  if (noModeSwitch && (clickButtons[keyIndex] == MOUSE_ACTIVATE || clickButtons[keyIndex] == KEYPAD_ACTIVATE || clickButtons[keyIndex] == DEVICE_SELECT))
     return;
 
   uint8_t state = digitalRead(clickButtons[keyIndex]);
-  if (state == clickButtonLastState[keyIndex]) { // no change
+  if (state == clickButtonLastState[keyIndex]) {  // no change
     return;
   }
 
   delay(1);
   state = digitalRead(clickButtons[keyIndex]);
-  if (state == clickButtonLastState[keyIndex]) { // no change
+  if (state == clickButtonLastState[keyIndex]) {  // no change
     return;
   }
 
@@ -156,55 +155,52 @@ void scanOneClickButton(uint8_t keyIndex) {
   clickButtonLastState[keyIndex] = state;
 
   switch (clickButtons[keyIndex]) {
-  case MOUSE_ACTIVATE:
-    Serial.println("switch to mouse");
+    case MOUSE_ACTIVATE:
+      Serial.println("switch to mouse");
 
-    deviceMode = DEVICE_MOUSE_MODE;
+      deviceMode = DEVICE_MOUSE_MODE;
 
-    // todo only reconfig when these is a real mode change. needed for bno085
-    imuConfigure(deviceMode);
+      // todo only reconfig when these is a real mode change. needed for bno085
+      imuConfigure(deviceMode);
 
-    break;
-  case KEYPAD_ACTIVATE:
-    Serial.println("switch to keyboard");
-    deviceMode = DEVICE_KEYBOARD_MODE;
-    imuConfigure(deviceMode);
+      break;
+    case KEYPAD_ACTIVATE:
+      Serial.println("switch to keyboard");
+      deviceMode = DEVICE_KEYBOARD_MODE;
+      imuConfigure(deviceMode);
 
-    break;
-  case DEVICE_SELECT:
-    if (state == LOW) {
-      setDeviceId();
-    }
-    break;
-  default:
-    if (deviceMode == DEVICE_MOUSE_MODE) {
+      break;
+    case DEVICE_SELECT:
       if (state == LOW) {
-        // if (keyIndex == 1) {
-        //   // hack the backspace button for device switching
-        //   setDeviceId();
-        // } else {
-        blehid.mouseButtonPress(clickButtonCode[keyIndex]);
-        Serial.println("mouse button down");
-        noModeSwitch = true;
-        // }
-      } else {
-        blehid.mouseButtonRelease();
-        Serial.println("mouse button up");
-        noModeSwitch = false;
+        setDeviceId();
       }
-    } 
+      break;
+    default:
+      if (deviceMode == DEVICE_MOUSE_MODE) {
+        if (state == LOW) {
+          // if (keyIndex == 1) {
+          //   // hack the backspace button for device switching
+          //   setDeviceId();
+          // } else {
+          blehid.mouseButtonPress(clickButtonCode[keyIndex]);
+          Serial.println("mouse button down");
+          noModeSwitch = true;
+          // }
+        } else {
+          blehid.mouseButtonRelease();
+          Serial.println("mouse button up");
+          noModeSwitch = false;
+        }
+      }
   }
 }
 
 void scanClickButtons() {
 
-
   for (int i = 0; i < 3; i++) {
     scanOneClickButton(i);
   }
-
 }
-
 
 void configGpio() {
   // enable battery measuring.
@@ -260,8 +256,8 @@ void loadTFLiteModel() {
 
   // Create an interpreter to run the model
   tflInterpreter =
-      new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena,
-                                   tensorArenaSize, &tflErrorReporter);
+    new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena,
+                                 tensorArenaSize, &tflErrorReporter);
 
   // Allocate memory for the model's input and output tensors
   if (tflInterpreter->AllocateTensors() != kTfLiteOk) {
@@ -299,9 +295,9 @@ void startAdv(void) {
    * https://developer.apple.com/library/content/qa/qa1931/_index.html
    */
   Bluefruit.Advertising.restartOnDisconnect(true);
-  Bluefruit.Advertising.setInterval(32, 244); // in unit of 0.625 ms
-  Bluefruit.Advertising.setFastTimeout(30);   // number of seconds in fast mode
-  Bluefruit.Advertising.start(0); // 0 = Don't stop advertising after n seconds
+  Bluefruit.Advertising.setInterval(32, 244);  // in unit of 0.625 ms
+  Bluefruit.Advertising.setFastTimeout(30);    // number of seconds in fast mode
+  Bluefruit.Advertising.start(0);              // 0 = Don't stop advertising after n seconds
 }
 void initAndStartBLE() {
 
@@ -312,7 +308,7 @@ void initAndStartBLE() {
   Bluefruit.Periph.setConnInterval(9, 16);
   // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
 
-  Bluefruit.setTxPower(4); // Check bluefruit.h for supported values
+  Bluefruit.setTxPower(4);  // Check bluefruit.h for supported values
   Bluefruit.setName("Rat0");
 
   // Configure and Start Device Information Service
@@ -321,14 +317,14 @@ void initAndStartBLE() {
 
   // Set PnP ID (includes VID, PID, and version)
   uint8_t pnp_id[7];
-  pnp_id[0] = 0x01; // Vendor ID source: 0x01 = Bluetooth SIG, 0x02 = USB
-                    // Implementer's Forum
-  pnp_id[1] = (VENDOR_ID >> 8) & 0xFF;       // Vendor ID (high byte)
-  pnp_id[2] = VENDOR_ID & 0xFF;              // Vendor ID (low byte)
-  pnp_id[3] = (PRODUCT_ID >> 8) & 0xFF;      // Product ID (high byte)
-  pnp_id[4] = PRODUCT_ID & 0xFF;             // Product ID (low byte)
-  pnp_id[5] = (PRODUCT_VERSION >> 8) & 0xFF; // Product Version (high byte)
-  pnp_id[6] = PRODUCT_VERSION & 0xFF;        // Product Version (low byte)
+  pnp_id[0] = 0x01;                           // Vendor ID source: 0x01 = Bluetooth SIG, 0x02 = USB
+                                              // Implementer's Forum
+  pnp_id[1] = (VENDOR_ID >> 8) & 0xFF;        // Vendor ID (high byte)
+  pnp_id[2] = VENDOR_ID & 0xFF;               // Vendor ID (low byte)
+  pnp_id[3] = (PRODUCT_ID >> 8) & 0xFF;       // Product ID (high byte)
+  pnp_id[4] = PRODUCT_ID & 0xFF;              // Product ID (low byte)
+  pnp_id[5] = (PRODUCT_VERSION >> 8) & 0xFF;  // Product Version (high byte)
+  pnp_id[6] = PRODUCT_VERSION & 0xFF;         // Product Version (low byte)
   bledis.setPNPID((const char *)pnp_id, 7);
 
   bledis.begin();

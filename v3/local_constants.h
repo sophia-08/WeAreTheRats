@@ -17,7 +17,7 @@
 // #define LED_CHARGER 23
 #define LIGHT_ON LOW
 #define LIGHT_OFF HIGH
-#define BAT_CHARGE_STATE 23 // LOW for charging, HIGH not charging
+#define BAT_CHARGE_STATE 23  // LOW for charging, HIGH not charging
 
 // VBAT_ENABLE 14
 
@@ -27,7 +27,7 @@
 #define SMOOTHING_RATIO 0.8
 #define SENSITIVITY_X 45
 #define SENSITIVITY_Y 50
-#define DEBOUNCE_DELAY 5 // ms
+#define DEBOUNCE_DELAY 5  // ms
 #define TRACKBALL_ARROW_KEY_SENSIVITY 5
 
 #define DEVICE_MOUSE_MODE 0
