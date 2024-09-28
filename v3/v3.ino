@@ -137,6 +137,7 @@ uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0, 0};
 void scanOneClickButton(uint8_t keyIndex) {
 
   // Do not switch mode or device in cases 1) mouse button pressed 2) keypressed
+  // 3)mouse movement is activated 4) keyboard is activated
   if (noModeSwitch && (clickButtons[keyIndex] == MOUSE_ACTIVATE ||
                        clickButtons[keyIndex] == KEYPAD_ACTIVATE ||
                        clickButtons[keyIndex] == DEVICE_SELECT))
@@ -159,18 +160,27 @@ void scanOneClickButton(uint8_t keyIndex) {
   switch (clickButtons[keyIndex]) {
   case MOUSE_ACTIVATE:
     if (state == HIGH) {
-      Serial.println("switch to mouse");
+      // noModeSwitch = true;
+      Serial.println("mouse on");
+
       deviceMode = DEVICE_MOUSE_MODE;
       // todo only reconfig when these is a real mode change. needed for bno085
       imuConfigure(deviceMode);
+    } else {
+      // noModeSwitch = false;
+      Serial.println("mouse off");
     }
 
     break;
   case KEYPAD_ACTIVATE:
     if (state == HIGH) {
-      Serial.println("switch to keyboard");
+      // noModeSwitch = true;
+      Serial.println("keyboard on");
       deviceMode = DEVICE_KEYBOARD_MODE;
       imuConfigure(deviceMode);
+    } else {
+      // noModeSwitch = false;
+      Serial.println("keyboard off");
     }
     break;
   case DEVICE_SELECT:
@@ -179,27 +189,19 @@ void scanOneClickButton(uint8_t keyIndex) {
     }
     break;
   default:
-    if (deviceMode == DEVICE_MOUSE_MODE) {
-      if (state == LOW) {
-        // if (keyIndex == 1) {
-        //   // hack the backspace button for device switching
-        //   setDeviceId();
-        // } else {
-        blehid.mouseButtonPress(clickButtonCode[keyIndex]);
-        Serial.println("mouse button down");
-        noModeSwitch = true;
-        // }
-      } else {
-        blehid.mouseButtonRelease();
-        Serial.println("mouse button up");
-        noModeSwitch = false;
-      }
+    if (state == LOW) {
+      noModeSwitch = true;
+      blehid.mouseButtonPress(clickButtonCode[keyIndex]);
+      Serial.println("mouse button down");
+    } else {
+      blehid.mouseButtonRelease();
+      Serial.println("mouse button up");
+      noModeSwitch = false;
     }
   }
 }
 
 void scanClickButtons() {
-
   for (int i = 0; i < 5; i++) {
     scanOneClickButton(i);
   }
