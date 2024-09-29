@@ -37,8 +37,10 @@ unsigned addrByte3;
 extern bool newData;
 
 // buffer to read samples into, each sample is 16-bits
-short pdmBuffer[4000];
+short pdmBuffer[4 * 16 * 1000];
 int32_t mic;
+int32_t pdmReaden;
+bool pdmReady = false;
 // number of samples read
 volatile int pdmRead;
 
@@ -96,9 +98,9 @@ void setup() {
   // initialize PDM with:
   // - one channel (mono mode)
   // - a 16 kHz sample rate
-  if (!PDM.begin(1, 16000)) {
-    Serial.println("Failed to start PDM!");
-  }
+  // if (!PDM.begin(1, 16000)) {
+  //   Serial.println("Failed to start PDM!");
+  // }
 
   // calibrateIMU(250, 250);
 }
@@ -136,17 +138,22 @@ void loop() {
 
   imuReadAndUpdateXYAngle();
 
-  if (deviceMode == DEVICE_MOUSE_MODE) {
+  switch (deviceMode) {
+  case DEVICE_MOUSE_MODE:
     processMouse();
-  } else {
+    break;
+  case DEVICE_KEYBOARD_MODE:
     processKeyboard();
-  }
-
-  if (deviceMode == DEVICE_VOICE_MODE) {
+    break;
+  case DEVICE_VOICE_MODE: 
     pdmRead = 0;
-    mic = getPDMwave(4000);
-    Serial.print("Mic: ");
-    Serial.println(mic);
+    pdmReaden = 0;
+    if (pdmReady) {
+      mic = getPDMwave(4000);
+      Serial.print("Mic: ");
+      Serial.println(mic);
+    }
+   break;
   }
 }
 
@@ -214,9 +221,16 @@ void scanOneClickButton(uint8_t keyIndex) {
       Serial.println("voice on");
       deviceMode = DEVICE_VOICE_MODE;
       noModeSwitch = true;
+      if (!PDM.begin(1, 16000)) {
+        Serial.println("Failed to start PDM!");
+      } else {
+        pdmReady = true;
+      }
     } else {
       Serial.println("voice off");
       noModeSwitch = false;
+      PDM.end();
+      pdmReady = false;
     }
     break;
   default:
@@ -586,6 +600,8 @@ void onPDMdata() {
 
   // 16-bit, 2 bytes per sample
   pdmRead = bytesAvailable / 2;
+
+  Serial.println(pdmRead);
 }
 
 int32_t getPDMwave(int32_t samples) {
