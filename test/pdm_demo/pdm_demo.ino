@@ -16,6 +16,7 @@ int32_t mic;
 
 // number of samples read
 volatile int samplesRead;
+bool pdmReady = false;
 
 void setup() {
   Serial.begin(9600);
@@ -38,6 +39,8 @@ void setup() {
   }
 }
 
+int i = 0;
+
 void loop() {
   // wait for samples to be read
   //   if (samplesRead) {
@@ -49,10 +52,33 @@ void loop() {
   //     samplesRead = 0;
   //   }
   samplesRead = 0;
-  mic = getPDMwave(4000);
+  if (pdmReady) {
+    mic = getPDMwave(4000);
+    Serial.print("Mic: ");
+    Serial.println(mic);
+  }
 
-  Serial.print("Mic: ");
-  Serial.println(mic);
+
+
+
+  i++;
+  if (i == 10) {
+    Serial.println("end");
+    PDM.end();
+    pdmReady = false;
+  }
+  delay(10);
+  if (i == 20) {
+    Serial.println("restart");
+    if (!PDM.begin(1, 16000)) {
+      Serial.println("Failed to start PDM!");
+      while (1)
+        yield();
+    } else {
+      pdmReady = true;
+      i = 0;
+    }
+  }
 
   // while(1);
 }
