@@ -3,6 +3,7 @@
 #include "battery.h"
 #include "imu.h"
 #include <bluefruit.h>
+#include <PDM.h>
 
 #ifdef TSFLOW
 #include "model.h"
@@ -34,6 +35,12 @@ int deviceId = 0;
 unsigned addrByte3;
 
 extern bool newData;
+
+// buffer to read samples into, each sample is 16-bits
+short pdmBuffer[4000];
+int32_t mic;
+// number of samples read
+volatile int pdmRead;
 
 #ifdef TSFLOW
 // global variables used for TensorFlow Lite (Micro)
@@ -82,6 +89,17 @@ void setup() {
 
   imuInit(deviceMode);
 
+  // configure the data receive callback
+  PDM.onReceive(onPDMdata);
+  // optionally set the gain, defaults to 20
+  // PDM.setGain(30);
+  // initialize PDM with:
+  // - one channel (mono mode)
+  // - a 16 kHz sample rate
+  if (!PDM.begin(1, 16000)) {
+    Serial.println("Failed to start PDM!");
+  }    
+
   // calibrateIMU(250, 250);
 }
 
@@ -123,6 +141,11 @@ void loop() {
   } else {
     processKeyboard();
   }
+
+  pdmRead = 0;
+  mic = getPDMwave(4000);
+  Serial.print("Mic: ");
+  Serial.println(mic);
 }
 
 uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
@@ -130,9 +153,6 @@ uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
 uint8_t clickButtonLastState[] = {HIGH, HIGH, LOW, LOW, HIGH};
 
 uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0, 0};
-
-// uint8_t clickButtonKeyboardCode[] = {HID_KEY_ENTER, HID_KEY_BACKSPACE, 0, 0,
-// 0};
 
 void scanOneClickButton(uint8_t keyIndex) {
 
@@ -471,8 +491,8 @@ extern char buf[32][32];
 void processKeyboard() {
 
   // Device in Keyboard mode
-
-#ifdef IMU_LSM6DS3
+  
+#ifdef TSFLOW
   // Capture has not started, ignore until user activate keypad
   if (!startedChar) {
     if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
@@ -483,7 +503,7 @@ void processKeyboard() {
       imuStartSave(true);
     }
   }
-#ifdef TSFLOW
+
   if (startedChar) {
     // User deactivated keypad
     if (digitalRead(KEYPAD_ACTIVATE) == LOW) {
@@ -502,9 +522,6 @@ void processKeyboard() {
       };
     }
   }
-#endif
-
-  // return;
 #endif
 
 #ifdef TSFLOW
@@ -547,4 +564,37 @@ void processKeyboard() {
     }
   }
 #endif
+}
+
+
+
+void onPDMdata() {
+  // query the number of bytes available
+  int bytesAvailable = PDM.available();
+
+  // read into the sample buffer
+  PDM.read(pdmBuffer, bytesAvailable);
+
+  // 16-bit, 2 bytes per sample
+  pdmRead = bytesAvailable / 2;
+}
+
+int32_t getPDMwave(int32_t samples) {
+  short minwave = 30000;
+  short maxwave = -30000;
+
+  while (samples > 0) {
+    if (!pdmRead) {
+      yield();
+      continue;
+    }
+    for (int i = 0; i < pdmRead; i++) {
+      minwave = min(pdmBuffer[i], minwave);
+      maxwave = max(pdmBuffer[i], maxwave);
+      samples--;
+    }
+    // clear the read count
+    pdmRead = 0;
+  }
+  return maxwave - minwave;
 }
