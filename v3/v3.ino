@@ -147,15 +147,14 @@ void loop() {
   case DEVICE_KEYBOARD_MODE:
     processKeyboard();
     break;
-  case DEVICE_VOICE_MODE: 
+  case DEVICE_VOICE_MODE:
     // pdmRead = 0;
-    
     // if (pdmReady) {
     //   mic = getPDMwave(4000);
     //   Serial.print("Mic: ");
     //   Serial.println(mic);
     // }
-   break;
+    break;
   }
 }
 
@@ -223,7 +222,7 @@ void scanOneClickButton(uint8_t keyIndex) {
       Serial.println("voice on");
       savedDeviceMode = deviceMode;
       deviceMode = DEVICE_VOICE_MODE;
-      pdmIndex = 0; 
+      pdmIndex = 0;
       noModeSwitch = true;
       if (!PDM.begin(1, 16000)) {
         Serial.println("Failed to start PDM!");
@@ -234,8 +233,9 @@ void scanOneClickButton(uint8_t keyIndex) {
       Serial.println("voice off");
       deviceMode = savedDeviceMode;
       noModeSwitch = false;
-      PDM.end();
       pdmReady = false;
+      PDM.end();
+      sendVoiceDataToHost();
     }
     break;
   default:
@@ -601,16 +601,14 @@ void onPDMdata() {
   int bytesAvailable = PDM.available();
 
   // read into the pdm buffer
-  if (pdmIndex + bytesAvailable/2 >= PDM_BUFFER_SIZE)  {
-    pdmIndex -=  bytesAvailable/2;
+  if (pdmIndex + bytesAvailable / 2 >= PDM_BUFFER_SIZE) {
+    pdmIndex -= bytesAvailable / 2;
   }
-    PDM.read(&pdmBuffer[pdmIndex], bytesAvailable);
+  PDM.read(&pdmBuffer[pdmIndex], bytesAvailable);
 
-    // 16-bit, 2 bytes per sample
-    pdmRead = bytesAvailable / 2;
-    pdmIndex += pdmRead;    
-
-
+  // 16-bit, 2 bytes per sample
+  pdmRead = bytesAvailable / 2;
+  pdmIndex += pdmRead;
 
   Serial.println(pdmIndex);
 }
@@ -634,3 +632,13 @@ void onPDMdata() {
 //   }
 //   return maxwave - minwave;
 // }
+
+void sendVoiceDataToHost() {
+  int i;
+  Serial.println("rec_ok");
+  // Serial.println(pdmIndex);
+  for (i = 0; i < pdmIndex; i++) {
+    Serial.println(pdmBuffer[i]);
+  }
+  Serial.println("fi");
+}
