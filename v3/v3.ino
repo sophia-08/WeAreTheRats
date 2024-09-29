@@ -2,8 +2,8 @@
 
 #include "battery.h"
 #include "imu.h"
-#include <bluefruit.h>
 #include <PDM.h>
+#include <bluefruit.h>
 
 #ifdef TSFLOW
 #include "model.h"
@@ -98,7 +98,7 @@ void setup() {
   // - a 16 kHz sample rate
   if (!PDM.begin(1, 16000)) {
     Serial.println("Failed to start PDM!");
-  }    
+  }
 
   // calibrateIMU(250, 250);
 }
@@ -142,10 +142,12 @@ void loop() {
     processKeyboard();
   }
 
-  pdmRead = 0;
-  mic = getPDMwave(4000);
-  Serial.print("Mic: ");
-  Serial.println(mic);
+  if (deviceMode == DEVICE_VOICE_MODE) {
+    pdmRead = 0;
+    mic = getPDMwave(4000);
+    Serial.print("Mic: ");
+    Serial.println(mic);
+  }
 }
 
 uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
@@ -159,8 +161,9 @@ void scanOneClickButton(uint8_t keyIndex) {
   // Do not switch mode or device in cases 1) mouse button pressed 2) keypressed
   // 3)mouse movement is activated 4) keyboard is activated
   if (noModeSwitch && (clickButtons[keyIndex] == MOUSE_ACTIVATE ||
-                       clickButtons[keyIndex] == KEYPAD_ACTIVATE ||
-                       clickButtons[keyIndex] == DEVICE_SELECT))
+                       clickButtons[keyIndex] == KEYPAD_ACTIVATE
+                       // ||clickButtons[keyIndex] == DEVICE_SELECT
+                       ))
     return;
 
   uint8_t state = digitalRead(clickButtons[keyIndex]);
@@ -204,8 +207,16 @@ void scanOneClickButton(uint8_t keyIndex) {
     }
     break;
   case DEVICE_SELECT:
+    // if (state == LOW) {
+    //   setDeviceId();
+    // }
     if (state == LOW) {
-      setDeviceId();
+      Serial.println("voice on");
+      deviceMode = DEVICE_VOICE_MODE;
+      noModeSwitch = true;
+    } else {
+      Serial.println("voice off");
+      noModeSwitch = false;
     }
     break;
   default:
@@ -491,7 +502,7 @@ extern char buf[32][32];
 void processKeyboard() {
 
   // Device in Keyboard mode
-  
+
 #ifdef TSFLOW
   // Capture has not started, ignore until user activate keypad
   if (!startedChar) {
@@ -565,8 +576,6 @@ void processKeyboard() {
   }
 #endif
 }
-
-
 
 void onPDMdata() {
   // query the number of bytes available
