@@ -37,9 +37,10 @@ unsigned addrByte3;
 extern bool newData;
 
 // buffer to read samples into, each sample is 16-bits
-short pdmBuffer[4 * 16 * 1000];
+#define PDM_BUFFER_SIZE (4 * 16 * 1000)
+short pdmBuffer[PDM_BUFFER_SIZE];
 int32_t mic;
-int32_t pdmReaden;
+int32_t pdmIndex = 0;
 bool pdmReady = false;
 // number of samples read
 volatile int pdmRead;
@@ -146,13 +147,13 @@ void loop() {
     processKeyboard();
     break;
   case DEVICE_VOICE_MODE: 
-    pdmRead = 0;
-    pdmReaden = 0;
-    if (pdmReady) {
-      mic = getPDMwave(4000);
-      Serial.print("Mic: ");
-      Serial.println(mic);
-    }
+    // pdmRead = 0;
+    
+    // if (pdmReady) {
+    //   mic = getPDMwave(4000);
+    //   Serial.print("Mic: ");
+    //   Serial.println(mic);
+    // }
    break;
   }
 }
@@ -220,6 +221,7 @@ void scanOneClickButton(uint8_t keyIndex) {
     if (state == LOW) {
       Serial.println("voice on");
       deviceMode = DEVICE_VOICE_MODE;
+      pdmIndex = 0; 
       noModeSwitch = true;
       if (!PDM.begin(1, 16000)) {
         Serial.println("Failed to start PDM!");
@@ -595,13 +597,19 @@ void onPDMdata() {
   // query the number of bytes available
   int bytesAvailable = PDM.available();
 
-  // read into the sample buffer
-  PDM.read(pdmBuffer, bytesAvailable);
+  // read into the pdm buffer
+  if (pdmIndex + bytesAvailable/2 >= PDM_BUFFER_SIZE)  {
+    pdmIndex -=  bytesAvailable/2;
+  }
+    PDM.read(&pdmBuffer[pdmIndex], bytesAvailable);
 
-  // 16-bit, 2 bytes per sample
-  pdmRead = bytesAvailable / 2;
+    // 16-bit, 2 bytes per sample
+    pdmRead = bytesAvailable / 2;
+    pdmIndex += pdmRead;    
 
-  Serial.println(pdmRead);
+
+
+  Serial.println(pdmIndex);
 }
 
 int32_t getPDMwave(int32_t samples) {
