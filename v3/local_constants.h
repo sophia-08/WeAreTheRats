@@ -6,6 +6,9 @@
 #define BUTTON2 D4
 #define BUTTON3 D7
 
+#define TP1 D5
+#define TP2 D6
+
 #define MOUSE_RIGHT BUTTON1
 #define MOUSE_LEFT BUTTON3
 // #define MOUSE_MIDDLE BUTTON2
