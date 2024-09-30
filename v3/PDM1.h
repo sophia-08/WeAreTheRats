@@ -25,13 +25,13 @@
 
 #include <Arduino.h>
 #include <Adafruit_TinyUSB.h> // for Serial
-#include "PDMDoubleBuffer.h"
+#include "PDMDoubleBuffer1.h"
 
-class PDMClass
+class PDMClass1
 {
 public:
-  PDMClass(int dataPin, int clkPin, int pwrPin);
-  virtual ~PDMClass();
+  PDMClass1(int dataPin, int clkPin, int pwrPin);
+  virtual ~PDMClass1();
 
   void setPins(int dataPin, int clkPin, int pwrPin);
   int begin(int channels, long sampleRate);
@@ -60,6 +60,6 @@ private:
   void (*_onReceive)(void);
 };
 
-extern PDMClass PDM;
+extern PDMClass1 PDM1;
 
 #endif

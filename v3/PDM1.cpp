@@ -20,7 +20,7 @@
   Boston, MA  02111-1307  USA
 */
 
-#include "PDM.h"
+#include "PDM1.h"
 #include <hal/nrf_pdm.h>
 
 #include <Adafruit_TinyUSB.h> // for Serial
@@ -34,7 +34,7 @@
 #define NRF_PDM_FREQ_3200K  (nrf_pdm_freq_t)(0x19000000UL)               ///< PDM_CLK= 3.200 MHz (32 MHz / 10) => Fs= 50000 Hz
 #define NRF_PDM_FREQ_4000K  (nrf_pdm_freq_t)(0x20000000UL)               ///< PDM_CLK= 4.000 MHz (32 MHz /  8) => Fs= 62500 Hz
 
-PDMClass::PDMClass(int dinPin, int clkPin, int pwrPin) :
+PDMClass1::PDMClass1(int dinPin, int clkPin, int pwrPin) :
   _dinPin(dinPin),
   _clkPin(clkPin),
   _pwrPin(pwrPin),
@@ -42,18 +42,18 @@ PDMClass::PDMClass(int dinPin, int clkPin, int pwrPin) :
 {
 }
 
-PDMClass::~PDMClass()
+PDMClass1::~PDMClass1()
 {
 }
 
-void PDMClass::setPins(int dataPin, int clkPin, int pwrPin)
+void PDMClass1::setPins(int dataPin, int clkPin, int pwrPin)
 {
   _dinPin = dataPin;
   _clkPin = clkPin;
   _pwrPin = pwrPin;
 }
 
-int PDMClass::begin(int channels, long sampleRate)
+int PDMClass1::begin(int channels, long sampleRate)
 {
   _channels = channels;
 
@@ -153,7 +153,7 @@ int PDMClass::begin(int channels, long sampleRate)
   return 1;
 }
 
-void PDMClass::end()
+void PDMClass1::end()
 {
   // disable PDM and IRQ
   nrf_pdm_disable(NRF_PDM);
@@ -174,7 +174,7 @@ void PDMClass::end()
   pinMode(_clkPin, INPUT);
 }
 
-int PDMClass::available()
+int PDMClass1::available()
 {
   NVIC_DisableIRQ(PDM_IRQn);
 
@@ -185,7 +185,7 @@ int PDMClass::available()
   return avail;
 }
 
-int PDMClass::read(void* buffer, size_t size)
+int PDMClass1::read(void* buffer, size_t size)
 {
   NVIC_DisableIRQ(PDM_IRQn);
 
@@ -196,22 +196,22 @@ int PDMClass::read(void* buffer, size_t size)
   return read;
 }
 
-void PDMClass::onReceive(void(*function)(void))
+void PDMClass1::onReceive(void(*function)(void))
 {
   _onReceive = function;
 }
 
-void PDMClass::setGain(int gain)
+void PDMClass1::setGain(int gain)
 {
   nrf_pdm_gain_set(NRF_PDM, gain, gain);
 }
 
-void PDMClass::setBufferSize(int bufferSize)
+void PDMClass1::setBufferSize(int bufferSize)
 {
   _doubleBuffer.setSize(bufferSize);
 }
 
-void PDMClass::IrqHandler()
+void PDMClass1::IrqHandler()
 {
   if (nrf_pdm_event_check(NRF_PDM, NRF_PDM_EVENT_STARTED)) {
     nrf_pdm_event_clear(NRF_PDM, NRF_PDM_EVENT_STARTED);
@@ -242,7 +242,7 @@ extern "C"
 {
   void PDM_IRQHandler(void)
   {
-    PDM.IrqHandler();
+    PDM1.IrqHandler();
   }
 }
 
@@ -258,4 +258,4 @@ extern "C"
 #define PIN_PDM_PWR -1
 #endif
 
-PDMClass PDM(PIN_PDM_DIN, PIN_PDM_CLK, PIN_PDM_PWR);
+PDMClass1 PDM1(PIN_PDM_DIN, PIN_PDM_CLK, PIN_PDM_PWR);

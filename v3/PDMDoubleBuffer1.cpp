@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "PDMDoubleBuffer.h"
+#include "PDMDoubleBuffer1.h"
 
 PDMDoubleBuffer::PDMDoubleBuffer() :
   _size(DEFAULT_PDM_BUFFER_SIZE)
