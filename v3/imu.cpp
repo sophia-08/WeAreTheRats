@@ -43,7 +43,6 @@ int imuReadAndUpdateXYAngle() {
   // printOrientation();
   xAngle = Orientation[0];
   yAngle = -Orientation[2];
-if
   if (bWrite) {
     writeTrajectory[writeIndex][0] = xAngle;
     writeTrajectory[writeIndex][1] = yAngle;

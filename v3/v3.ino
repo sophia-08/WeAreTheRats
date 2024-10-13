@@ -1,6 +1,7 @@
 #include "local_constants.h"
 
 #include "PDM1.h"
+#include "BLEhidAdafruit1.h"
 #include "battery.h"
 #include "imu.h"
 #include <bluefruit.h>
@@ -30,7 +31,7 @@ bool noModeSwitch = false;
 int deviceMode;
 int savedDeviceMode;
 BLEDis bledis;
-BLEHidAdafruit blehid;
+BLEHidAdafruit1 blehid;
 
 int deviceId = 0;
 unsigned addrByte3;
