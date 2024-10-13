@@ -47,7 +47,7 @@ int pdmSkip;
 // number of samples read
 volatile int pdmRead;
 
-int tp1=0, tp2=0;
+int tp1 = 0, tp2 = 0;
 #ifdef TSFLOW
 // global variables used for TensorFlow Lite (Micro)
 tflite::MicroErrorReporter tflErrorReporter;
@@ -617,7 +617,7 @@ void onPDMdata() {
     return;
   }
 
-   toggleTp1();
+  toggleTp1();
   // read into the pdm buffer
   if (pdmIndex + bytesAvailable / 2 >= PDM_BUFFER_SIZE) {
     pdmIndex -= bytesAvailable / 2;
@@ -635,7 +635,7 @@ void toggleTp1() {
   if (tp1) {
     tp1 = 0;
     digitalWrite(TP1, LOW);
-  }else{
+  } else {
     tp1 = 1;
     digitalWrite(TP1, HIGH);
   }
