@@ -641,26 +641,6 @@ void toggleTp1() {
   }
 }
 
-// int32_t getPDMwave(int32_t samples) {
-//   short minwave = 30000;
-//   short maxwave = -30000;
-
-//   while (samples > 0) {
-//     if (!pdmRead) {
-//       yield();
-//       continue;
-//     }
-//     for (int i = 0; i < pdmRead; i++) {
-//       minwave = min(pdmBuffer[i], minwave);
-//       maxwave = max(pdmBuffer[i], maxwave);
-//       samples--;
-//     }
-//     // clear the read count
-//     pdmRead = 0;
-//   }
-//   return maxwave - minwave;
-// }
-
 void sendVoiceDataToHost() {
   int i;
   Serial.println("rec_ok");
