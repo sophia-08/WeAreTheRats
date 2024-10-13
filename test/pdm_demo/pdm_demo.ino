@@ -8,7 +8,7 @@
   This example code is in the public domain.
 */
 
-#include <PDM.h>
+#include "PDM.h"
 
 // buffer to read samples into, each sample is 16-bits
 short sampleBuffer[4000];
