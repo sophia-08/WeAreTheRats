@@ -1,10 +1,10 @@
 #include "local_constants.h"
 
+#include "PDM1.h"
 #include "battery.h"
 #include "imu.h"
-#include <PDM.h>
 #include <bluefruit.h>
-
+#include <microlzw.h>
 #ifdef TSFLOW
 #include "model.h"
 #include <TensorFlowLite.h>
@@ -43,9 +43,11 @@ short pdmBuffer[PDM_BUFFER_SIZE];
 int32_t mic;
 int32_t pdmIndex = 0;
 bool pdmReady = false;
+int pdmSkip;
 // number of samples read
 volatile int pdmRead;
 
+int tp1=0, tp2=0;
 #ifdef TSFLOW
 // global variables used for TensorFlow Lite (Micro)
 tflite::MicroErrorReporter tflErrorReporter;
@@ -76,13 +78,15 @@ void setup() {
   configGpio();
   Serial.begin(115200);
   int i = 0;
-  // while (!Serial) {
-  //   digitalWrite(LED_RED, LIGHT_ON);
-  //   delay(10);
-  //   // if (++i > 1000) {
-  //   //   break;
-  //   // }
-  // }
+  while (!Serial) {
+    digitalWrite(LED_RED, LIGHT_ON);
+    delay(10);
+    digitalWrite(LED_RED, LIGHT_OFF);
+    delay(200);
+    // if (++i > 1000) {
+    //   break;
+    // }
+  }
   digitalWrite(LED_RED, LIGHT_OFF);
 
 #ifdef TSFLOW
@@ -94,13 +98,13 @@ void setup() {
   imuInit(deviceMode);
 
   // configure the data receive callback
-  PDM.onReceive(onPDMdata);
+  PDM1.onReceive(onPDMdata);
   // optionally set the gain, defaults to 20
-  // PDM.setGain(30);
-  // initialize PDM with:
+  // PDM1.setGain(30);
+  // initialize PDM1 with:
   // - one channel (mono mode)
   // - a 16 kHz sample rate
-  // if (!PDM.begin(1, 16000)) {
+  // if (!PDM1.begin(1, 16000)) {
   //   Serial.println("Failed to start PDM!");
   // }
 
@@ -224,17 +228,19 @@ void scanOneClickButton(uint8_t keyIndex) {
       deviceMode = DEVICE_VOICE_MODE;
       pdmIndex = 0;
       noModeSwitch = true;
-      if (!PDM.begin(1, 16000)) {
+      if (!PDM1.begin(1, 16000)) {
         Serial.println("Failed to start PDM!");
       } else {
         pdmReady = true;
+        pdmSkip = 10;
       }
     } else {
-      Serial.println("voice off");
+      Serial.print("voice off ");
+      Serial.println(pdmIndex);
       deviceMode = savedDeviceMode;
       noModeSwitch = false;
       pdmReady = false;
-      PDM.end();
+      PDM1.end();
       sendVoiceDataToHost();
     }
     break;
@@ -274,6 +280,8 @@ void configGpio() {
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
 
+  pinMode(TP1, OUTPUT);
+  pinMode(TP2, OUTPUT);
   // Mystery of why !Serial not ready:
   // The "Serial" is always valid for an Arduino Uno, therefor that piece of
   // code does not wait. In the Leonardo, the "Serial" could be zero, if the
@@ -298,6 +306,9 @@ void configGpio() {
   digitalWrite(LED_RED, LIGHT_OFF);
   digitalWrite(LED_BLUE, LIGHT_OFF);
   digitalWrite(LED_GREEN, LIGHT_OFF);
+
+  digitalWrite(TP1, LOW);
+  digitalWrite(TP2, LOW);
 }
 
 #ifdef TSFLOW
@@ -598,19 +609,36 @@ void processKeyboard() {
 
 void onPDMdata() {
   // query the number of bytes available
-  int bytesAvailable = PDM.available();
+  int bytesAvailable = PDM1.available();
 
+  if (pdmSkip) {
+    PDM1.read(&pdmBuffer[pdmIndex], bytesAvailable);
+    pdmSkip--;
+    return;
+  }
+
+   toggleTp1();
   // read into the pdm buffer
   if (pdmIndex + bytesAvailable / 2 >= PDM_BUFFER_SIZE) {
     pdmIndex -= bytesAvailable / 2;
   }
-  PDM.read(&pdmBuffer[pdmIndex], bytesAvailable);
+  PDM1.read(&pdmBuffer[pdmIndex], bytesAvailable);
 
   // 16-bit, 2 bytes per sample
   pdmRead = bytesAvailable / 2;
   pdmIndex += pdmRead;
 
-  Serial.println(pdmIndex);
+  // Serial.println(pdmIndex);
+}
+
+void toggleTp1() {
+  if (tp1) {
+    tp1 = 0;
+    digitalWrite(TP1, LOW);
+  }else{
+    tp1 = 1;
+    digitalWrite(TP1, HIGH);
+  }
 }
 
 // int32_t getPDMwave(int32_t samples) {
@@ -636,7 +664,6 @@ void onPDMdata() {
 void sendVoiceDataToHost() {
   int i;
   Serial.println("rec_ok");
-  // Serial.println(pdmIndex);
   for (i = 0; i < pdmIndex; i++) {
     Serial.println(pdmBuffer[i]);
   }
