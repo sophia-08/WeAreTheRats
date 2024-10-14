@@ -16,8 +16,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef _PDM_H_INCLUDED
-#define _PDM_H_INCLUDED
+#ifndef _PDM1_H_INCLUDED
+#define _PDM1_H_INCLUDED
 
 #if !defined(ARDUINO_NRF52_ADAFRUIT)
 #error "This library targets only Adafruit NRF52840 boards"
@@ -55,7 +55,7 @@ private:
 
   int _channels;
   
-  PDMDoubleBuffer _doubleBuffer;
+  PDMDoubleBuffer1 _doubleBuffer;
   
   void (*_onReceive)(void);
 };

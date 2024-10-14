@@ -16,19 +16,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef _PDM_DOUBLE_BUFFER_H_INCLUDED
-#define _PDM_DOUBLE_BUFFER_H_INCLUDED
+#ifndef _PDM_DOUBLE_BUFFER1_H_INCLUDED
+#define _PDM_DOUBLE_BUFFER1_H_INCLUDED
 
 #include <stddef.h>
 #include <stdint.h>
 
-#define DEFAULT_PDM_BUFFER_SIZE 512
+#define DEFAULT_PDM_BUFFER_SIZE 320
 
-class PDMDoubleBuffer
+class PDMDoubleBuffer1
 {
 public:
-  PDMDoubleBuffer();
-  virtual ~PDMDoubleBuffer();
+  PDMDoubleBuffer1();
+  virtual ~PDMDoubleBuffer1();
 
   void setSize(int size);
 
