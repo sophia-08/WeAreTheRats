@@ -26,6 +26,9 @@
 #ifndef __LC3_ATTDET_H
 #define __LC3_ATTDET_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "common.h"
 
 
@@ -40,5 +43,7 @@
 bool lc3_attdet_run(enum lc3_dt dt, enum lc3_srate sr,
     int nbytes, lc3_attdet_analysis_t *attdet, const float *x);
 
-
+#ifdef __cplusplus
+}
+#endif
 #endif /* __LC3_ATTDET_H */

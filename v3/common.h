@@ -23,7 +23,7 @@
 #ifndef __LC3_COMMON_H
 #define __LC3_COMMON_H
 
-#include <lc3.h>
+#include "lc3.h"
 
 #include <limits.h>
 #include <string.h>

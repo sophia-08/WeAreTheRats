@@ -1,7 +1,7 @@
 #include "local_constants.h"
 
-#include "PDM1.h"
 #include "BLEhidAdafruit1.h"
+#include "PDM1.h"
 #include "battery.h"
 #include "imu.h"
 #include <bluefruit.h>
@@ -14,6 +14,29 @@
 #include <tensorflow/lite/micro/micro_interpreter.h>
 #include <tensorflow/lite/schema/schema_generated.h>
 #endif
+
+#include "lc3.h"
+#include <vector>
+
+int dt_us = 10000;
+int sr_hz = 16000;
+uint16_t output_byte_count = 20;
+enum lc3_pcm_format pcm_format = LC3_PCM_FORMAT_S16;
+void *lc3_encoder_mem = nullptr;
+lc3_encoder_t lc3_encoder;
+void setup_encoder() {
+  unsigned enc_size = lc3_encoder_size(dt_us, sr_hz);
+  lc3_encoder_mem = malloc(enc_size);
+  lc3_encoder = lc3_setup_encoder(dt_us, sr_hz, 0, lc3_encoder_mem);
+}
+
+std::vector<uint8_t> encode(const int16_t *input_data) {
+
+  std::vector<uint8_t> output(output_byte_count);
+  lc3_encode(lc3_encoder, pcm_format, input_data, 1, output.size(),
+             output.data());
+  return output;
+}
 
 // Define your custom VID and PID
 #define VENDOR_ID 0x3333       // Replace with your Vendor ID
@@ -97,6 +120,8 @@ void setup() {
   initAndStartBLE();
 
   imuInit(deviceMode);
+
+  setup_encoder();
 
   // configure the data receive callback
   PDM1.onReceive(onPDMdata);
