@@ -20,23 +20,10 @@
 
 int dt_us = 10000;
 int sr_hz = 16000;
-uint16_t output_byte_count = 20;
+#define LC3_OUTPUT_SIZE 20
 enum lc3_pcm_format pcm_format = LC3_PCM_FORMAT_S16;
 void *lc3_encoder_mem = nullptr;
 lc3_encoder_t lc3_encoder;
-void setup_encoder() {
-  unsigned enc_size = lc3_encoder_size(dt_us, sr_hz);
-  lc3_encoder_mem = malloc(enc_size);
-  lc3_encoder = lc3_setup_encoder(dt_us, sr_hz, 0, lc3_encoder_mem);
-}
-
-std::vector<uint8_t> encode(const int16_t *input_data) {
-
-  std::vector<uint8_t> output(output_byte_count);
-  lc3_encode(lc3_encoder, pcm_format, input_data, 1, output.size(),
-             output.data());
-  return output;
-}
 
 // Define your custom VID and PID
 #define VENDOR_ID 0x3333       // Replace with your Vendor ID
@@ -64,6 +51,8 @@ extern bool newData;
 // buffer to read samples into, each sample is 16-bits
 #define PDM_BUFFER_SIZE (4 * 16 * 1000)
 short pdmBuffer[PDM_BUFFER_SIZE];
+uint8_t lc3Buffer[1000][LC3_OUTPUT_SIZE];
+int lc3Index = 0;
 int32_t mic;
 int32_t pdmIndex = 0;
 bool pdmReady = false;
@@ -96,6 +85,23 @@ byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 const char *GESTURES = "abcdefghijklmnopqrstuvwxyz";
 
 #define NUM_GESTURES 26
+
+void setup_encoder() {
+  unsigned enc_size = lc3_encoder_size(dt_us, sr_hz);
+  lc3_encoder_mem = malloc(enc_size);
+  lc3_encoder = lc3_setup_encoder(dt_us, sr_hz, 0, lc3_encoder_mem);
+}
+
+void lc3_encode(const int16_t *input_data) {
+
+  std::vector<uint8_t> output(LC3_OUTPUT_SIZE);
+  if (lc3Index < 1000) {
+    lc3_encoder = lc3_setup_encoder(dt_us, sr_hz, 0, lc3_encoder_mem);
+    lc3_encode(lc3_encoder, pcm_format, input_data, 1, LC3_OUTPUT_SIZE,
+               &lc3Buffer[lc3Index]);
+    lc3Index++;
+  }
+}
 
 void setup() {
   deviceMode = DEVICE_MOUSE_MODE;
@@ -253,6 +259,7 @@ void scanOneClickButton(uint8_t keyIndex) {
       savedDeviceMode = deviceMode;
       deviceMode = DEVICE_VOICE_MODE;
       pdmIndex = 0;
+      lc3Index = 0;
       noModeSwitch = true;
       if (!PDM1.begin(1, 16000)) {
         Serial.println("Failed to start PDM!");
@@ -634,8 +641,11 @@ void processKeyboard() {
 }
 
 void onPDMdata() {
+
+  digitalWrite(TP2, HIGH);
   // query the number of bytes available
   int bytesAvailable = PDM1.available();
+  // Serial.println(bytesAvailable);
 
   if (pdmSkip) {
     PDM1.read(&pdmBuffer[pdmIndex], bytesAvailable);
@@ -650,11 +660,20 @@ void onPDMdata() {
   }
   PDM1.read(&pdmBuffer[pdmIndex], bytesAvailable);
 
+  lc3_encode(&pdmBuffer[pdmIndex]);
+  // Serial.print("enc");
+  // Serial.println(lc3Index);
+  // for (int i = 0; i < 20; i++) {
+  //   Serial.println(out[i]);
+  // }
+  // Serial.println(out.size());
+
   // 16-bit, 2 bytes per sample
   pdmRead = bytesAvailable / 2;
   pdmIndex += pdmRead;
 
   // Serial.println(pdmIndex);
+  digitalWrite(TP2, LOW);
 }
 
 void toggleTp1() {
@@ -670,8 +689,13 @@ void toggleTp1() {
 void sendVoiceDataToHost() {
   int i;
   Serial.println("rec_ok");
-  for (i = 0; i < pdmIndex; i++) {
-    Serial.println(pdmBuffer[i]);
+  // for (i = 0; i < pdmIndex; i++) {
+  //   Serial.println(pdmBuffer[i]);
+  // }
+  for (i = 0; i < lc3Index; i++) {
+    for (int j = 0; j < LC3_OUTPUT_SIZE; j++) {
+      Serial.println(lc3Buffer[i][j]);
+    }
   }
   Serial.println("fi");
 }
