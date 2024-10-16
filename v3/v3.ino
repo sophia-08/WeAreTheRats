@@ -688,14 +688,16 @@ void toggleTp1() {
 
 void sendVoiceDataToHost() {
   int i;
-  Serial.println("rec_ok");
-  // for (i = 0; i < pdmIndex; i++) {
-  //   Serial.println(pdmBuffer[i]);
-  // }
+  Serial.println("pcm");
+  for (i = 0; i < pdmIndex; i++) {
+    Serial.println(pdmBuffer[i]);
+  }
+  Serial.println("pcm_end");
+  Serial.println("lc3");
   for (i = 0; i < lc3Index; i++) {
     for (int j = 0; j < LC3_OUTPUT_SIZE; j++) {
       Serial.println(lc3Buffer[i][j]);
     }
   }
-  Serial.println("fi");
+  Serial.println("lc3_end");
 }

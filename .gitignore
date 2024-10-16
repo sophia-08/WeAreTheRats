@@ -38,3 +38,4 @@ my_saved_model/
 build/
 gesture_model.tflite
 .DS_Store
+.vscode/
