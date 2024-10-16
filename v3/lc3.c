@@ -152,7 +152,7 @@ int lc3_delay_samples(int dt_us, int sr_hz)
 static void load_s16(
     struct lc3_encoder *encoder, const void *_pcm, int stride)
 {
-    const int16_t *pcm = (const int16_t *)_pcm;
+    const int16_t *pcm = _pcm;
 
     enum lc3_dt dt = encoder->dt;
     enum lc3_srate sr = encoder->sr_pcm;
@@ -171,7 +171,7 @@ static void load_s16(
 static void load_s24(
     struct lc3_encoder *encoder, const void *_pcm, int stride)
 {
-    const int32_t *pcm = (const int32_t *)_pcm;
+    const int32_t *pcm = _pcm;
 
     enum lc3_dt dt = encoder->dt;
     enum lc3_srate sr = encoder->sr_pcm;
@@ -296,7 +296,7 @@ struct lc3_encoder *lc3_setup_encoder(
     if (dt >= LC3_NUM_DT || sr_pcm >= LC3_NUM_SRATE || sr > sr_pcm || !mem)
         return NULL;
 
-    struct lc3_encoder *encoder = (struct lc3_encoder *)mem;
+    struct lc3_encoder *encoder = mem;
     int ns = LC3_NS(dt, sr_pcm);
     int nd = LC3_ND(dt, sr_pcm);
 
@@ -357,7 +357,7 @@ int lc3_encode(struct lc3_encoder *encoder, enum lc3_pcm_format fmt,
 static void store_s16(
     struct lc3_decoder *decoder, void *_pcm, int stride)
 {
-    int16_t *pcm = (int16_t *)_pcm;
+    int16_t *pcm = _pcm;
 
     enum lc3_dt dt = decoder->dt;
     enum lc3_srate sr = decoder->sr_pcm;
@@ -378,7 +378,7 @@ static void store_s16(
 static void store_s24(
     struct lc3_decoder *decoder, void *_pcm, int stride)
 {
-    int32_t *pcm = (int32_t *)_pcm;
+    int32_t *pcm = _pcm;
     const int32_t int24_max =  (1 << 23) - 1;
     const int32_t int24_min = -(1 << 23);
 
@@ -512,7 +512,7 @@ struct lc3_decoder *lc3_setup_decoder(
     if (dt >= LC3_NUM_DT || sr_pcm >= LC3_NUM_SRATE || sr > sr_pcm || !mem)
         return NULL;
 
-    struct lc3_decoder *decoder = (struct lc3_decoder *) mem;
+    struct lc3_decoder *decoder = mem;
     int nh = LC3_NH(sr_pcm);
     int ns = LC3_NS(dt, sr_pcm);
     int nd = LC3_ND(dt, sr_pcm);
