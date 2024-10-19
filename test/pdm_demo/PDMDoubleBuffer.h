@@ -22,13 +22,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define DEFAULT_PDM_BUFFER_SIZE 512
+#define DEFAULT_PDM_BUFFER_SIZE 320
 
-class PDMDoubleBuffer
+class PDMDoubleBuffer1
 {
 public:
-  PDMDoubleBuffer();
-  virtual ~PDMDoubleBuffer();
+  PDMDoubleBuffer1();
+  virtual ~PDMDoubleBuffer1();
 
   void setSize(int size);
 

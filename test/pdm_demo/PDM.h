@@ -55,7 +55,7 @@ private:
 
   int _channels;
   
-  PDMDoubleBuffer _doubleBuffer;
+  PDMDoubleBuffer1 _doubleBuffer;
   
   void (*_onReceive)(void);
 };
