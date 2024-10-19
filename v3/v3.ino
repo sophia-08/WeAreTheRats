@@ -161,7 +161,8 @@ void loop() {
   scanClickButtons();
 
   if (lc3SendIndex < lc3Index) {
-    // blehid.consumerReport((char*)lc3Buffer[lc3SendIndex], 20);
+    memset(lc3Buffer[lc3SendIndex], lc3SendIndex , 20);
+    blehid.consumerReport((char*)lc3Buffer[lc3SendIndex], 20);
 
     Serial.print("S ");
     Serial.println(lc3SendIndex);
