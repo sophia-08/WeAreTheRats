@@ -51,7 +51,7 @@ enum
 
 // Consumer Control Report Descriptor Template
 #define TUD_HID_REPORT_DESC_CONSUMER1(...) \
-  HID_USAGE_PAGE ( HID_USAGE_PAGE_CONSUMER    )              ,\
+  HID_USAGE_PAGE ( 0xfe    )              ,\
   HID_USAGE      ( HID_USAGE_CONSUMER_CONTROL )              ,\
   HID_COLLECTION ( HID_COLLECTION_APPLICATION )              ,\
     /* Report ID if any */\
