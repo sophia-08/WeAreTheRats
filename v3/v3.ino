@@ -53,6 +53,7 @@ extern bool newData;
 short pdmBuffer[PDM_BUFFER_SIZE];
 uint8_t lc3Buffer[1000][LC3_OUTPUT_SIZE];
 int lc3Index = 0;
+int lc3SendIndex = 0;
 int32_t mic;
 int32_t pdmIndex = 0;
 bool pdmReady = false;
@@ -159,6 +160,14 @@ void loop() {
   leds();
   scanClickButtons();
 
+  if (lc3SendIndex < lc3Index) {
+    // blehid.consumerReport((char*)lc3Buffer[lc3SendIndex], 20);
+
+    Serial.print("S ");
+    Serial.println(lc3SendIndex);
+    lc3SendIndex++;
+  }
+
   // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
   // For air writing, when a character is recoganized, only KEY_DOWN event is
   // sent. so I need generate a KEY_UP event. needSendKeyRelease is used for the
@@ -260,6 +269,7 @@ void scanOneClickButton(uint8_t keyIndex) {
       deviceMode = DEVICE_VOICE_MODE;
       pdmIndex = 0;
       lc3Index = 0;
+      lc3SendIndex = 0;
       noModeSwitch = true;
       if (!PDM1.begin(1, 16000)) {
         Serial.println("Failed to start PDM!");
@@ -688,6 +698,7 @@ void toggleTp1() {
 
 void sendVoiceDataToHost() {
   int i;
+  return;
   Serial.println("pcm");
   for (i = 0; i < pdmIndex; i++) {
     Serial.println(pdmBuffer[i]);
