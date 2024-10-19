@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright 2021 Google, Inc.
+ *  Copyright 2022 Google LLC
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,8 +17,6 @@
  ******************************************************************************/
 
 /**
- * LC3 - Bitstream management
- *
  * The bitstream is written by the 2 ends of the buffer :
  *
  * - Arthmetic coder put bits while increasing memory addresses
@@ -55,10 +53,6 @@
  *
  * - The procedure `lc3_check_bits()` returns indication that read has been
  *   made crossing the other bit plane.
- *
- *
- * Reference : Low Complexity Communication Codec (LC3)
- *             Bluetooth Specification v1.0
  *
  */
 
@@ -213,7 +207,7 @@ void lc3_ac_write_renorm(lc3_bits_t *bits);
 /**
  * Put a bit
  */
-static inline void lc3_put_bit(lc3_bits_t *bits, int v)
+LC3_HOT static inline void lc3_put_bit(lc3_bits_t *bits, int v)
 {
     lc3_put_bits(bits, v, 1);
 }
@@ -221,7 +215,8 @@ static inline void lc3_put_bit(lc3_bits_t *bits, int v)
 /**
  * Put from 1 to 32 bits
  */
-static inline void lc3_put_bits(struct lc3_bits *bits, unsigned v, int n)
+LC3_HOT static inline void lc3_put_bits(
+    struct lc3_bits *bits, unsigned v, int n)
 {
     struct lc3_bits_accu *accu = &bits->accu;
 
@@ -236,7 +231,7 @@ static inline void lc3_put_bits(struct lc3_bits *bits, unsigned v, int n)
 /**
  * Get a bit
  */
-static inline int lc3_get_bit(lc3_bits_t *bits)
+LC3_HOT static inline int lc3_get_bit(lc3_bits_t *bits)
 {
     return lc3_get_bits(bits, 1);
 }
@@ -244,7 +239,7 @@ static inline int lc3_get_bit(lc3_bits_t *bits)
 /**
  * Get from 1 to 32 bits
  */
-static inline unsigned lc3_get_bits(struct lc3_bits *bits, int n)
+LC3_HOT static inline unsigned lc3_get_bits(struct lc3_bits *bits, int n)
 {
     struct lc3_bits_accu *accu = &bits->accu;
 
@@ -260,7 +255,7 @@ static inline unsigned lc3_get_bits(struct lc3_bits *bits, int n)
 /**
  * Put arithmetic coder symbol
  */
-static inline void lc3_put_symbol(
+LC3_HOT static inline void lc3_put_symbol(
     struct lc3_bits *bits, const struct lc3_ac_model *model, unsigned s)
 {
     const struct lc3_ac_symbol *symbols = model->s;
@@ -280,7 +275,7 @@ static inline void lc3_put_symbol(
 /**
  * Get arithmetic coder symbol
  */
-static inline unsigned lc3_get_symbol(
+LC3_HOT static inline unsigned lc3_get_symbol(
     lc3_bits_t *bits, const struct lc3_ac_model *model)
 {
     const struct lc3_ac_symbol *symbols = model->s;

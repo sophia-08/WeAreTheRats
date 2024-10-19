@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- *  Copyright 2021 Google, Inc.
+ *  Copyright 2022 Google LLC
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-
-/**
- * LC3 - Packet Loss Concealment
- *
- * Reference : Low Complexity Communication Codec (LC3)
- *             Bluetooth Specification v1.0
- */
 
 #ifndef __LC3_PLC_H
 #define __LC3_PLC_H
