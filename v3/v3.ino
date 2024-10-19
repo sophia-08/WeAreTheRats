@@ -92,11 +92,11 @@ void setup_encoder() {
   lc3_encoder = lc3_setup_encoder(dt_us, sr_hz, 0, lc3_encoder_mem);
 }
 
-void lc3_encode(const int16_t *input_data) {
+void encode_one_frame(const int16_t *input_data) {
 
   std::vector<uint8_t> output(LC3_OUTPUT_SIZE);
   if (lc3Index < 1000) {
-    lc3_encoder = lc3_setup_encoder(dt_us, sr_hz, 0, lc3_encoder_mem);
+    // lc3_encoder = lc3_setup_encoder(dt_us, sr_hz, 0, lc3_encoder_mem);
     lc3_encode(lc3_encoder, pcm_format, input_data, 1, LC3_OUTPUT_SIZE,
                &lc3Buffer[lc3Index]);
     lc3Index++;
@@ -660,7 +660,7 @@ void onPDMdata() {
   }
   PDM1.read(&pdmBuffer[pdmIndex], bytesAvailable);
 
-  lc3_encode(&pdmBuffer[pdmIndex]);
+  encode_one_frame(&pdmBuffer[pdmIndex]);
   // Serial.print("enc");
   // Serial.println(lc3Index);
   // for (int i = 0; i < 20; i++) {
