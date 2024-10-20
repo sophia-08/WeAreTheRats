@@ -39,7 +39,7 @@
 
 // For using USB HID descriptor template
 #include <class/hid/hid_device.h>
-#define CUSTOMER_REPORT_SIZE 20
+
 
 // clang-format off
 enum
@@ -62,7 +62,7 @@ enum
     HID_USAGE_MAX_N  ( 0x03FF, 2                           ) ,\
     HID_REPORT_COUNT ( CUSTOMER_REPORT_SIZE                ) ,\
     HID_REPORT_SIZE  ( 8                                  ) ,\
-    HID_INPUT        ( HID_DATA | HID_ARRAY | HID_ABSOLUTE ) ,\
+    HID_INPUT        ( HID_DATA | HID_VARIABLE | HID_ABSOLUTE ) ,\
     HID_USAGE      ( HID_USAGE_CONSUMER_CONTROL )              ,\
     HID_REPORT_COUNT ( CUSTOMER_REPORT_SIZE                ) ,\
     HID_REPORT_SIZE  ( 8                                       ) ,\
