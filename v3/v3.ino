@@ -163,25 +163,25 @@ void loop() {
 
   if (lc3SendIndex < lc3Index) {
     // memset(lc3Buffer[lc3SendIndex], lc3SendIndex , 20);
-    blehid.consumerReport((char*)lc3Buffer[lc3SendIndex], CUSTOMER_REPORT_SIZE);
+    blehid.consumerReport((char *)lc3Buffer[lc3SendIndex],
+                          CUSTOMER_REPORT_SIZE);
     toSendEndOfStream = true;
 
     Serial.print("S ");
     Serial.println(lc3SendIndex);
     lc3SendIndex++;
     // toggleTp2() ;
-  }  else {
+  } else {
     if (toSendEndOfStream && deviceMode != DEVICE_VOICE_MODE) {
       char voiceoff[CUSTOMER_REPORT_SIZE];
       memset(voiceoff, 'f', CUSTOMER_REPORT_SIZE);
       voiceoff[0] = lc3Index & 0xff;
-      voiceoff[1] = (lc3Index>>8) & 0xff;
+      voiceoff[1] = (lc3Index >> 8) & 0xff;
       blehid.consumerReport(voiceoff, CUSTOMER_REPORT_SIZE);
-      toSendEndOfStream = false;      
+      toSendEndOfStream = false;
       // toggleTp2() ;
       // toggleTp1() ;
     }
-
   }
 
   // When a key is pressed, tow events shall be generated, KEY_UP and KEY_DOWN.
@@ -700,7 +700,7 @@ void onPDMdata() {
   pdmIndex += pdmRead;
 
   // Serial.println(pdmIndex);
-  //digitalWrite(TP2, LOW);
+  // digitalWrite(TP2, LOW);
 }
 
 void toggleTp1() {
