@@ -20,7 +20,7 @@
 
 int dt_us = 10000;
 int sr_hz = 16000;
-#define LC3_OUTPUT_SIZE 20
+
 enum lc3_pcm_format pcm_format = LC3_PCM_FORMAT_S16;
 void *lc3_encoder_mem = nullptr;
 lc3_encoder_t lc3_encoder;
@@ -95,7 +95,7 @@ void setup_encoder() {
 
 void encode_one_frame(const int16_t *input_data) {
 
-  std::vector<uint8_t> output(LC3_OUTPUT_SIZE);
+  // std::vector<uint8_t> output(LC3_OUTPUT_SIZE);
   if (lc3Index < 1000) {
     // lc3_encoder = lc3_setup_encoder(dt_us, sr_hz, 0, lc3_encoder_mem);
     lc3_encode(lc3_encoder, pcm_format, input_data, 1, LC3_OUTPUT_SIZE,
@@ -155,22 +155,42 @@ bool needSendKeyRelease = false;
 float xAngle, yAngle, lastXAngle, lastYAngle;
 int xArrow = 0, yArrow = 0;
 bool toSendEndOfStream = false;
+bool toRequestConnInterval = false;
 
 void loop() {
-
+  toggleTp1();
   leds();
   scanClickButtons();
 
-  if (lc3SendIndex < lc3Index) {
-    // memset(lc3Buffer[lc3SendIndex], lc3SendIndex , 20);
+  // Request 7.5ms connection interval after connection
+  // The host sends request too, so delay to let host request finish first
+  if (toRequestConnInterval) {
+    delay(2000);
+    // get_conn_param(Bluefruit.connHandle());
+    request_new_connection_interval(Bluefruit.connHandle());
+    toRequestConnInterval = false;
+  }
+
+  if (lc3SendIndex < lc3Index - 1) {
+#ifdef TEST_REPORT
+    static uint8_t vv = 0;
+    char vvBuffer[50];
+    for (int f = 0; f < 50; f++) {
+      vvBuffer[f] = f;
+    }
+    vv++;
+    vvBuffer[1] = vv;
+    blehid.consumerReport(vvBuffer, CUSTOMER_REPORT_SIZE);
+#else
     blehid.consumerReport((char *)lc3Buffer[lc3SendIndex],
                           CUSTOMER_REPORT_SIZE);
+#endif
     toSendEndOfStream = true;
 
     Serial.print("S ");
     Serial.println(lc3SendIndex);
-    lc3SendIndex++;
-    // toggleTp2() ;
+    lc3SendIndex += 2;
+    toggleTp2();
   } else {
     if (toSendEndOfStream && deviceMode != DEVICE_VOICE_MODE) {
       char voiceoff[CUSTOMER_REPORT_SIZE];
@@ -179,7 +199,7 @@ void loop() {
       voiceoff[1] = (lc3Index >> 8) & 0xff;
       blehid.consumerReport(voiceoff, CUSTOMER_REPORT_SIZE);
       toSendEndOfStream = false;
-      // toggleTp2() ;
+      toggleTp2();
       // toggleTp1() ;
     }
   }
@@ -424,18 +444,87 @@ void startAdv(void) {
   Bluefruit.Advertising.setInterval(32, 244); // in unit of 0.625 ms
   Bluefruit.Advertising.setFastTimeout(30);   // number of seconds in fast mode
   Bluefruit.Advertising.start(0); // 0 = Don't stop advertising after n seconds
+
+  Bluefruit.setEventCallback(on_ble_evt);
+  Bluefruit.Periph.setConnectCallback(connect_callback);
 }
+
+void on_ble_evt(ble_evt_t *p_ble_evt) {
+  if (p_ble_evt->header.evt_id == BLE_GAP_EVT_CONN_PARAM_UPDATE) {
+    // Connection parameters updated event
+    ble_gap_evt_conn_param_update_t *p_evt_conn_param_update =
+        &p_ble_evt->evt.gap_evt.params.conn_param_update;
+
+    float min_interval_ms =
+        p_evt_conn_param_update->conn_params.min_conn_interval * 1.25;
+    float max_interval_ms =
+        p_evt_conn_param_update->conn_params.max_conn_interval * 1.25;
+
+    Serial.print("Connection interval (min): ");
+    Serial.print(min_interval_ms);
+    Serial.println(" ms");
+
+    Serial.print("Connection interval (max): ");
+    Serial.print(max_interval_ms);
+    Serial.println(" ms");
+
+    // Actual connection interval is likely closer to max
+    float actual_interval_ms =
+        p_evt_conn_param_update->conn_params.max_conn_interval * 1.25;
+    Serial.print("Actual connection interval: ");
+    Serial.print(actual_interval_ms);
+    Serial.println(" ms");
+  }
+}
+
+// Callback when a connection is made
+void connect_callback(uint16_t conn_handle) { toRequestConnInterval = true; }
+
+void request_new_connection_interval(uint16_t conn_handle) {
+  ble_gap_conn_params_t gap_conn_params;
+
+  gap_conn_params.min_conn_interval = 6;
+  gap_conn_params.max_conn_interval = 7;
+  gap_conn_params.slave_latency = 0;
+  gap_conn_params.conn_sup_timeout = 10;
+
+  // Request the new connection parameters
+  uint32_t err_code =
+      sd_ble_gap_conn_param_update(conn_handle, &gap_conn_params);
+  if (err_code == NRF_SUCCESS) {
+    Serial.println("Connection interval update requested successfully.");
+  } else {
+    Serial.print("Error requesting connection interval update: ");
+    Serial.println(err_code);
+  }
+}
+
+void get_conn_param(uint16_t conn_handle) {
+  ble_gap_conn_params_t gap_conn_params;
+  uint32_t err_code = sd_ble_gap_ppcp_get(&gap_conn_params);
+  if (err_code == NRF_SUCCESS) {
+    Serial.print("Get conn param successfully. ");
+    Serial.print(gap_conn_params.min_conn_interval);
+    Serial.print(", ");
+    Serial.println(gap_conn_params.max_conn_interval);
+  } else {
+    Serial.print("Error get conn param ");
+    Serial.println(err_code);
+  }
+}
+
 void initAndStartBLE() {
 
   Bluefruit.begin();
 
   // Bluefruit.setAddr(&addr);
   // HID Device can have a min connection interval of 9*1.25 = 11.25 ms
-  Bluefruit.Periph.setConnInterval(9, 16);
+  Bluefruit.Periph.setConnInterval(6, 7);
   // min = 9*1.25=11.25 ms, max = 16*1.25=20ms
 
   Bluefruit.setTxPower(4); // Check bluefruit.h for supported values
   Bluefruit.setName("Rat0");
+  // Bluefruit.setMaxMtu(50);
 
   // Configure and Start Device Information Service
   bledis.setManufacturer("Ergo");
@@ -680,7 +769,7 @@ void onPDMdata() {
     return;
   }
 
-  toggleTp1();
+  // toggleTp1();
   // read into the pdm buffer
   if (pdmIndex + bytesAvailable / 2 >= PDM_BUFFER_SIZE) {
     pdmIndex -= bytesAvailable / 2;

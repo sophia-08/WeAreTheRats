@@ -49,3 +49,4 @@
 #endif
 
 // #define TSFLOW
+#define LC3_OUTPUT_SIZE 20   //16kbps

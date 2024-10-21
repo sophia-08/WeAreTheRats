@@ -64,7 +64,7 @@ enum
     HID_REPORT_SIZE  ( 8                                  ) ,\
     HID_INPUT        ( HID_DATA | HID_VARIABLE | HID_ABSOLUTE ) ,\
     HID_USAGE      ( HID_USAGE_CONSUMER_CONTROL )              ,\
-    HID_REPORT_COUNT ( CUSTOMER_REPORT_SIZE                ) ,\
+    HID_REPORT_COUNT ( 1                ) ,\
     HID_REPORT_SIZE  ( 8                                       ) ,\
     HID_OUTPUT       ( HID_DATA | HID_VARIABLE | HID_ABSOLUTE  ) ,\
   HID_COLLECTION_END
@@ -98,7 +98,7 @@ err_t BLEHidAdafruit1::begin(void) {
   VERIFY_STATUS(BLEHidGeneric::begin());
 
   // Attempt to change the connection interval to 11.25-15 ms when starting HID
-  Bluefruit.Periph.setConnInterval(9, 12);
+  Bluefruit.Periph.setConnInterval(6, 7);
 
   return ERROR_NONE;
 }

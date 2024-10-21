@@ -42,7 +42,7 @@
 #include "BLEHidGeneric.h"
 #include <BLEService.h>
 
-#define CUSTOMER_REPORT_SIZE 20
+#define CUSTOMER_REPORT_SIZE 40
 
 class BLEHidAdafruit1 : public BLEHidGeneric
 {
