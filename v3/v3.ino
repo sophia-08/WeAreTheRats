@@ -49,9 +49,10 @@ unsigned addrByte3;
 extern bool newData;
 
 // buffer to read samples into, each sample is 16-bits
-#define PDM_BUFFER_SIZE (4 * 16 * 1000)
+#define PDM_BUFFER_COUNT 40
+#define PDM_BUFFER_SIZE (4 * 16 * PDM_BUFFER_COUNT)
 short pdmBuffer[PDM_BUFFER_SIZE];
-uint8_t lc3Buffer[1000][LC3_OUTPUT_SIZE];
+uint8_t lc3Buffer[PDM_BUFFER_COUNT][LC3_OUTPUT_SIZE];
 int lc3Index = 0;
 int lc3SendIndex = 0;
 int32_t mic;
@@ -96,7 +97,7 @@ void setup_encoder() {
 void encode_one_frame(const int16_t *input_data) {
 
   // std::vector<uint8_t> output(LC3_OUTPUT_SIZE);
-  if (lc3Index < 1000) {
+  if (lc3Index < PDM_BUFFER_COUNT) {
     // lc3_encoder = lc3_setup_encoder(dt_us, sr_hz, 0, lc3_encoder_mem);
     lc3_encode(lc3_encoder, pcm_format, input_data, 1, LC3_OUTPUT_SIZE,
                &lc3Buffer[lc3Index]);
@@ -109,15 +110,15 @@ void setup() {
   configGpio();
   Serial.begin(115200);
   int i = 0;
-  // while (!Serial) {
-  //   digitalWrite(LED_RED, LIGHT_ON);
-  //   delay(10);
-  //   digitalWrite(LED_RED, LIGHT_OFF);
-  //   delay(200);
-  //   // if (++i > 1000) {
-  //   //   break;
-  //   // }
-  // }
+  while (!Serial) {
+    digitalWrite(LED_RED, LIGHT_ON);
+    delay(10);
+    digitalWrite(LED_RED, LIGHT_OFF);
+    delay(200);
+    // if (++i > 1000) {
+    //   break;
+    // }
+  }
   digitalWrite(LED_RED, LIGHT_OFF);
 
 #ifdef TSFLOW

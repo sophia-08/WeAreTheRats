@@ -48,5 +48,5 @@
 #define IMU_INT D0
 #endif
 
-// #define TSFLOW
+#define TSFLOW
 #define LC3_OUTPUT_SIZE 20   //16kbps
