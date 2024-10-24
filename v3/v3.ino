@@ -47,20 +47,15 @@ int deviceId = 0;
 unsigned addrByte3;
 
 extern bool newData;
-
-// buffer to read samples into, each sample is 16-bits
-#define PDM_BUFFER_COUNT 40
-#define PDM_BUFFER_SIZE (4 * 16 * PDM_BUFFER_COUNT)
-short pdmBuffer[PDM_BUFFER_SIZE];
+#define PDM_BUFFER_COUNT 8
 uint8_t lc3Buffer[PDM_BUFFER_COUNT][LC3_OUTPUT_SIZE];
 int lc3Index = 0;
 int lc3SendIndex = 0;
 int32_t mic;
-int32_t pdmIndex = 0;
+
 bool pdmReady = false;
 int pdmSkip;
-// number of samples read
-volatile int pdmRead;
+
 
 int tp1 = 0, tp2 = 0;
 #ifdef TSFLOW
@@ -97,12 +92,12 @@ void setup_encoder() {
 void encode_one_frame(const int16_t *input_data) {
 
   // std::vector<uint8_t> output(LC3_OUTPUT_SIZE);
-  if (lc3Index < PDM_BUFFER_COUNT) {
+  // if (lc3Index < PDM_BUFFER_COUNT) {
     // lc3_encoder = lc3_setup_encoder(dt_us, sr_hz, 0, lc3_encoder_mem);
     lc3_encode(lc3_encoder, pcm_format, input_data, 1, LC3_OUTPUT_SIZE,
-               &lc3Buffer[lc3Index]);
+               &lc3Buffer[lc3Index % PDM_BUFFER_COUNT]);
     lc3Index++;
-  }
+  // }
 }
 
 void setup() {
@@ -110,15 +105,15 @@ void setup() {
   configGpio();
   Serial.begin(115200);
   int i = 0;
-  while (!Serial) {
-    digitalWrite(LED_RED, LIGHT_ON);
-    delay(10);
-    digitalWrite(LED_RED, LIGHT_OFF);
-    delay(200);
-    // if (++i > 1000) {
-    //   break;
-    // }
-  }
+  // while (!Serial) {
+  //   digitalWrite(LED_RED, LIGHT_ON);
+  //   delay(10);
+  //   digitalWrite(LED_RED, LIGHT_OFF);
+  //   delay(200);
+  //   // if (++i > 1000) {
+  //   //   break;
+  //   // }
+  // }
   digitalWrite(LED_RED, LIGHT_OFF);
 
 #ifdef TSFLOW
@@ -183,7 +178,7 @@ void loop() {
     vvBuffer[1] = vv;
     blehid.consumerReport(vvBuffer, CUSTOMER_REPORT_SIZE);
 #else
-    blehid.consumerReport((char *)lc3Buffer[lc3SendIndex],
+    blehid.consumerReport((char *)lc3Buffer[lc3SendIndex % PDM_BUFFER_COUNT],
                           CUSTOMER_REPORT_SIZE);
 #endif
     toSendEndOfStream = true;
@@ -230,7 +225,6 @@ void loop() {
     processKeyboard();
     break;
   case DEVICE_VOICE_MODE:
-    // pdmRead = 0;
     // if (pdmReady) {
     //   mic = getPDMwave(4000);
     //   Serial.print("Mic: ");
@@ -304,7 +298,7 @@ void scanOneClickButton(uint8_t keyIndex) {
       Serial.println("voice on");
       savedDeviceMode = deviceMode;
       deviceMode = DEVICE_VOICE_MODE;
-      pdmIndex = 0;
+
       lc3Index = 0;
       lc3SendIndex = 0;
       noModeSwitch = true;
@@ -315,8 +309,7 @@ void scanOneClickButton(uint8_t keyIndex) {
         pdmSkip = 10;
       }
     } else {
-      Serial.print("voice off ");
-      Serial.println(pdmIndex);
+      Serial.println("voice off");
       deviceMode = savedDeviceMode;
       noModeSwitch = false;
       pdmReady = false;
@@ -763,21 +756,20 @@ void onPDMdata() {
   // query the number of bytes available
   int bytesAvailable = PDM1.available();
   // Serial.println(bytesAvailable);
+  int16_t pdmBuffer[DEFAULT_PDM_BUFFER_SIZE/2];
 
   if (pdmSkip) {
-    PDM1.read(&pdmBuffer[pdmIndex], bytesAvailable);
+    PDM1.read(pdmBuffer, bytesAvailable);
     pdmSkip--;
     return;
   }
 
   // toggleTp1();
   // read into the pdm buffer
-  if (pdmIndex + bytesAvailable / 2 >= PDM_BUFFER_SIZE) {
-    pdmIndex -= bytesAvailable / 2;
-  }
-  PDM1.read(&pdmBuffer[pdmIndex], bytesAvailable);
 
-  encode_one_frame(&pdmBuffer[pdmIndex]);
+  PDM1.read(pdmBuffer, bytesAvailable);
+
+  encode_one_frame(pdmBuffer);
   // Serial.print("enc");
   // Serial.println(lc3Index);
   // for (int i = 0; i < 20; i++) {
@@ -786,10 +778,7 @@ void onPDMdata() {
   // Serial.println(out.size());
 
   // 16-bit, 2 bytes per sample
-  pdmRead = bytesAvailable / 2;
-  pdmIndex += pdmRead;
 
-  // Serial.println(pdmIndex);
   // digitalWrite(TP2, LOW);
 }
 
@@ -816,11 +805,6 @@ void toggleTp2() {
 void sendVoiceDataToHost() {
   int i;
   return;
-  Serial.println("pcm");
-  for (i = 0; i < pdmIndex; i++) {
-    Serial.println(pdmBuffer[i]);
-  }
-  Serial.println("pcm_end");
   Serial.println("lc3");
   for (i = 0; i < lc3Index; i++) {
     for (int j = 0; j < LC3_OUTPUT_SIZE; j++) {
