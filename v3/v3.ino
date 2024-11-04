@@ -239,6 +239,8 @@ uint8_t clickButtons[] = {MOUSE_LEFT, MOUSE_RIGHT, MOUSE_ACTIVATE,
 uint8_t clickButtonLastState[] = {HIGH, HIGH, LOW, LOW, HIGH};
 
 uint8_t clickButtonCode[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, 0, 0, 0};
+uint8_t clickButtonKeyboardCode[] = {HID_KEY_ARROW_DOWN, HID_KEY_ARROW_UP, 0, 0, 0};
+
 
 void scanOneClickButton(uint8_t keyIndex) {
 
@@ -319,6 +321,7 @@ void scanOneClickButton(uint8_t keyIndex) {
     }
     break;
   default:
+  if (deviceMode == DEVICE_MOUSE_MODE) {
     if (state == LOW) {
       noModeSwitch = true;
       blehid.mouseButtonPress(clickButtonCode[keyIndex]);
@@ -328,6 +331,20 @@ void scanOneClickButton(uint8_t keyIndex) {
       Serial.println("mouse button up");
       noModeSwitch = false;
     }
+  } else if (deviceMode == DEVICE_KEYBOARD_MODE) {
+    if (state == LOW) {
+      noModeSwitch = true;
+      uint8_t keycodes[6] = {HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE,
+                             HID_KEY_NONE, HID_KEY_NONE, HID_KEY_NONE};
+      keycodes[0] = clickButtonKeyboardCode[keyIndex];
+      blehid.keyboardReport(0, keycodes);
+      Serial.println("mouse button down");
+    } else {        
+      blehid.keyRelease();
+      Serial.println("mouse button up");
+      noModeSwitch = false;
+    }
+  }
   }
 }
 
@@ -675,7 +692,7 @@ extern char buf[32][32];
 void processKeyboard() {
 
   // Device in Keyboard mode
-
+return;
 #ifdef TSFLOW
   // Capture has not started, ignore until user activate keypad
   if (!startedChar) {
